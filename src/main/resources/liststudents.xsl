@@ -15,17 +15,15 @@
   version="1.0">
   <xsl:output method="xml" indent="yes"/>
 
-  
-  
+  <xsl:variable name="u">
+    <usersfile>
+      <xsl:if test="count(/manifest/resources/resource[@type = 'course/x-bb-user']) = 1">
+        <xsl:copy-of select="document( /manifest/resources/resource[@type = 'course/x-bb-user']/@bb:file )/USERS/USER"/>
+      </xsl:if>
+    </usersfile>
+  </xsl:variable>
+    
   <xsl:template match="/">
-    <xsl:variable name="u">
-      <XXXX>
-        <xsl:if test="count(/manifest/resources/resource[@type = 'course/x-bb-user']) = 1">
-          <xsl:copy-of select="document( /manifest/resources/resource[@type = 'course/x-bb-user']/@bb:file )/USERS/USER"/>
-        </xsl:if>
-      </XXXX>
-    </xsl:variable>
-
     <xsl:text>
 </xsl:text>
     <students>
@@ -34,9 +32,12 @@
         <xsl:copy-of select="nodeset( $u )"/>
       </debug>
             -->
-      <xsl:for-each select="nodeset( $u )/XXXX/USER">
+      <xsl:for-each select="nodeset( $u )/usersfile/USER[string-length(STUDENTID/@value) = 8]">
         <item>
           <xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
+          <xsl:copy-of select="STUDENTID"/>
+          <xsl:copy-of select="NAMES"/>
+          <xsl:copy-of select="INSTITUTIONEMAIL"/>
         </item>
       </xsl:for-each>
     </students>
