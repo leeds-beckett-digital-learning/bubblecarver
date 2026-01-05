@@ -30,7 +30,7 @@
   <xsl:variable name="usersfile">
     <file>
       <xsl:if test="count(/manifest/resources/resource[@type = 'course/x-bb-user']) = 1">
-        <xsl:copy-of select="document( /manifest/resources/resource[@type = 'course/x-bb-user']/@bb:file )/USERS/USER"/>
+        <xsl:copy-of select="document( /manifest/resources/resource[@type = 'course/x-bb-user']/@bb:file )"/>
       </xsl:if>
     </file>
   </xsl:variable>
@@ -60,7 +60,7 @@
         <xsl:copy-of select="nodeset( $coursesettingfile )"/>
       </debug>
       -->
-      <xsl:for-each select="nodeset( $usersfile )/file/USER[string-length(STUDENTID/@value) = 8]">
+      <xsl:for-each select="nodeset( $usersfile )/file/USERS/USER[string-length(STUDENTID/@value) = 8]">
         <xsl:variable name="uid" select="@id"/>
         <xsl:variable name="sid" select="STUDENTID/@value"/>
         <xsl:variable name="student-file">
@@ -80,29 +80,49 @@
           <xsl:text>
 </xsl:text>
           <student sid="{$sid}" uid="{$uid}" memberid="{$memberid}">
-            <xsl:copy-of select="NAMES"/>
-            <xsl:copy-of select="INSTITUTIONEMAIL"/>
+            <USERS>
+              <USER id="{$uid}">
+                <xsl:copy-of select="NAMES"/>
+                <xsl:copy-of select="INSTITUTIONEMAIL"/>
+              </USER>
+            </USERS>
             <GRADEBOOK>
-              <OUTCOMEDEFINITIONS>
-                <xsl:for-each select="nodeset( $gradebookfile )/file/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION">
-                  <OUTCOMEDEFINITION id="{@id}">
-                    <xsl:for-each select="*">
-                      <xsl:choose>
-                        <xsl:when test="name() = 'OUTCOMES'">
-                          <OUTCOMES>
-                            <xsl:for-each select="OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/..">
-                              <xsl:copy-of select="."/>                          
-                            </xsl:for-each>
-                          </OUTCOMES>
-                        </xsl:when>
-                        <xsl:otherwise>
-                          <xsl:copy-of select="."/>
-                        </xsl:otherwise>
-                      </xsl:choose>
-                    </xsl:for-each>
-                  </OUTCOMEDEFINITION>
-                </xsl:for-each>
-              </OUTCOMEDEFINITIONS>              
+              <xsl:for-each select="nodeset( $gradebookfile )/file/GRADEBOOK/*">
+                <xsl:choose>
+                  <xsl:when test="name() = 'OUTCOMEDEFINITIONS'">
+                    <OUTCOMEDEFINITIONS>
+                      <xsl:for-each select="OUTCOMEDEFINITION">
+                        <OUTCOMEDEFINITION id="{@id}">
+                          <xsl:for-each select="*">
+                            <xsl:choose>
+                              <xsl:when test="name() = 'OUTCOMES'">
+                                <OUTCOMES>
+                                  <xsl:for-each select="OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/..">
+                                    <xsl:copy-of select="."/>                          
+                                  </xsl:for-each>
+                                </OUTCOMES>
+                              </xsl:when>
+                              <xsl:otherwise>
+                                <xsl:copy-of select="."/>
+                              </xsl:otherwise>
+                            </xsl:choose>
+                          </xsl:for-each>
+                        </OUTCOMEDEFINITION>
+                      </xsl:for-each>
+                    </OUTCOMEDEFINITIONS>
+                  </xsl:when>
+                  <xsl:when test="name() = 'GRADE_HISTORY_ENTRIES'">
+                    <GRADE_HISTORY_ENTRIES>
+                      <xsl:for-each select="GRADE_HISTORY_ENTRY/USERID[@value = $uid]/..">
+                        <xsl:copy-of select="."/>                
+                      </xsl:for-each>                      
+                    </GRADE_HISTORY_ENTRIES>
+                  </xsl:when>
+                  <xsl:otherwise>
+                    <xsl:copy-of select="."/>                    
+                  </xsl:otherwise>
+                </xsl:choose>
+              </xsl:for-each>
             </GRADEBOOK>
           </student>
         </redirect:write>
