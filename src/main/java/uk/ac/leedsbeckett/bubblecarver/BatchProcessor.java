@@ -51,7 +51,7 @@ public class BatchProcessor
   public static void main( String[] args )
   {
     Path in = new File("c:\\temp\\archives").toPath();
-    Path out = new File("c:\\temp").toPath();
+    Path out = new File("c:\\temp\\students").toPath();
     try
     {
       BatchProcessor bp = new BatchProcessor( in, out );
@@ -118,6 +118,7 @@ public class BatchProcessor
         StringBufferResult result = createStringBufferResult();
         // DOMResult result = new DOMResult();
         transformListStudents.reset();
+        transformListStudents.setParameter( "output-base-uri", studentPath.toString() );
         transformListStudents.setURIResolver( new Resolver( t ) );
         transformListStudents.transform( source, result );
         System.out.println( result.toString() );
