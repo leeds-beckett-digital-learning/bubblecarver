@@ -11,14 +11,34 @@
 <xsl:stylesheet 
   xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 
   xmlns:bb="http://www.blackboard.com/content-packaging/"
+  exclude-result-prefixes="bb"
   version="1.0">
-  <xsl:output method="xml"/>
+  <xsl:output method="xml" indent="yes"/>
 
   
   
   <xsl:template match="/">
+    <xsl:variable name="u">
+      <XXXX>
+        <xsl:if test="count(/manifest/resources/resource[@type = 'course/x-bb-user']) = 1">
+          <xsl:copy-of select="document( /manifest/resources/resource[@type = 'course/x-bb-user']/@bb:file )/USERS/USER"/>
+        </xsl:if>
+      </XXXX>
+    </xsl:variable>
+
+    <xsl:text>
+</xsl:text>
     <students>
-      <debug><xsl:value-of select="/manifest/resources/resource[@type = 'course/x-bb-user']/@bb:file"/></debug>
+      <!--
+      <debug>
+        <xsl:copy-of select="nodeset( $u )"/>
+      </debug>
+            -->
+      <xsl:for-each select="nodeset( $u )/XXXX/USER">
+        <item>
+          <xsl:attribute name="id"><xsl:value-of select="@id"/></xsl:attribute>
+        </item>
+      </xsl:for-each>
     </students>
   </xsl:template>
 

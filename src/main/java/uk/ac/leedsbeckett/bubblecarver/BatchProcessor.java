@@ -31,11 +31,13 @@ import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
+import javax.xml.transform.Source;
 import javax.xml.transform.Templates;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.URIResolver;
 import javax.xml.transform.dom.DOMResult;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
@@ -48,8 +50,8 @@ public class BatchProcessor
 {
   public static void main( String[] args )
   {
-    Path in = new File("z:\\temp_blackboard_processing").toPath();
-    Path out = new File("c:\\Temp").toPath();
+    Path in = new File("c:\\temp\\archives").toPath();
+    Path out = new File("c:\\temp").toPath();
     try
     {
       BatchProcessor bp = new BatchProcessor( in, out );
@@ -116,6 +118,7 @@ public class BatchProcessor
         StringBufferResult result = createStringBufferResult();
         // DOMResult result = new DOMResult();
         transformListStudents.reset();
+        transformListStudents.setURIResolver( new Resolver( t ) );
         transformListStudents.transform( source, result );
         System.out.println( result.toString() );
       }
@@ -161,5 +164,23 @@ public class BatchProcessor
     {
       return writer.toString();
     }
+  }
+  
+  public class Resolver implements URIResolver
+  {
+    final Path archiveBase;
+
+    public Resolver( Path archiveBase )
+    {
+      this.archiveBase = archiveBase;
+    }
+    
+    @Override
+    public Source resolve( String href, String base ) throws TransformerException
+    {
+      System.out.println( "Resolving [" + href + "], [" + base + "]" );
+      return new StreamSource( archiveBase.resolve( href ).toFile() );
+    }
+    
   }
 }
