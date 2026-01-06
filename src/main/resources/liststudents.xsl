@@ -51,11 +51,20 @@
     </file>
   </xsl:variable>
         
+  <xsl:variable name="attemptfile">
+    <file>
+      <xsl:for-each select="/manifest/resources/resource[@type = 'course/x-bb-attemptfiles']/@bb:file">
+        <xsl:copy-of select="document( . )"/>
+      </xsl:for-each>
+    </file>
+  </xsl:variable>
+        
   <xsl:template match="/">
     <xsl:text>
 </xsl:text>
     <archive-log>
       <xsl:attribute name="archive"><xsl:value-of select="nodeset( $coursesettingfile )/file/COURSE/COURSEID/@value"/></xsl:attribute>
+      <xsl:copy-of select="$attemptfile"/>
 
       <xsl:for-each select="nodeset( $usersfile )/file/USERS/USER[string-length(STUDENTID/@value) = 8]">
         <xsl:variable name="uid" select="@id"/>
@@ -85,6 +94,7 @@
               <xsl:copy-of select="$usersfile"/>
               <xsl:copy-of select="$membershipfile"/>
               <xsl:copy-of select="$gradebookfile"/>
+              <xsl:copy-of select="$attemptfile"/>
             </files>           
           </studentandfiles>
         </xsl:variable>
@@ -155,6 +165,25 @@
     <xsl:variable name="id" select="./ancestor::studentandfiles/student/@id"/>
     <xsl:choose>
       <xsl:when test="count( USERID[@value = $id] ) = 0">
+        <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:for-each select="@*">
+            <xsl:copy select="."/>
+          </xsl:for-each>
+          <xsl:apply-templates select="*" mode="redact"/>
+        </xsl:copy>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="ATTEMPTFILE" mode="redact">
+    <xsl:variable name="attemptid" select="./ATTEMPTID/@value"/>
+    <xsl:variable name="memberid" select="./ancestor::studentandfiles/student/@memberid"/>
+    <xsl:variable name="memberattempts" select="count(./ancestor::studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
+    <xsl:choose>
+      <xsl:when test="$memberattempts = 0">
         <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
       </xsl:when>
       <xsl:otherwise>
