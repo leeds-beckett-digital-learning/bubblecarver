@@ -12,69 +12,70 @@
   xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 
   xmlns:bb="http://www.blackboard.com/content-packaging/"
   xmlns:redirect="http://xml.apache.org/xalan/redirect"
+  xmlns:bbcarv="http://www.leedsbeckett.ac.uk/bubblecarver"
   extension-element-prefixes="redirect"
   exclude-result-prefixes="bb"
   version="1.0">
   <xsl:output method="xml" indent="yes"/>
 
   <xsl:param name="output-base-uri" select="'unknown path to nowhere'"/>
+
+  <!--
+      This variable lists the MIME types of all the resources from the
+      imsmanifest that we want to put in the student centred archive
+      output. They are concatenated and delimited by new lines.
+  -->
+  <xsl:variable name="types">
+    course/x-bb-coursesetting
+    course/x-bb-user
+    membership/x-bb-coursemembership
+    course/x-bb-gradebook
+    course/x-bb-attemptfiles
+    course/x-bb-attemptembeddedfiles
+  </xsl:variable>
+
+  <!--
+      This variable joins together multiple resources from the imsmanifest
+      and embeds the actual XML content from the files they reference.
+      The result is not a node set so needs further processing.
+  -->
+  <xsl:variable name="unredactedfrag">
+    <bbcarv:resources>
+      <xsl:for-each select="/manifest/resources/resource[ contains( $types, @type ) ]">
+        <bbcarv:resource type="{@type}" xml:base="{@xml:base}">
+          <bbcarv:data>
+            <xsl:copy-of select="document( ./@bb:file )"/>
+          </bbcarv:data>          
+          <xsl:for-each select="file">
+            <bbcarv:file>
+              <xsl:attribute name="href"><xsl:value-of select="@href"/></xsl:attribute>
+            </bbcarv:file>
+          </xsl:for-each>
+        </bbcarv:resource>
+      </xsl:for-each>
+    </bbcarv:resources>
+  </xsl:variable>
+
+  <!--
+      Converts the variable above into a node set.
+  -->
+  <xsl:variable name="unredacted" select="nodeset( $unredactedfrag )"/>
+                
   
-  <xsl:variable name="coursesettingfile">
-    <file>
-      <xsl:if test="count(/manifest/resources/resource[@type = 'course/x-bb-coursesetting']) = 1">
-        <xsl:copy-of select="document( /manifest/resources/resource[@type = 'course/x-bb-coursesetting']/@bb:file )"/>
-      </xsl:if>
-    </file>
-  </xsl:variable>
-    
-  <xsl:variable name="usersfile">
-    <file>
-      <xsl:if test="count(/manifest/resources/resource[@type = 'course/x-bb-user']) = 1">
-        <xsl:copy-of select="document( /manifest/resources/resource[@type = 'course/x-bb-user']/@bb:file )"/>
-      </xsl:if>
-    </file>
-  </xsl:variable>
 
-  <xsl:variable name="membershipfile">
-    <file>
-      <xsl:if test="count(/manifest/resources/resource[@type = 'membership/x-bb-coursemembership']) = 1">
-        <xsl:copy-of select="document( /manifest/resources/resource[@type = 'membership/x-bb-coursemembership']/@bb:file )"/>
-      </xsl:if>
-    </file>
-  </xsl:variable>
-
-  <xsl:variable name="gradebookfile">
-    <file>
-      <xsl:if test="count(/manifest/resources/resource[@type = 'course/x-bb-gradebook']) = 1">
-        <xsl:copy-of select="document( /manifest/resources/resource[@type = 'course/x-bb-gradebook']/@bb:file )"/>
-      </xsl:if>
-    </file>
-  </xsl:variable>
-        
-  <xsl:variable name="attemptfile">
-    <file>
-      <xsl:for-each select="/manifest/resources/resource[@type = 'course/x-bb-attemptfiles']/@bb:file">
-        <xsl:copy-of select="document( . )"/>
-      </xsl:for-each>
-    </file>
-  </xsl:variable>
-        
-  <xsl:variable name="attemptembeddedfile">
-    <file>
-      <xsl:for-each select="/manifest/resources/resource[@type = 'course/x-bb-attemptembeddedfiles']/@bb:file">
-        <xsl:copy-of select="document( . )"/>
-      </xsl:for-each>
-    </file>
-  </xsl:variable>
-        
+  <!-- 
+      The entry point template that starts the processing of the imsmanifest
+      input file. It iterates students found in the unredacted data and for
+       each one outputs a redacted version of the data with other students'
+      data removed.
+  -->
   <xsl:template match="/">
     <xsl:text>
 </xsl:text>
     <archive-log>
-      <xsl:attribute name="archive"><xsl:value-of select="nodeset( $coursesettingfile )/file/COURSE/COURSEID/@value"/></xsl:attribute>
-      <xsl:copy-of select="$attemptfile"/>
-
-      <xsl:for-each select="nodeset( $usersfile )/file/USERS/USER[string-length(STUDENTID/@value) &gt;= 8]">
+      <xsl:attribute name="archive"><xsl:value-of select="$unredacted/bbcarv:resources/bbcarv:resource/bbcarv:data/COURSE/COURSEID/@value"/></xsl:attribute>
+      
+      <xsl:for-each select="$unredacted/bbcarv:resources/bbcarv:resource/bbcarv:data/USERS/USER[string-length(STUDENTID/@value) &gt;= 8]">
         <xsl:variable name="uid" select="@id"/>
         <xsl:variable name="sid" select="STUDENTID/@value"/>
         <xsl:variable name="student-file">
@@ -82,42 +83,43 @@
             <xsl:with-param name="sid" select="$sid"/>
           </xsl:call-template>
         </xsl:variable>
-        <xsl:variable name="memberid" select="nodeset( $membershipfile )/file/COURSEMEMBERSHIPS/COURSEMEMBERSHIP/USERID[@value = $uid]/../@id"/>
+        <xsl:variable name="memberid" select="$unredacted/bbcarv:resources/bbcarv:resource/bbcarv:data/COURSEMEMBERSHIPS/COURSEMEMBERSHIP/USERID[@value = $uid]/../@id"/>
         
         <!-- 
-              This variable puts the combined data into a nodeset with
+              This variable puts the unredacted data into a tree with
               the current student's IDs near the root. This will allow
               any template to find the current student ID based purely
               on the context node. This is done because we need to use
               apply-templates and there is no mechanism to send parameters.
         -->
-        <xsl:variable name="unredactedparameterized">
-          <studentandfiles>
-            <student>
+        <xsl:variable name="unredactedparameterizedfrag">
+          <bbcarv:studentandfiles>
+            <bbcarv:student>
               <xsl:attribute name="id"><xsl:value-of select="$uid"/></xsl:attribute>
               <xsl:attribute name="memberid"><xsl:value-of select="$memberid"/></xsl:attribute>
-            </student>
-            <files>
-              <xsl:copy-of select="$coursesettingfile"/>
-              <xsl:copy-of select="$usersfile"/>
-              <xsl:copy-of select="$membershipfile"/>
-              <xsl:copy-of select="$gradebookfile"/>
-              <xsl:copy-of select="$attemptfile"/>
-              <xsl:copy-of select="$attemptembeddedfile"/>
-            </files>           
-          </studentandfiles>
+            </bbcarv:student>
+            <xsl:copy-of select="$unredacted"/>
+          </bbcarv:studentandfiles>
         </xsl:variable>
+        
+        <!-- Above converted to node set -->
+        <xsl:variable name="unredactedparameterized" select="nodeset( $unredactedparameterizedfrag )"/>
         
         <student-log>
           <xsl:attribute name="student-file"><xsl:value-of select="$student-file"/></xsl:attribute>
         </student-log>
         
+        <!-- 
+              Here the student file is created. The outermost 'student' element
+              is output and then apply-templates with mode="redact" inserts a
+              redacted version of the unredacted original data.
+        -->
         <redirect:write file="{$student-file}">
           <xsl:text>
 </xsl:text>
-          <student sid="{$sid}" uid="{$uid}" memberid="{$memberid}">
-            <xsl:apply-templates select="nodeset( $unredactedparameterized )/studentandfiles/files/file" mode="redact"/>
-          </student>
+          <bbcarv:student sid="{$sid}" uid="{$uid}" memberid="{$memberid}">
+            <xsl:apply-templates select="$unredactedparameterized/bbcarv:studentandfiles/bbcarv:resources" mode="redact"/>
+          </bbcarv:student>
         </redirect:write>
         
       </xsl:for-each>
@@ -125,7 +127,12 @@
   </xsl:template>
 
 
-  <!-- Echos out an element but redacts it if it relates -->
+<!-- ====================================================================== -->
+
+  <!-- 
+      This template echos out an element but redacts descendant elements
+      if they match more specific 'redact' templates.
+  -->
   <xsl:template match="*" mode="redact">
     <xsl:copy>
       <xsl:for-each select="@*">
@@ -135,12 +142,22 @@
     </xsl:copy>
   </xsl:template>
 
+  <!-- ====================================================================== -->
+
+  <!-- 
+      Text nodes of elements that are retained are output unchanged in
+      "redact" mode.
+  -->
   <xsl:template match="text" mode="redact">
     <xsl:copy-of select="."/>
   </xsl:template>
+
+  <!-- ====================================================================== -->
   
+  <!-- This 'redact' template is specialised to processing elements that
+  have an 'id' attribute which is a blackboard database user ID. -->
   <xsl:template match="USER" mode="redact">
-    <xsl:variable name="id" select="./ancestor::studentandfiles/student/@id"/>
+    <xsl:variable name="id" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@id"/>
     <xsl:choose>
       <xsl:when test="not( @id = $id )">
         <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
@@ -156,9 +173,12 @@
     </xsl:choose>
   </xsl:template>
 
-  <!-- Echos out an element but redacts it if it relates -->
+  <!-- ====================================================================== -->
+
+  <!-- This 'redact' template is specialised to processing elements that
+  have a COURSEMEMBERSHIPID child element. -->
   <xsl:template match="OUTCOME" mode="redact">
-    <xsl:variable name="memberid" select="./ancestor::studentandfiles/student/@memberid"/>
+    <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
     <xsl:choose>
       <xsl:when test="count( COURSEMEMBERSHIPID[@value = $memberid] ) = 0">
         <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
@@ -174,8 +194,12 @@
     </xsl:choose>
   </xsl:template>
 
+  <!-- ====================================================================== -->
+
+  <!-- This 'redact' template is specialised to processing elements that
+  have a USERID child element. -->
   <xsl:template match="GRADE_HISTORY_ENTRY | COURSEMEMBERSHIP" mode="redact">
-    <xsl:variable name="id" select="./ancestor::studentandfiles/student/@id"/>
+    <xsl:variable name="id" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@id"/>
     <xsl:choose>
       <xsl:when test="count( USERID[@value = $id] ) = 0">
         <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
@@ -191,10 +215,14 @@
     </xsl:choose>
   </xsl:template>
 
+  <!-- ====================================================================== -->
+
+  <!-- This 'redact' template is specialised to processing elements that
+  have an ATTEMPTID child element that needs to be looked up in the gradebook data. -->
   <xsl:template match="ATTEMPTFILE | ATTEMPTEMBEDDEDFILE" mode="redact">
     <xsl:variable name="attemptid" select="./ATTEMPTID/@value"/>
-    <xsl:variable name="memberid" select="./ancestor::studentandfiles/student/@memberid"/>
-    <xsl:variable name="memberattempts" select="count(./ancestor::studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
+    <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
+    <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
         <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
@@ -210,8 +238,56 @@
     </xsl:choose>
   </xsl:template>
 
+  <!-- ====================================================================== -->
 
+  <!-- 
+       This 'redact' template is specialised to file elements. This is complicated
+       because the method of redaction depends on the type of resource where the
+       element might appear.
+  -->
+  <xsl:template match="bbcarv:file" mode="redact">
+    <xsl:variable name="base" select="../@xml:base"/>
+    <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
+    <xsl:variable name="context" select="./ancestor::bbcarv:resource/@type"/>
+    <xsl:variable name="fileid" select="substring-before( @href, '/' )"/>
+    <!-- attemptid depends on the type of resource in the imsmanifest -->
+    <xsl:variable name="attemptid">
+      <xsl:choose>
+        <xsl:when test="$context = 'course/x-bb-attemptfiles'">
+          <xsl:value-of select="./ancestor::bbcarv:studentandfiles//ATTEMPTFILES/ATTEMPTFILE[@id = $fileid]/ATTEMPTID/@value"/>
+        </xsl:when>
+        <xsl:when test="$context = 'course/x-bb-attemptembeddedfiles'">
+          <xsl:value-of select="substring-before( @href, '/' )"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="'xxxxxxxxxxx'"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
 
+    <xsl:choose>
+      <xsl:when test="$memberattempts = 0">
+        <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:for-each select="@*">
+            <xsl:copy select="."/>
+          </xsl:for-each>
+          <xsl:apply-templates select="*" mode="redact"/>
+        </xsl:copy>
+      </xsl:otherwise>
+    </xsl:choose>
+
+  </xsl:template>
+
+  <!-- ====================================================================== -->
+
+  <!-- 
+    Named template that converts student ID into a path name for
+    a student's redacted data file.
+  -->
   <xsl:template name="make-student-uri">
     <xsl:param name="sid"/>
     <xsl:value-of select="$output-base-uri" />
@@ -224,7 +300,7 @@
     <xsl:text>__\</xsl:text>
     <xsl:value-of select="$sid" />
     <xsl:text>\</xsl:text>
-    <xsl:value-of select="nodeset( $coursesettingfile )/file/COURSE/COURSEID/@value" />
+    <xsl:value-of select="$unredacted/bbcarv:resources/bbcarv:resource/bbcarv:data/COURSE/COURSEID/@value" />
     <xsl:text>.xml</xsl:text>
   </xsl:template>
   
