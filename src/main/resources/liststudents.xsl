@@ -59,6 +59,14 @@
     </file>
   </xsl:variable>
         
+  <xsl:variable name="attemptembeddedfile">
+    <file>
+      <xsl:for-each select="/manifest/resources/resource[@type = 'course/x-bb-attemptembeddedfiles']/@bb:file">
+        <xsl:copy-of select="document( . )"/>
+      </xsl:for-each>
+    </file>
+  </xsl:variable>
+        
   <xsl:template match="/">
     <xsl:text>
 </xsl:text>
@@ -66,7 +74,7 @@
       <xsl:attribute name="archive"><xsl:value-of select="nodeset( $coursesettingfile )/file/COURSE/COURSEID/@value"/></xsl:attribute>
       <xsl:copy-of select="$attemptfile"/>
 
-      <xsl:for-each select="nodeset( $usersfile )/file/USERS/USER[string-length(STUDENTID/@value) = 8]">
+      <xsl:for-each select="nodeset( $usersfile )/file/USERS/USER[string-length(STUDENTID/@value) &gt;= 8]">
         <xsl:variable name="uid" select="@id"/>
         <xsl:variable name="sid" select="STUDENTID/@value"/>
         <xsl:variable name="student-file">
@@ -95,6 +103,7 @@
               <xsl:copy-of select="$membershipfile"/>
               <xsl:copy-of select="$gradebookfile"/>
               <xsl:copy-of select="$attemptfile"/>
+              <xsl:copy-of select="$attemptembeddedfile"/>
             </files>           
           </studentandfiles>
         </xsl:variable>
@@ -122,8 +131,12 @@
       <xsl:for-each select="@*">
         <xsl:copy select="."/>
       </xsl:for-each>
-      <xsl:apply-templates select="*" mode="redact"/>
+      <xsl:apply-templates select="node()" mode="redact"/>
     </xsl:copy>
+  </xsl:template>
+
+  <xsl:template match="text" mode="redact">
+    <xsl:copy-of select="."/>
   </xsl:template>
   
   <xsl:template match="USER" mode="redact">
@@ -178,7 +191,7 @@
     </xsl:choose>
   </xsl:template>
 
-  <xsl:template match="ATTEMPTFILE" mode="redact">
+  <xsl:template match="ATTEMPTFILE | ATTEMPTEMBEDDEDFILE" mode="redact">
     <xsl:variable name="attemptid" select="./ATTEMPTID/@value"/>
     <xsl:variable name="memberid" select="./ancestor::studentandfiles/student/@memberid"/>
     <xsl:variable name="memberattempts" select="count(./ancestor::studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
