@@ -54,12 +54,9 @@
   <xsl:template match="/">
     <xsl:text>
 </xsl:text>
-    <students>
-      <!--
-      <debug>
-        <xsl:copy-of select="nodeset( $coursesettingfile )"/>
-      </debug>
-      -->
+    <archive-log>
+      <xsl:attribute name="archive"><xsl:value-of select="nodeset( $coursesettingfile )/file/COURSE/COURSEID/@value"/></xsl:attribute>
+
       <xsl:for-each select="nodeset( $usersfile )/file/USERS/USER[string-length(STUDENTID/@value) = 8]">
         <xsl:variable name="uid" select="@id"/>
         <xsl:variable name="sid" select="STUDENTID/@value"/>
@@ -69,44 +66,43 @@
           </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="memberid" select="nodeset( $membershipfile )/file/COURSEMEMBERSHIPS/COURSEMEMBERSHIP/USERID[@value = $uid]/../@id"/>
-        <xsl:variable name="tree">
+        
+        <!-- 
+              This variable puts the combined data into a nodeset with
+              the current student's IDs near the root. This will allow
+              any template to find the current student ID based purely
+              on the context node. This is done because we need to use
+              apply-templates and there is no mechanism to send parameters.
+        -->
+        <xsl:variable name="unredactedparameterized">
           <studentandfiles>
             <student>
               <xsl:attribute name="id"><xsl:value-of select="$uid"/></xsl:attribute>
-              <xsl:attribute name="sid"><xsl:value-of select="$sid"/></xsl:attribute>
               <xsl:attribute name="memberid"><xsl:value-of select="$memberid"/></xsl:attribute>
-              <xsl:attribute name="student-file"><xsl:value-of select="$student-file"/></xsl:attribute>
             </student>
             <files>
-              <xsl:copy-of select="$gradebookfile"></xsl:copy-of>
+              <xsl:copy-of select="$coursesettingfile"/>
+              <xsl:copy-of select="$usersfile"/>
+              <xsl:copy-of select="$membershipfile"/>
+              <xsl:copy-of select="$gradebookfile"/>
             </files>           
           </studentandfiles>
         </xsl:variable>
         
-        <student>
-          <xsl:attribute name="id"><xsl:value-of select="$uid"/></xsl:attribute>
-          <xsl:attribute name="sid"><xsl:value-of select="$sid"/></xsl:attribute>
-          <xsl:attribute name="memberid"><xsl:value-of select="$memberid"/></xsl:attribute>
+        <student-log>
           <xsl:attribute name="student-file"><xsl:value-of select="$student-file"/></xsl:attribute>
-          <!-- <xsl:copy-of select="$tree"></xsl:copy-of> -->
-        </student>
+        </student-log>
         
         <redirect:write file="{$student-file}">
           <xsl:text>
 </xsl:text>
           <student sid="{$sid}" uid="{$uid}" memberid="{$memberid}">
-            <USERS>
-              <USER id="{$uid}">
-                <xsl:copy-of select="NAMES"/>
-                <xsl:copy-of select="INSTITUTIONEMAIL"/>
-              </USER>
-            </USERS>
-            <xsl:apply-templates select="nodeset( $tree )/studentandfiles/files/file/GRADEBOOK" mode="redact"/>
+            <xsl:apply-templates select="nodeset( $unredactedparameterized )/studentandfiles/files/file" mode="redact"/>
           </student>
         </redirect:write>
         
       </xsl:for-each>
-    </students>
+    </archive-log>
   </xsl:template>
 
 
@@ -118,6 +114,23 @@
       </xsl:for-each>
       <xsl:apply-templates select="*" mode="redact"/>
     </xsl:copy>
+  </xsl:template>
+  
+  <xsl:template match="USER" mode="redact">
+    <xsl:variable name="id" select="./ancestor::studentandfiles/student/@id"/>
+    <xsl:choose>
+      <xsl:when test="not( @id = $id )">
+        <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:for-each select="@*">
+            <xsl:copy select="."/>
+          </xsl:for-each>
+          <xsl:apply-templates select="*" mode="redact"/>
+        </xsl:copy>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:template>
 
   <!-- Echos out an element but redacts it if it relates -->
@@ -138,7 +151,7 @@
     </xsl:choose>
   </xsl:template>
 
-  <xsl:template match="GRADE_HISTORY_ENTRY" mode="redact">
+  <xsl:template match="GRADE_HISTORY_ENTRY | COURSEMEMBERSHIP" mode="redact">
     <xsl:variable name="id" select="./ancestor::studentandfiles/student/@id"/>
     <xsl:choose>
       <xsl:when test="count( USERID[@value = $id] ) = 0">
@@ -154,6 +167,8 @@
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
+
+
 
   <xsl:template name="make-student-uri">
     <xsl:param name="sid"/>
