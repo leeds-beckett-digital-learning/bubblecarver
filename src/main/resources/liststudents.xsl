@@ -69,11 +69,26 @@
           </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="memberid" select="nodeset( $membershipfile )/file/COURSEMEMBERSHIPS/COURSEMEMBERSHIP/USERID[@value = $uid]/../@id"/>
+        <xsl:variable name="tree">
+          <studentandfiles>
+            <student>
+              <xsl:attribute name="id"><xsl:value-of select="$uid"/></xsl:attribute>
+              <xsl:attribute name="sid"><xsl:value-of select="$sid"/></xsl:attribute>
+              <xsl:attribute name="memberid"><xsl:value-of select="$memberid"/></xsl:attribute>
+              <xsl:attribute name="student-file"><xsl:value-of select="$student-file"/></xsl:attribute>
+            </student>
+            <files>
+              <xsl:copy-of select="$gradebookfile"></xsl:copy-of>
+            </files>           
+          </studentandfiles>
+        </xsl:variable>
+        
         <student>
           <xsl:attribute name="id"><xsl:value-of select="$uid"/></xsl:attribute>
           <xsl:attribute name="sid"><xsl:value-of select="$sid"/></xsl:attribute>
           <xsl:attribute name="memberid"><xsl:value-of select="$memberid"/></xsl:attribute>
           <xsl:attribute name="student-file"><xsl:value-of select="$student-file"/></xsl:attribute>
+          <!-- <xsl:copy-of select="$tree"></xsl:copy-of> -->
         </student>
         
         <redirect:write file="{$student-file}">
@@ -86,49 +101,58 @@
                 <xsl:copy-of select="INSTITUTIONEMAIL"/>
               </USER>
             </USERS>
-            <GRADEBOOK>
-              <xsl:for-each select="nodeset( $gradebookfile )/file/GRADEBOOK/*">
-                <xsl:choose>
-                  <xsl:when test="name() = 'OUTCOMEDEFINITIONS'">
-                    <OUTCOMEDEFINITIONS>
-                      <xsl:for-each select="OUTCOMEDEFINITION">
-                        <OUTCOMEDEFINITION id="{@id}">
-                          <xsl:for-each select="*">
-                            <xsl:choose>
-                              <xsl:when test="name() = 'OUTCOMES'">
-                                <OUTCOMES>
-                                  <xsl:for-each select="OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/..">
-                                    <xsl:copy-of select="."/>                          
-                                  </xsl:for-each>
-                                </OUTCOMES>
-                              </xsl:when>
-                              <xsl:otherwise>
-                                <xsl:copy-of select="."/>
-                              </xsl:otherwise>
-                            </xsl:choose>
-                          </xsl:for-each>
-                        </OUTCOMEDEFINITION>
-                      </xsl:for-each>
-                    </OUTCOMEDEFINITIONS>
-                  </xsl:when>
-                  <xsl:when test="name() = 'GRADE_HISTORY_ENTRIES'">
-                    <GRADE_HISTORY_ENTRIES>
-                      <xsl:for-each select="GRADE_HISTORY_ENTRY/USERID[@value = $uid]/..">
-                        <xsl:copy-of select="."/>                
-                      </xsl:for-each>                      
-                    </GRADE_HISTORY_ENTRIES>
-                  </xsl:when>
-                  <xsl:otherwise>
-                    <xsl:copy-of select="."/>                    
-                  </xsl:otherwise>
-                </xsl:choose>
-              </xsl:for-each>
-            </GRADEBOOK>
+            <xsl:apply-templates select="nodeset( $tree )/studentandfiles/files/file/GRADEBOOK" mode="redact"/>
           </student>
         </redirect:write>
         
       </xsl:for-each>
     </students>
+  </xsl:template>
+
+
+  <!-- Echos out an element but redacts it if it relates -->
+  <xsl:template match="*" mode="redact">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*" mode="redact"/>
+    </xsl:copy>
+  </xsl:template>
+
+  <!-- Echos out an element but redacts it if it relates -->
+  <xsl:template match="OUTCOME" mode="redact">
+    <xsl:variable name="memberid" select="./ancestor::studentandfiles/student/@memberid"/>
+    <xsl:choose>
+      <xsl:when test="count( COURSEMEMBERSHIPID[@value = $memberid] ) = 0">
+        <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:for-each select="@*">
+            <xsl:copy select="."/>
+          </xsl:for-each>
+          <xsl:apply-templates select="*" mode="redact"/>
+        </xsl:copy>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="GRADE_HISTORY_ENTRY" mode="redact">
+    <xsl:variable name="id" select="./ancestor::studentandfiles/student/@id"/>
+    <xsl:choose>
+      <xsl:when test="count( USERID[@value = $id] ) = 0">
+        <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:for-each select="@*">
+            <xsl:copy select="."/>
+          </xsl:for-each>
+          <xsl:apply-templates select="*" mode="redact"/>
+        </xsl:copy>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:template>
 
   <xsl:template name="make-student-uri">
