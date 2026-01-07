@@ -13,6 +13,7 @@
   xmlns:bb="http://www.blackboard.com/content-packaging/"
   xmlns:redirect="http://xml.apache.org/xalan/redirect"
   xmlns:bbcarv="http://www.leedsbeckett.ac.uk/bubblecarver"
+  xmlns:cat="http://www.leedsbeckett.ac.uk/bubblecarver/catalogue"
   extension-element-prefixes="redirect"
   exclude-result-prefixes="bb"
   version="1.0">
@@ -53,6 +54,7 @@
           </xsl:for-each>
         </bbcarv:resource>
       </xsl:for-each>
+      <xsl:copy-of select="document( 'catalogue:' )"/>
     </bbcarv:resources>
   </xsl:variable>
 
@@ -280,6 +282,152 @@
       </xsl:otherwise>
     </xsl:choose>
 
+  </xsl:template>
+  
+  
+  <!-- ====================================================================== -->
+
+  <!-- 
+       This 'redact' template is specialised to catalogue file elements, i.e.
+       files that are in the original zip file. The idea is to redact all but
+       files related to the current student: their submissions, their feedback
+       and tutor notes.
+  -->
+  <xsl:template match="cat:file" mode="redact">
+    <xsl:choose>
+      <xsl:when test="cat:dir[1]/@name = 'csfiles'">
+        <xsl:apply-templates select="." mode="redact-csfiles"/>
+      </xsl:when>
+      <xsl:otherwise>      
+        <xsl:apply-templates select="." mode="redact-notcsfiles"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+  
+  <xsl:template match="cat:file" mode="redact-csfiles">
+    <xsl:choose>
+      <xsl:when test="cat:dir[2]/@name = 'privatedoc' and cat:dir[3]/@name = 'gradebook' and cat:dir[4]/@name = 'notesAndFeedback'">
+        <xsl:apply-templates select="." mode="redact-notesandfeedback"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:comment>Redacted catalogue file. Unknown type of csfile</xsl:comment>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="cat:file" mode="redact-notesandfeedback">
+    <xsl:choose>
+      <xsl:when test="cat:dir[5]/@name = 'attempt' or cat:dir[5]/@name = 'attemptNotes'">
+        <xsl:apply-templates select="." mode="redact-attempt"/>
+      </xsl:when>
+      <xsl:when test="cat:dir[5]/@name = 'gradeHistory' or cat:dir[5]/@name = 'gradeHistoryNotes'">
+        <xsl:apply-templates select="." mode="redact-outcome"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:comment>Redacted catalogue file. Gradebook file of unknown type.</xsl:comment>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="cat:file" mode="redact-attempt">
+    <xsl:variable name="attemptid" select="cat:dir[6]/@name"/>
+    <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
+    <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
+    <xsl:choose>
+      <xsl:when test="$memberattempts = 0">
+        <xsl:comment>Redacted catalogue file. Relates to other student's attempt.</xsl:comment>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:attribute name="type">gradebook-attempt</xsl:attribute>
+          <xsl:attribute name="aid"><xsl:value-of select="$attemptid"/></xsl:attribute>
+          <xsl:for-each select="@*">
+            <xsl:copy select="."/>
+          </xsl:for-each>
+          <xsl:apply-templates select="*" mode="redact"/>
+        </xsl:copy>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="cat:file" mode="redact-outcome">
+    <xsl:variable name="outcomeid" select="cat:dir[6]/@name"/>
+    <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
+    <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME[@id = $outcomeid]/COURSEMEMBERSHIPID[@value = $memberid])"/>
+    <xsl:choose>
+      <xsl:when test="$memberattempts = 0">
+        <xsl:comment>Redacted catalogue file. Relates to other student's outcome.</xsl:comment>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:for-each select="@*">
+            <xsl:copy select="."/>
+          </xsl:for-each>
+          <xsl:attribute name="type">gradebook-history</xsl:attribute>
+          <xsl:attribute name="oid"><xsl:value-of select="$outcomeid"/></xsl:attribute>
+          <xsl:apply-templates select="*" mode="redact"/>
+        </xsl:copy>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="cat:file" mode="redact-notcsfiles">
+    <xsl:variable name="sub" select="cat:dir[1]/@name"/>
+    <xsl:variable name="restype" select="/manifest/resources/resource[ @xml:base = $sub ]/@type"/>
+    <xsl:choose>
+      <xsl:when test="$restype = 'course/x-bb-attemptfiles'">
+        <xsl:apply-templates select="." mode="redact-resattempt"/>
+      </xsl:when>
+      <xsl:when test="$restype = 'course/x-bb-attemptembeddedfiles'">
+        <xsl:apply-templates select="." mode="redact-resattemptembed"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:comment>Redacted catalogue file. Not in csfiles and not in an interesting resource subfolder.</xsl:comment>
+      </xsl:otherwise>      
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="cat:file" mode="redact-resattempt">
+    <xsl:variable name="attemptfileid" select="cat:dir[2]/@name"/>
+    <xsl:variable name="attemptid" select="./ancestor::bbcarv:studentandfiles//ATTEMPTFILES/ATTEMPTFILE[@id = $attemptfileid]/ATTEMPTID/@value"/>
+    <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
+    <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
+    <xsl:choose>
+      <xsl:when test="$memberattempts = 0">
+        <xsl:comment>Redacted catalogue file. Relates to other student's attempt file.</xsl:comment>        
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:for-each select="@*">
+            <xsl:copy select="."/>
+          </xsl:for-each>
+          <xsl:attribute name="type">resource</xsl:attribute>
+          <xsl:attribute name="rt">attempt</xsl:attribute>
+          <xsl:apply-templates select="*" mode="redact"/>
+        </xsl:copy>
+      </xsl:otherwise>
+    </xsl:choose>       
+  </xsl:template>
+
+  <xsl:template match="cat:file" mode="redact-resattemptembed">
+    <xsl:variable name="attemptid" select="cat:dir[2]/@name"/>
+    <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
+    <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
+    <xsl:choose>
+      <xsl:when test="$memberattempts = 0">
+        <xsl:comment>Redacted catalogue file. Relates to other student's attempt embedded file.</xsl:comment>        
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:for-each select="@*">
+            <xsl:copy select="."/>
+          </xsl:for-each>
+          <xsl:attribute name="type">resource</xsl:attribute>
+          <xsl:attribute name="rt">attemptembedded</xsl:attribute>
+          <xsl:apply-templates select="*" mode="redact"/>
+        </xsl:copy>
+      </xsl:otherwise>
+    </xsl:choose>       
   </xsl:template>
 
   <!-- ====================================================================== -->

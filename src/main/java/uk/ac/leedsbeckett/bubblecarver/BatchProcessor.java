@@ -31,6 +31,7 @@ import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.Source;
 import javax.xml.transform.Templates;
 import javax.xml.transform.Transformer;
@@ -39,8 +40,10 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.URIResolver;
 import javax.xml.transform.dom.DOMResult;
+import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
+import org.w3c.dom.Document;
 
 /**
  *
@@ -112,6 +115,20 @@ public class BatchProcessor
         return;
       
       System.out.println( "Processing " + t.toUri() );
+      FileCataloguer fc = new FileCataloguer( t );
+      Document catalogue = null;
+      try
+      {
+        catalogue = fc.getCatalogue();
+      }
+      catch ( ParserConfigurationException | IOException ex )
+      {
+        progress.firstException = ex;
+        throw new RuntimeException( ex );
+      }
+      
+      Resolver resolver = new Resolver( t, catalogue );
+      
       try ( InputStream in = new FileInputStream( t.resolve( "imsmanifest.xml" ).toFile() ) )
       {
         StreamSource source = new StreamSource( in );
@@ -119,7 +136,7 @@ public class BatchProcessor
         // DOMResult result = new DOMResult();
         transformListStudents.reset();
         transformListStudents.setParameter( "output-base-uri", studentPath.toString() );
-        transformListStudents.setURIResolver( new Resolver( t ) );
+        transformListStudents.setURIResolver( resolver );
         transformListStudents.transform( source, result );
         System.out.println( result.toString() );
       }
@@ -170,16 +187,20 @@ public class BatchProcessor
   public class Resolver implements URIResolver
   {
     final Path archiveBase;
+    final Document catalogue;
 
-    public Resolver( Path archiveBase )
+    public Resolver( Path archiveBase, Document catalogue )
     {
       this.archiveBase = archiveBase;
+      this.catalogue = catalogue;
     }
     
     @Override
     public Source resolve( String href, String base ) throws TransformerException
     {
-      System.out.println( "Resolving [" + href + "], [" + base + "]" );
+      //System.out.println( "Resolving [" + href + "], [" + base + "]" );
+      if ( href.equals( "catalogue:" ) )
+        return new DOMSource( catalogue );
       return new StreamSource( archiveBase.resolve( href ).toFile() );
     }
     
