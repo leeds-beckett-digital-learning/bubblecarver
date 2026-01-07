@@ -14,7 +14,8 @@
   xmlns:redirect="http://xml.apache.org/xalan/redirect"
   xmlns:bbcarv="http://www.leedsbeckett.ac.uk/bubblecarver"
   xmlns:cat="http://www.leedsbeckett.ac.uk/bubblecarver/catalogue"
-  extension-element-prefixes="redirect"
+  xmlns:java="http://xml.apache.org/xalan/java"
+  extension-element-prefixes="redirect java"
   exclude-result-prefixes="bb"
   version="1.0">
   <xsl:output method="xml" indent="yes"/>
@@ -35,7 +36,7 @@
     course/x-bb-attemptembeddedfiles
   </xsl:variable>
 
-  <!--
+  <!--.
       This variable joins together multiple resources from the imsmanifest
       and embeds the actual XML content from the files they reference.
       The result is not a node set so needs further processing.
@@ -80,7 +81,7 @@
       <xsl:for-each select="$unredacted/bbcarv:resources/bbcarv:resource/bbcarv:data/USERS/USER[string-length(STUDENTID/@value) &gt;= 8]">
         <xsl:variable name="uid" select="@id"/>
         <xsl:variable name="sid" select="STUDENTID/@value"/>
-        <xsl:variable name="student-file">
+        <xsl:variable name="student-dir">
           <xsl:call-template name="make-student-uri">
             <xsl:with-param name="sid" select="$sid"/>
           </xsl:call-template>
@@ -99,6 +100,7 @@
             <bbcarv:student>
               <xsl:attribute name="id"><xsl:value-of select="$uid"/></xsl:attribute>
               <xsl:attribute name="memberid"><xsl:value-of select="$memberid"/></xsl:attribute>
+              <xsl:attribute name="uri"><xsl:value-of select="$student-dir"/></xsl:attribute>
             </bbcarv:student>
             <xsl:copy-of select="$unredacted"/>
           </bbcarv:studentandfiles>
@@ -108,7 +110,7 @@
         <xsl:variable name="unredactedparameterized" select="nodeset( $unredactedparameterizedfrag )"/>
         
         <student-log>
-          <xsl:attribute name="student-file"><xsl:value-of select="$student-file"/></xsl:attribute>
+          <xsl:attribute name="student-file"><xsl:value-of select="$student-dir"/></xsl:attribute>
         </student-log>
         
         <!-- 
@@ -116,11 +118,19 @@
               is output and then apply-templates with mode="redact" inserts a
               redacted version of the unredacted original data.
         -->
-        <redirect:write file="{$student-file}">
+        <redirect:write file="{concat($student-dir,'data.xml')}">
           <xsl:text>
 </xsl:text>
           <bbcarv:student sid="{$sid}" uid="{$uid}" memberid="{$memberid}">
             <xsl:apply-templates select="$unredactedparameterized/bbcarv:studentandfiles/bbcarv:resources" mode="redact"/>
+          </bbcarv:student>
+        </redirect:write>
+
+        <redirect:write file="{concat($student-dir,'catalogue.xml')}">
+          <xsl:text>
+</xsl:text>
+          <bbcarv:student sid="{$sid}" uid="{$uid}" memberid="{$memberid}">
+            <xsl:apply-templates select="$unredactedparameterized/bbcarv:studentandfiles/bbcarv:resources/cat:catalogue" mode="catredact"/>
           </bbcarv:student>
         </redirect:write>
         
@@ -138,7 +148,7 @@
   <xsl:template match="*" mode="redact">
     <xsl:copy>
       <xsl:for-each select="@*">
-        <xsl:copy select="."/>
+        <xsl:copy-of select="."/>
       </xsl:for-each>
       <xsl:apply-templates select="node()" mode="redact"/>
     </xsl:copy>
@@ -167,7 +177,7 @@
       <xsl:otherwise>
         <xsl:copy>
           <xsl:for-each select="@*">
-            <xsl:copy select="."/>
+            <xsl:copy-of select="."/>
           </xsl:for-each>
           <xsl:apply-templates select="*" mode="redact"/>
         </xsl:copy>
@@ -188,7 +198,7 @@
       <xsl:otherwise>
         <xsl:copy>
           <xsl:for-each select="@*">
-            <xsl:copy select="."/>
+            <xsl:copy-of select="."/>
           </xsl:for-each>
           <xsl:apply-templates select="*" mode="redact"/>
         </xsl:copy>
@@ -209,12 +219,27 @@
       <xsl:otherwise>
         <xsl:copy>
           <xsl:for-each select="@*">
-            <xsl:copy select="."/>
+            <xsl:copy-of select="."/>
           </xsl:for-each>
           <xsl:apply-templates select="*" mode="redact"/>
         </xsl:copy>
       </xsl:otherwise>
     </xsl:choose>
+  </xsl:template>
+
+  <!-- ====================================================================== -->
+
+  <!-- This 'redact' template is specialised to processing elements that
+  have a USERID child element. -->
+  <xsl:template match="DATE_LOGGED" mode="redact">
+    <xsl:variable name="epoch" select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DateProcessor.epoch( @value )"/>
+    <xsl:copy>
+      <xsl:attribute name="bbcarv:epoch"><xsl:value-of select="$epoch"/></xsl:attribute>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*" mode="redact"/>
+    </xsl:copy>
   </xsl:template>
 
   <!-- ====================================================================== -->
@@ -232,7 +257,7 @@
       <xsl:otherwise>
         <xsl:copy>
           <xsl:for-each select="@*">
-            <xsl:copy select="."/>
+            <xsl:copy-of select="."/>
           </xsl:for-each>
           <xsl:apply-templates select="*" mode="redact"/>
         </xsl:copy>
@@ -275,7 +300,7 @@
       <xsl:otherwise>
         <xsl:copy>
           <xsl:for-each select="@*">
-            <xsl:copy select="."/>
+            <xsl:copy-of select="."/>
           </xsl:for-each>
           <xsl:apply-templates select="*" mode="redact"/>
         </xsl:copy>
@@ -283,7 +308,22 @@
     </xsl:choose>
 
   </xsl:template>
+
+  <!-- ====================================================================== -->
   
+  <xsl:template match="cat:catalogue" mode="redact">
+  </xsl:template>
+  
+  <!-- ====================================================================== -->
+  
+  <xsl:template match="cat:catalogue" mode="catredact">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="node()" mode="catredact"/>
+    </xsl:copy>
+  </xsl:template>
   
   <!-- ====================================================================== -->
 
@@ -293,7 +333,7 @@
        files related to the current student: their submissions, their feedback
        and tutor notes.
   -->
-  <xsl:template match="cat:file" mode="redact">
+  <xsl:template match="cat:file" mode="catredact">
     <xsl:choose>
       <xsl:when test="cat:dir[1]/@name = 'csfiles'">
         <xsl:apply-templates select="." mode="redact-csfiles"/>
@@ -310,7 +350,7 @@
         <xsl:apply-templates select="." mode="redact-notesandfeedback"/>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:comment>Redacted catalogue file. Unknown type of csfile</xsl:comment>
+        <!-- <xsl:comment>Redacted catalogue file. Unknown type of csfile</xsl:comment> -->
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
@@ -324,7 +364,7 @@
         <xsl:apply-templates select="." mode="redact-outcome"/>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:comment>Redacted catalogue file. Gradebook file of unknown type.</xsl:comment>
+        <!-- <xsl:comment>Redacted catalogue file. Gradebook file of unknown type.</xsl:comment> -->
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
@@ -333,19 +373,13 @@
     <xsl:variable name="attemptid" select="cat:dir[6]/@name"/>
     <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
     <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
+    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
         <xsl:comment>Redacted catalogue file. Relates to other student's attempt.</xsl:comment>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:copy>
-          <xsl:attribute name="type">gradebook-attempt</xsl:attribute>
-          <xsl:attribute name="aid"><xsl:value-of select="$attemptid"/></xsl:attribute>
-          <xsl:for-each select="@*">
-            <xsl:copy select="."/>
-          </xsl:for-each>
-          <xsl:apply-templates select="*" mode="redact"/>
-        </xsl:copy>
+        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( ../@uri, @uri, $dsturi )"/></log>
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
@@ -354,19 +388,13 @@
     <xsl:variable name="outcomeid" select="cat:dir[6]/@name"/>
     <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
     <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME[@id = $outcomeid]/COURSEMEMBERSHIPID[@value = $memberid])"/>
+    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
         <xsl:comment>Redacted catalogue file. Relates to other student's outcome.</xsl:comment>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:copy>
-          <xsl:for-each select="@*">
-            <xsl:copy select="."/>
-          </xsl:for-each>
-          <xsl:attribute name="type">gradebook-history</xsl:attribute>
-          <xsl:attribute name="oid"><xsl:value-of select="$outcomeid"/></xsl:attribute>
-          <xsl:apply-templates select="*" mode="redact"/>
-        </xsl:copy>
+        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( ../@uri, @uri, $dsturi )"/></log>
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
@@ -382,7 +410,7 @@
         <xsl:apply-templates select="." mode="redact-resattemptembed"/>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:comment>Redacted catalogue file. Not in csfiles and not in an interesting resource subfolder.</xsl:comment>
+        <!-- <xsl:comment>Redacted catalogue file. Not in csfiles and not in an interesting resource subfolder.</xsl:comment> -->
       </xsl:otherwise>      
     </xsl:choose>
   </xsl:template>
@@ -392,19 +420,13 @@
     <xsl:variable name="attemptid" select="./ancestor::bbcarv:studentandfiles//ATTEMPTFILES/ATTEMPTFILE[@id = $attemptfileid]/ATTEMPTID/@value"/>
     <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
     <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
+    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
         <xsl:comment>Redacted catalogue file. Relates to other student's attempt file.</xsl:comment>        
       </xsl:when>
       <xsl:otherwise>
-        <xsl:copy>
-          <xsl:for-each select="@*">
-            <xsl:copy select="."/>
-          </xsl:for-each>
-          <xsl:attribute name="type">resource</xsl:attribute>
-          <xsl:attribute name="rt">attempt</xsl:attribute>
-          <xsl:apply-templates select="*" mode="redact"/>
-        </xsl:copy>
+        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( ../@uri, @uri, $dsturi )"/></log>
       </xsl:otherwise>
     </xsl:choose>       
   </xsl:template>
@@ -413,22 +435,17 @@
     <xsl:variable name="attemptid" select="cat:dir[2]/@name"/>
     <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
     <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
+    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
         <xsl:comment>Redacted catalogue file. Relates to other student's attempt embedded file.</xsl:comment>        
       </xsl:when>
       <xsl:otherwise>
-        <xsl:copy>
-          <xsl:for-each select="@*">
-            <xsl:copy select="."/>
-          </xsl:for-each>
-          <xsl:attribute name="type">resource</xsl:attribute>
-          <xsl:attribute name="rt">attemptembedded</xsl:attribute>
-          <xsl:apply-templates select="*" mode="redact"/>
-        </xsl:copy>
+        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( ../@uri, @uri, $dsturi )"/></log>
       </xsl:otherwise>
     </xsl:choose>       
   </xsl:template>
+
 
   <!-- ====================================================================== -->
 
@@ -447,9 +464,9 @@
     <xsl:value-of select="substring($sid,1,6)" />
     <xsl:text>__\</xsl:text>
     <xsl:value-of select="$sid" />
-    <xsl:text>\</xsl:text>
+    <xsl:text>\bbarchives\</xsl:text>
     <xsl:value-of select="$unredacted/bbcarv:resources/bbcarv:resource/bbcarv:data/COURSE/COURSEID/@value" />
-    <xsl:text>.xml</xsl:text>
+    <xsl:text>\</xsl:text>
   </xsl:template>
   
 </xsl:stylesheet>

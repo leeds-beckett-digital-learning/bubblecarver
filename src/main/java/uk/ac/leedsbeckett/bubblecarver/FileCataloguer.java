@@ -16,6 +16,7 @@
 package uk.ac.leedsbeckett.bubblecarver;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
@@ -60,6 +61,8 @@ public class FileCataloguer
     }
     
     root = doc.createElementNS( NS, "cat:catalogue" );
+    root.setAttribute( "uri", base.toUri().toString() );
+    root.setAttribute( "original", base.toString() );
     doc.appendChild( root );
     
     Stream<Path> streamSearch = Files.find( base, Integer.MAX_VALUE, (path,atts) -> atts.isRegularFile() );
@@ -77,8 +80,9 @@ public class FileCataloguer
       if ( !Files.isRegularFile( t ) )
         return;
       Path rel = base.relativize( t );
+      URI reluri = base.toUri().relativize( t.toUri() );
       Element f = doc.createElementNS( NS, "cat:file" );
-      f.setAttribute( "path", rel.toString() );
+      f.setAttribute( "uri", reluri.toString() );
       root.appendChild( f );
       for ( Path part : rel )
       {
