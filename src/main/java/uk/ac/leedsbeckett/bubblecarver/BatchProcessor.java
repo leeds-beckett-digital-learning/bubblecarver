@@ -18,8 +18,10 @@ package uk.ac.leedsbeckett.bubblecarver;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.StringWriter;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
@@ -69,7 +71,8 @@ public class BatchProcessor
   private final Path searchPath;
   private final Path studentPath;
 
-  private Transformer transformListStudents;
+  private final Transformer transformListStudents;
+  private final Transformer transformStudentReport;
   
   ProcessProgress progress;
   
@@ -84,12 +87,16 @@ public class BatchProcessor
       Templates templates = tFactory.newTemplates( new StreamSource( in ) );
       transformListStudents = templates.newTransformer();
     }
+    try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/studentreport.xsl" ) )
+    {
+      Templates templates = tFactory.newTemplates( new StreamSource( in ) );
+      transformStudentReport = templates.newTransformer();
+    }
   }
  
   public void process() throws IOException
   {
     progress = new ProcessProgress();
-    
     UnzippedArchiveSearcher searcher = new UnzippedArchiveSearcher();
     Stream<Path> streamSearch = Files.find( searchPath, 2, searcher );
     streamSearch.forEach( new ArchiveProcessor() );
@@ -98,6 +105,16 @@ public class BatchProcessor
       System.out.println( "Exception while processing stream of archives..." );
       progress.firstException.printStackTrace();
     }
+
+    progress = new ProcessProgress();
+    StudentArchiveDataSearcher sdsearcher = new StudentArchiveDataSearcher();
+    Stream<Path> studentArchiveDataSearch = Files.find( studentPath, 10, sdsearcher );
+    studentArchiveDataSearch.forEach( new StudentArchiveDataProcessor() );
+    if ( progress.firstException != null )
+    {
+      System.out.println( "Exception while processing stream of archives..." );
+      progress.firstException.printStackTrace();
+    }    
   }
   
   public class ProcessProgress
@@ -133,12 +150,42 @@ public class BatchProcessor
       {
         StreamSource source = new StreamSource( in );
         StringBufferResult result = createStringBufferResult();
-        // DOMResult result = new DOMResult();
         transformListStudents.reset();
         transformListStudents.setParameter( "output-base-uri", studentPath.toString() );
         transformListStudents.setURIResolver( resolver );
         transformListStudents.transform( source, result );
         System.out.println( result.toString() );
+      }
+      catch ( IOException | TransformerException ex )
+      {
+        progress.firstException = ex;
+        throw new RuntimeException( ex );
+      }
+      progress.completedCount++;
+    }
+  }
+
+  public class StudentArchiveDataProcessor implements Consumer<Path>
+  {
+    @Override
+    public void accept( Path t )
+    {
+      if ( progress.firstException != null )
+        return;
+      
+      System.out.println( "Processing " + t.toUri() );
+
+      Resolver resolver = new Resolver( t, null );
+
+      Path report = t.getParent().resolve( "report.html" );
+      try ( InputStream in = new FileInputStream( t.toFile() );
+            OutputStream out = new FileOutputStream( report.toFile() ) )
+      {
+        StreamSource source = new StreamSource( in );
+        StreamResult result = new StreamResult( out );
+        transformStudentReport.reset();
+        transformStudentReport.setURIResolver( resolver );
+        transformStudentReport.transform( source, result );
       }
       catch ( IOException | TransformerException ex )
       {
@@ -160,6 +207,33 @@ public class BatchProcessor
         return false;
       Path im = t.resolve( "imsmanifest.xml" );
       return Files.exists( im );
+    }
+  }  
+  
+  public class StudentArchiveDataSearcher implements BiPredicate<Path,BasicFileAttributes>
+  {
+    @Override
+    public boolean test( Path t, BasicFileAttributes u )
+    {
+      if ( !u.isRegularFile() )
+        return false;
+      if ( !t.getFileName().toString().equals( "data.xml") )
+        return false;
+      Path relpath = studentPath.relativize( t );
+      if ( relpath.getNameCount() != 7 ) return false;
+      if ( !"bbarchives".equals( relpath.getName( 4 ).toString() ) ) return false;
+      Path reppath = t.getParent().resolve( "report.html" );
+      if ( !Files.exists( reppath ) ) return true;
+      try
+      {
+        BasicFileAttributes repatt = Files.readAttributes( reppath, BasicFileAttributes.class );
+        if ( repatt.lastModifiedTime().compareTo( u.lastModifiedTime() ) < 0 )
+          return true;
+      }
+      catch ( IOException ex )
+      {
+      }
+      return false;
     }
   }  
   

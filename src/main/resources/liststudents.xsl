@@ -86,6 +86,8 @@
             <xsl:with-param name="sid" select="$sid"/>
           </xsl:call-template>
         </xsl:variable>
+        <xsl:variable name="student-data-file" select="concat($student-dir,'data.xml')"/>
+        <xsl:variable name="student-report-file" select="concat($student-dir,'report.html')"/>
         <xsl:variable name="memberid" select="$unredacted/bbcarv:resources/bbcarv:resource/bbcarv:data/COURSEMEMBERSHIPS/COURSEMEMBERSHIP/USERID[@value = $uid]/../@id"/>
         
         <!-- 
@@ -118,7 +120,7 @@
               is output and then apply-templates with mode="redact" inserts a
               redacted version of the unredacted original data.
         -->
-        <redirect:write file="{concat($student-dir,'data.xml')}">
+        <redirect:write file="{$student-data-file}">
           <xsl:text>
 </xsl:text>
           <bbcarv:student sid="{$sid}" uid="{$uid}" memberid="{$memberid}">
@@ -134,6 +136,21 @@
           </bbcarv:student>
         </redirect:write>
         
+        <!-- This is not doable because the output might not be
+                well formed XML. (E.g. <img>, <br> unclosed.)    -->
+        <!--
+        <xsl:variable name="redactedstudentdatafrag" select="document($student-data-file)"/>
+        <xsl:variable name="redactedstudentdata" select="nodeset($redactedstudentdatafrag)"/>
+        <redirect:write file="{$student-report-file}">
+          <html>
+            <body>
+              <xsl:for-each select="$redactedstudentdata//TEXT">
+                <div><xsl:value-of select="text()" /></div>
+              </xsl:for-each>
+            </body>
+          </html>
+        </redirect:write>
+        -->
       </xsl:for-each>
     </archive-log>
   </xsl:template>
