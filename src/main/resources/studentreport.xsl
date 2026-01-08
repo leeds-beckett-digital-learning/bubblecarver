@@ -32,14 +32,6 @@
         </h2>
         <h3>Grade Centre Data</h3>
         <xsl:apply-templates select="bbcarv:student/bbcarv:resources/bbcarv:resource/bbcarv:data/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION"/>
-        <!--
-        <hr/>
-        <xsl:for-each select="//TEXT">
-          <div>
-            <xsl:value-of select="text()" disable-output-escaping="yes"/>
-          </div>
-        </xsl:for-each>
-                -->
       </body>
     </html>
   </xsl:template>
@@ -62,6 +54,12 @@
     <div>
       <xsl:apply-templates select="STUDENTSUBMISSION"/>
     </div>
+    <div>
+      <xsl:apply-templates select="INSTRUCTORCOMMENTS"/>
+    </div>
+    <div>
+      <xsl:apply-templates select="INSTRUCTORNOTES"/>
+    </div>
   </xsl:template>
 
   <xsl:template match="STUDENTSUBMISSION">
@@ -82,17 +80,36 @@
     <xsl:call-template name="textoutput">
       <xsl:with-param name="t" select="."/>
       <xsl:with-param name="base" select="$embeddedbase"/>
+      <xsl:with-param name="v" select="'@X@EmbeddedFile.location@X@'"/>
     </xsl:call-template>
   </xsl:template>
-  
-  <xsl:template match="INSTRUCTORCOMMENTS | INSTRUCTORNOTES">
+
+  <xsl:template match="INSTRUCTORCOMMENTS">
+    <xsl:variable name="attemptid" select="../@id"/>
+    <xsl:variable name="embeddedbase" select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback/attempt/', $attemptid, '/' )"/>
+    <xsl:call-template name="textoutput">
+      <xsl:with-param name="t" select="."/>
+      <xsl:with-param name="base" select="$embeddedbase"/>
+      <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
+    </xsl:call-template>
+  </xsl:template>
+    
+  <xsl:template match="INSTRUCTORNOTES">
+    <xsl:variable name="attemptid" select="../@id"/>
+    <xsl:variable name="embeddedbase" select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback/attemptNotes/', $attemptid, '/' )"/>
+    <xsl:call-template name="textoutput">
+      <xsl:with-param name="t" select="."/>
+      <xsl:with-param name="base" select="$embeddedbase"/>
+      <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
+    </xsl:call-template>
   </xsl:template>
   
   <xsl:template name="textoutput">
     <xsl:param name="t"/>
     <xsl:param name="base"/>
+    <xsl:param name="v"/>
     <xsl:variable name="original" select="TEXT/text()"/>
-    <xsl:variable name="rebased" select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.replace( $original, '@X@EmbeddedFile.location@X@', $base )"/>
+    <xsl:variable name="rebased" select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.replace( $original, $v, $base )"/>
     
     <xsl:choose>
       <xsl:when test="$t/TYPE/@value = 'H'">
