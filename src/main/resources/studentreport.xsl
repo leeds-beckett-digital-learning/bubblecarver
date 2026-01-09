@@ -16,13 +16,12 @@
   version="1.0">
   <xsl:output method="html"/>
 
-  <!-- TODO customize transformation rules 
-       syntax recommendation http://www.w3.org/TR/xslt 
-  -->
+  <xsl:variable name="gradebook" select="bbcarv:student/bbcarv:resources/bbcarv:resource[@type='course/x-bb-gradebook']/bbcarv:data/GRADEBOOK"/>
+  
   <xsl:template match="/">
     <html>
       <head>
-        <title>studentreport.xsl</title>
+        <title>Student Course Report <xsl:value-of select="bbcarv:student/@sid"/></title>
         <link rel="stylesheet" href="../../../../../../css/report.css" />
       </head>
       <body>
@@ -41,16 +40,16 @@
             </tr>
           </thead>
           <tbody>
-            <xsl:apply-templates mode="tabular" select="bbcarv:student/bbcarv:resources/bbcarv:resource/bbcarv:data/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION"/>
+            <xsl:apply-templates select="$gradebook/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION"/>
           </tbody>
         </table>
-        <h1>More Detailed Grade Centre Data</h1>
-        <xsl:apply-templates select="bbcarv:student/bbcarv:resources/bbcarv:resource/bbcarv:data/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION"/>
+        <h1>Grade Centre History</h1>
+        <xsl:apply-templates select="$gradebook/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY"/>
       </body>
     </html>
   </xsl:template>
 
-  <xsl:template match="OUTCOMEDEFINITION" mode="tabular">
+  <xsl:template match="OUTCOMEDEFINITION">
     <xsl:variable name="title">
       <xsl:choose>
         <xsl:when test="TITLE/@value = 'OutcomeDefinition.Total.title'">Total</xsl:when>
@@ -70,14 +69,6 @@
     </tr>
   </xsl:template>
 
-  <xsl:template match="OUTCOMEDEFINITION">
-    <h2><xsl:value-of select="TITLE/@value"/></h2>
-    <p>Points possible = <xsl:value-of select="POINTSPOSSIBLE/@value"/></p>
-    <xsl:if test="count( OUTCOMES/OUTCOME ) = 0">
-      <p>No outcomes recorded.</p>
-    </xsl:if>
-    <xsl:apply-templates select="OUTCOMES/OUTCOME"/>
-  </xsl:template>
 
   <xsl:template match="OUTCOME">
     <xsl:apply-templates select="ATTEMPTS/ATTEMPT"/>
@@ -85,7 +76,31 @@
   
   <xsl:template match="ATTEMPT">
     <xsl:variable name="attemptid" select="@id"/>
-    <h2>Attempt <xsl:value-of select="@id"/></h2>
+    <h2>Attempt <xsl:value-of select="@id"/> <xsl:value-of select="DATEATTEMPTED/@value"/></h2>
+    <table>
+      <tbody>
+        <tr>
+          <th>Status:</th>
+          <td><xsl:value-of select="STATUS/@value"/></td>
+        </tr>
+        <tr>
+          <th>First Graded:</th>
+          <td><xsl:value-of select="DATEFIRSTGRADEDED/@value"/></td>
+        </tr>
+        <tr>
+          <th>Last Graded:</th>
+          <td><xsl:value-of select="DATELASTGRADED/@value"/></td>
+        </tr>
+        <tr>
+          <th>Score:</th>
+          <td><xsl:value-of select="SCORE/@value"/></td>
+        </tr>
+        <tr>
+          <th>Grade:</th>
+          <td><xsl:value-of select="GRADE/@value"/></td>
+        </tr>
+      </tbody>
+    </table>
     <div class="attempt-submission">
       <h3>Textual Submission</h3>
       <div>
@@ -97,9 +112,11 @@
       </ul>
     </div>
     <div class="attempt-comments">
+      <h3>Feedback</h3>
       <xsl:apply-templates select="INSTRUCTORCOMMENTS"/>
     </div>
     <div class="attempt-notes">
+      <h3>Marker Private Notes</h3>
       <xsl:apply-templates select="INSTRUCTORNOTES"/>
     </div>
   </xsl:template>
@@ -111,7 +128,29 @@
       <a href="{$relurl}"><xsl:value-of select="FILE/NAME/text()"/></a>
     </li>
   </xsl:template>
-  
+
+  <xsl:template match="GRADE_HISTORY_ENTRY">
+    <xsl:variable name="attemptid" select="ATTEMPT_ID/@value"/>
+    <xsl:variable name="epoch" select="DATE_LOGGED/@bbcarv:epoch"/>
+    <div>
+      <h2><xsl:value-of select="DATE_LOGGED/@value"/></h2>
+      <table>
+        <tr>
+          <th>Action:</th>
+          <td><xsl:value-of select="ENTRY_KEY/@value"/></td>
+        </tr>
+      </table>
+      <div class="attempt-comments">
+        <xsl:apply-templates select="FEEDBACK_TO_USER"/>
+      </div>      
+      <!-- In grade history private notes are marked up similar to comments in attempt  -->
+      <div class="attempt-notes">
+        <xsl:apply-templates select="INSTRUCTOR_COMMENTS"/>
+      </div>      
+    </div>
+  </xsl:template>
+
+      
   <xsl:template match="STUDENTSUBMISSION">
     <xsl:variable name="attemptid" select="../@id"/>
     <xsl:variable name="embeddedresources" select="/bbcarv:student/bbcarv:resources/bbcarv:resource[@type = 'course/x-bb-attemptembeddedfiles' and count(//ATTEMPTID[@value = $attemptid]) &gt; 0]"/>
@@ -144,6 +183,19 @@
     </xsl:call-template>
   </xsl:template>
     
+  <xsl:template match="FEEDBACK_TO_USER">
+    <xsl:variable name="attemptid" select="../ATTEMPT_ID/@value"/>
+    <xsl:variable name="attempt" select="$gradebook/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT[@id = $attemptid]"/>
+    <xsl:variable name="outcomeid" select="$attempt/../../@id"/>
+    <xsl:variable name="epoch" select="../DATE_LOGGED/@bbcarv:epoch"/>
+    <xsl:variable name="embeddedbase" select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback/gradeHistory/', $outcomeid, '/', $epoch, '/' )"/>
+    <xsl:call-template name="textoutput">
+      <xsl:with-param name="t" select="."/>
+      <xsl:with-param name="base" select="$embeddedbase"/>
+      <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
+    </xsl:call-template>
+  </xsl:template>
+    
   <xsl:template match="INSTRUCTORNOTES">
     <xsl:variable name="attemptid" select="../@id"/>
     <xsl:variable name="embeddedbase" select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback/attemptNotes/', $attemptid, '/' )"/>
@@ -153,7 +205,21 @@
       <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
     </xsl:call-template>
   </xsl:template>
-  
+
+  <!-- Grade history - BUT USED FOR PRIVATE NOTES!!!!!  -->
+  <xsl:template match="INSTRUCTOR_COMMENTS">
+    <xsl:variable name="attemptid" select="../ATTEMPT_ID/@value"/>
+    <xsl:variable name="attempt" select="$gradebook/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT[@id = $attemptid]"/>
+    <xsl:variable name="outcomeid" select="$attempt/../../@id"/>
+    <xsl:variable name="epoch" select="../DATE_LOGGED/@bbcarv:epoch"/>
+    <xsl:variable name="embeddedbase" select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback/gradeHistoryNotes/', $outcomeid, '/', $epoch, '/' )"/>
+    <xsl:call-template name="textoutput">
+      <xsl:with-param name="t" select="."/>
+      <xsl:with-param name="base" select="$embeddedbase"/>
+      <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
+    </xsl:call-template>
+  </xsl:template>
+    
   <xsl:template name="textoutput">
     <xsl:param name="t"/>
     <xsl:param name="base"/>
