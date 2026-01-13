@@ -17,15 +17,9 @@ package uk.ac.leedsbeckett.bubblecarver;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -39,9 +33,6 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
-import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
-import org.apache.commons.compress.archivers.zip.ZipFile;
-import org.apache.commons.io.IOUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -65,8 +56,6 @@ public class Archive
   Document manifestDocument;
   TreeModel manifestTreeModel;
   Document courseSettingsDocument;
-  String courseSettingsCourseId=null;
-  String courseSettingsTitle=null;
   TreeModel courseSettingsTreeModel;
   Document usersDocument;
   TreeModel usersTreeModel;
@@ -74,7 +63,6 @@ public class Archive
   TreeModel membershipTreeModel;
   Document gradebookDocument;
   TreeModel gradebookTreeModel;
-  HashMap<String,GradebookCategory> gradebookCategoryMap = new HashMap<>();
   
   ArrayList<Resource> attemptFilesResource   = new ArrayList<>();
   ArrayList<TreeModel> attemptFilesTreeModel = new ArrayList<>();
@@ -110,15 +98,9 @@ public class Archive
         throw new ArchiveException( "The ZIP file does not contain an IMS manifest and so doesn't look like a BBL archive." );
       manifestDocument = loadXMLDocument( manifestfile );
       courseSettingsDocument = loadXMLDocument( findCourseSettings() );
-      if ( courseSettingsDocument != null )
-      {
-        courseSettingsCourseId  = xPathString( "/COURSE/COURSEID/@value", courseSettingsDocument );
-        courseSettingsTitle     = xPathString( "/COURSE/TITLE/@value", courseSettingsDocument );
-      }
       usersDocument = loadXMLDocument( findUsers() );
       membershipDocument = loadXMLDocument( findMembership() );
       gradebookDocument = loadXMLDocument( findGradebook() );
-      loadGradebookCategories( gradebookDocument );
       attemptFilesResource = findAttemptFilesList();
       for ( Resource r : attemptFilesResource )
         r.setDocument( loadXMLDocument( r ) );
@@ -209,19 +191,6 @@ public class Archive
     return list;
   }
 
-
-  void loadGradebookCategories( Document gradebookDocument ) throws XPathExpressionException
-  {
-    NodeList nodeList = (NodeList) xPath.compile( "/GRADEBOOK/CATEGORIES/CATEGORY" ).evaluate( gradebookDocument, XPathConstants.NODESET);
-    for ( int i=0; i< nodeList.getLength(); i++ )
-    {  
-      Element e = (Element)nodeList.item( i );
-      String id = e.getAttribute( "id" );
-      String title = xPathString( "TITLE/@value", e );
-      gradebookCategoryMap.put( id, new GradebookCategory( id, title ) );
-    }
-  }
-
   
   public TreeModel getManifestTreeModel()
   {
@@ -253,18 +222,6 @@ public class Archive
     return attemptFilesTreeModel;
   }
   
-  public File getUserDir( File usersDir, String sid )
-  {
-    StringBuilder sb = new StringBuilder();
-    for ( int i=sid.length(); i<8; i++ )
-      sb.append( "_" );
-    sb.append( sid );
-    String longsid = sb.toString();
-    File userDir = usersDir;
-    for ( int i=2; i<8; i+=2 )
-      userDir = new File( userDir, longsid.substring( 0, i ) );
-    return new File( userDir, sid );
-  }
   
   Document loadXMLDocument( Resource resource ) throws IOException, SAXException
   {
@@ -384,28 +341,5 @@ public class Archive
     {
       this.document = document;
     }
-  }
-  
-  public class GradebookCategory
-  {
-    private final String id;
-    private final String title;
-
-    public GradebookCategory( String id, String title )
-    {
-      this.id = id;
-      this.title = title;
-    }
-
-    public String getId()
-    {
-      return id;
-    }
-
-    public String getTitle()
-    {
-      return title;
-    }
-  }
-  
+  }  
 }
