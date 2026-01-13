@@ -35,8 +35,10 @@
           <thead>
             <tr>
               <th>Title</th>
+              <th>Type</th>
               <th>Points Avail.</th>
-              <th>Sub/Feedback/Notes</th>
+              <th>Points</th>
+              <th>Grade</th>
             </tr>
           </thead>
           <tbody>
@@ -45,6 +47,7 @@
         </table>
         <h1>Grade Centre History</h1>
         <xsl:apply-templates select="$gradebook/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY"/>
+        <script src="../../../../../../script/report.js"></script>
       </body>
     </html>
   </xsl:template>
@@ -59,16 +62,67 @@
     </xsl:variable>
     <tr>
       <th><xsl:value-of select="$title"/></th>
+      <td>
+        <xsl:if test="count( GROUPATTEMPTS/GROUPATTEMPT ) &gt; 0">Group </xsl:if>
+        <xsl:choose>
+          <xsl:when test="'true' = ISCALCULATED/@value">Calculated: <xsl:value-of select="CALCULATIONTYPE/@value"/></xsl:when>
+          <xsl:when test="string-length( LTI_DOMAIN_ID/@value ) &gt; 0">LTI Tool</xsl:when>
+          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-assignment'">BBL Assignment</xsl:when>
+          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-bloglink'">Blog or Journal</xsl:when>
+          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-wiki'">Wiki</xsl:when>
+          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-plugin-scormengine'">SCORM Package</xsl:when>
+          <xsl:otherwise>Other</xsl:otherwise>
+        </xsl:choose>
+      </td>
       <td><xsl:value-of select="POINTSPOSSIBLE/@value"/></td>
       <td>
-        <xsl:if test="count( OUTCOMES/OUTCOME ) = 0">
-          <p>No outcomes recorded.</p>
-        </xsl:if>
-        <xsl:apply-templates select="OUTCOMES/OUTCOME"/>
+        <xsl:apply-templates select="OUTCOMES/OUTCOME" mode="points"/>        
+      </td>
+      <td>
+        <xsl:apply-templates select="OUTCOMES/OUTCOME" mode="grade"/>        
       </td>
     </tr>
+    <xsl:if test="count( OUTCOMES/OUTCOME ) = 1">
+      <tr>
+        <th>
+          <span style="display: none;" class="collapse-detail" id="{concat( 'collapser-', @id )}" data-id="{concat( @id )}">
+            <svg width="20px" height="20px" fill="#000000" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><title>box-minus</title><path d="M96 448Q82 448 73 439 64 430 64 416L64 96Q64 82 73 73 82 64 96 64L416 64Q430 64 439 73 448 82 448 96L448 416Q448 430 439 439 430 448 416 448L96 448ZM368 280L368 232 144 232 144 280 368 280Z"></path></g></svg>
+          </span>
+          <span class="expand-detail" id="{concat( 'expander-', @id )}" data-id="{concat( @id )}">
+            <svg width="20px" height="20px" fill="#000000" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><title>box-plus</title><path d="M96 448Q82 448 73 439 64 430 64 416L64 96Q64 82 73 73 82 64 96 64L416 64Q430 64 439 73 448 82 448 96L448 416Q448 430 439 439 430 448 416 448L96 448ZM280 368L280 280 368 280 368 232 280 232 280 144 232 144 232 232 144 232 144 280 232 280 232 368 280 368Z"></path></g></svg>
+          </span>
+        </th>
+        <td colspan="4">
+          <div class="detail" style="display: none" id="{concat( 'detail-', @id )}">
+          <h2>Detail</h2>
+          <xsl:apply-templates select="OUTCOMES/OUTCOME"/>
+          </div>
+        </td>
+      </tr>
+    </xsl:if>
   </xsl:template>
 
+  <xsl:template match="OUTCOME" mode="points">
+    <xsl:choose>
+      <xsl:when test="count( OVERRIDE_SCORE ) = 0">
+        See attempt: <xsl:value-of select="../../AGGREGATIONMODEL/@value"/>        
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="OVERRIDE_SCORE/text()"/> (Attempt override)
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="OUTCOME" mode="grade">
+    <xsl:choose>
+      <xsl:when test="count( OVERRIDE_GRADE ) = 0">
+        See attempt: <xsl:value-of select="../../AGGREGATIONMODEL/@value"/>        
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="OVERRIDE_GRADE/text()"/> (Attempt override)
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
 
   <xsl:template match="OUTCOME">
     <xsl:apply-templates select="ATTEMPTS/ATTEMPT"/>
