@@ -377,7 +377,7 @@
       <xsl:when test="cat:dir[5]/@name = 'attempt' or cat:dir[5]/@name = 'attemptNotes'">
         <xsl:apply-templates select="." mode="redact-attempt"/>
       </xsl:when>
-      <xsl:when test="cat:dir[5]/@name = 'gradeHistory' or cat:dir[5]/@name = 'gradeHistoryNotes'">
+      <xsl:when test="cat:dir[5]/@name = 'gradeHistory' or cat:dir[5]/@name = 'gradeHistoryNotes' or cat:dir[5]/@name = 'gradeDetail'  or cat:dir[5]/@name = 'gradeDetailNotes'">
         <xsl:apply-templates select="." mode="redact-outcome"/>
       </xsl:when>
       <xsl:otherwise>

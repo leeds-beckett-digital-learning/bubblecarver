@@ -125,17 +125,36 @@
   </xsl:template>
 
   <xsl:template match="OUTCOME">
+    <xsl:if test="count( FEEDBACK_TO_USER/TEXT ) = 1 or count( INSTRUCTOR_COMMENTS/TEXT ) = 1">
+      <h3>Overrides</h3>
+        <div>(Override scores, feedback etc. are entered by a marker into the 
+          grade centre item regardless of any attempts. This could be because
+          work was submitted off-line, because it is based on multiple attempts
+          or for some other unusual circumstances.)</div>
+      <div class="attempt-comments">
+        <h3>Feedback</h3>
+        <xsl:apply-templates select="FEEDBACK_TO_USER" mode="override"/>
+      </div>
+      <div class="attempt-notes">
+        <h3>Private Notes</h3>
+        <xsl:apply-templates select="INSTRUCTOR_COMMENTS" mode="override"/>
+      </div>      
+    </xsl:if>
     <xsl:apply-templates select="ATTEMPTS/ATTEMPT"/>
   </xsl:template>
   
   <xsl:template match="ATTEMPT">
     <xsl:variable name="attemptid" select="@id"/>
-    <h2>Attempt <xsl:value-of select="@id"/> <xsl:value-of select="DATEATTEMPTED/@value"/></h2>
+    <h4>Attempt <xsl:value-of select="@id"/></h4>
     <table>
       <tbody>
         <tr>
           <th>Status:</th>
           <td><xsl:value-of select="STATUS/@value"/></td>
+        </tr>
+        <tr>
+          <th>Date Attempted:</th>
+          <td><xsl:value-of select="DATEATTEMPTED/@value"/></td>
         </tr>
         <tr>
           <th>First Graded:</th>
@@ -250,6 +269,16 @@
     </xsl:call-template>
   </xsl:template>
     
+  <xsl:template match="FEEDBACK_TO_USER" mode="override">
+    <xsl:variable name="outcomeid" select="../@id"/>
+    <xsl:variable name="embeddedbase" select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback/gradeDetail/', $outcomeid, '/' )"/>
+    <xsl:call-template name="textoutput">
+      <xsl:with-param name="t" select="."/>
+      <xsl:with-param name="base" select="$embeddedbase"/>
+      <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
+    </xsl:call-template>
+  </xsl:template>
+    
   <xsl:template match="INSTRUCTORNOTES">
     <xsl:variable name="attemptid" select="../@id"/>
     <xsl:variable name="embeddedbase" select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback/attemptNotes/', $attemptid, '/' )"/>
@@ -267,6 +296,17 @@
     <xsl:variable name="outcomeid" select="$attempt/../../@id"/>
     <xsl:variable name="epoch" select="../DATE_LOGGED/@bbcarv:epoch"/>
     <xsl:variable name="embeddedbase" select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback/gradeHistoryNotes/', $outcomeid, '/', $epoch, '/' )"/>
+    <xsl:call-template name="textoutput">
+      <xsl:with-param name="t" select="."/>
+      <xsl:with-param name="base" select="$embeddedbase"/>
+      <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
+    </xsl:call-template>
+  </xsl:template>
+    
+  <!-- Grade history - BUT USED FOR PRIVATE NOTES!!!!!  -->
+  <xsl:template match="INSTRUCTOR_COMMENTS" mode="override">
+    <xsl:variable name="outcomeid" select="../@id"/>
+    <xsl:variable name="embeddedbase" select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback/gradeDetailNotes/', $outcomeid, '/' )"/>
     <xsl:call-template name="textoutput">
       <xsl:with-param name="t" select="."/>
       <xsl:with-param name="base" select="$embeddedbase"/>
