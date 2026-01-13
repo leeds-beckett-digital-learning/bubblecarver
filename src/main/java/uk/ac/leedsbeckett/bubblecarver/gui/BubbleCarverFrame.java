@@ -27,7 +27,6 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeModel;
 import uk.ac.leedsbeckett.bubblecarver.Archive;
 import uk.ac.leedsbeckett.bubblecarver.ArchiveException;
-import uk.ac.leedsbeckett.bubblecarver.ReportProcessor;
 import uk.ac.leedsbeckett.bubblecarver.data.ArchiveDirectoryTreeNode;
 
 /**
@@ -58,7 +57,6 @@ public class BubbleCarverFrame extends javax.swing.JFrame
     this.membershipTree.setModel(       null );
     this.gradebookTree.setModel(        null );
     this.attemptFilesTabbedPane.removeAll();
-    this.userReportTextPane.setText( "" );
   }
   /**
    * This method is called from within the constructor to initialize the form.
@@ -98,8 +96,6 @@ public class BubbleCarverFrame extends javax.swing.JFrame
     jScrollPane5 = new javax.swing.JScrollPane();
     gradebookTree = new javax.swing.JTree();
     attemptFilesTabbedPane = new javax.swing.JTabbedPane();
-    jScrollPane2 = new javax.swing.JScrollPane();
-    userReportTextPane = new javax.swing.JTextPane();
     jMenuBar1 = new javax.swing.JMenuBar();
     jMenu1 = new javax.swing.JMenu();
     exitMenuItem = new javax.swing.JMenuItem();
@@ -266,16 +262,6 @@ public class BubbleCarverFrame extends javax.swing.JFrame
     jTabbedPane1.addTab("Gradebook", jScrollPane5);
     jTabbedPane1.addTab("Attempt Files", attemptFilesTabbedPane);
 
-    jScrollPane2.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
-    jScrollPane2.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-
-    userReportTextPane.setEditable(false);
-    userReportTextPane.setContentType("text/html"); // NOI18N
-    userReportTextPane.setText("<!DOCTYPE html>\n<html>\r\n  <head>\r\n\r\n  </head>\r\n  <body>\r\n     <p>Not loaded.</p>\n  </body>\r\n</html>\r\n");
-    jScrollPane2.setViewportView(userReportTextPane);
-
-    jTabbedPane1.addTab("Report", jScrollPane2);
-
     getContentPane().add(jTabbedPane1, java.awt.BorderLayout.CENTER);
 
     jMenu1.setText("File");
@@ -290,15 +276,14 @@ public class BubbleCarverFrame extends javax.swing.JFrame
     pack();
   }// </editor-fold>//GEN-END:initComponents
 
-  private void loadArchive( File selected, File reportdir )
+  private void loadArchive( File selected )
   {
-    Archive a = new Archive( selected, reportdir );
+    Archive a = new Archive( selected );
     clear();
     try
     {
       a.load();
       a.loadTrees();
-      a.buildUserHtmlReport();
       this.setTitle( "Bubblecarver - " + selected.getName() );
       this.manifestTree.setModel(     a.getManifestTreeModel()     );
       this.courseSettingsTree.setModel( a.getCourseSettingsTreeModel()  );
@@ -315,10 +300,6 @@ public class BubbleCarverFrame extends javax.swing.JFrame
         this.attemptFilesTabbedPane.add( Integer.toString( n ), sp );
         n++;
       }
-      if ( a.getUserHtmlReport() == null )
-        userReportTextPane.setText( "Problem occured building report." );
-      else
-        userReportTextPane.setText( a.getUserHtmlReport() );
     }
     catch ( ArchiveException ex )
     {
@@ -368,17 +349,17 @@ public class BubbleCarverFrame extends javax.swing.JFrame
       JOptionPane.showMessageDialog( rootPane, "Nothing selected in archive list." );
       return;
     }
-    File reportFile = new File( reportBaseDirTextField.getText() );
-    if ( !reportFile.exists() )
-    {
-      JOptionPane.showMessageDialog( rootPane, "The specified report directory does not exist." );
-      return;
-    }
-    if ( !reportFile.isDirectory() )
-    {
-      JOptionPane.showMessageDialog( rootPane, "The specified report directory is not a directory." );
-      return;
-    }
+//    File reportFile = new File( reportBaseDirTextField.getText() );
+//    if ( !reportFile.exists() )
+//    {
+//      JOptionPane.showMessageDialog( rootPane, "The specified report directory does not exist." );
+//      return;
+//    }
+//    if ( !reportFile.isDirectory() )
+//    {
+//      JOptionPane.showMessageDialog( rootPane, "The specified report directory is not a directory." );
+//      return;
+//    }
     
     clear();
     ArchiveDirectoryTreeNode treenode = (ArchiveDirectoryTreeNode)archiveDirectoryTree.getSelectionPath().getLastPathComponent();
@@ -388,7 +369,7 @@ public class BubbleCarverFrame extends javax.swing.JFrame
       JOptionPane.showMessageDialog( rootPane, "Select a directory ending '.zip'." );
       return;      
     }
-    loadArchive( selectedFile, reportFile );    
+    loadArchive( selectedFile );
   }//GEN-LAST:event_loadSelectedArchiveButtonActionPerformed
 
   private void scanArchivesButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_scanArchivesButtonActionPerformed
@@ -417,27 +398,7 @@ public class BubbleCarverFrame extends javax.swing.JFrame
   private void reportAllButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_reportAllButtonActionPerformed
   {//GEN-HEADEREND:event_reportAllButtonActionPerformed
     
-    TreeModel treeModel = archiveDirectoryTree.getModel();
-    if ( treeModel == null )
-    {
-      JOptionPane.showMessageDialog( rootPane, "No scan of archives loaded yet." );
-      return;            
-    }
-    File reportFile = new File( reportBaseDirTextField.getText() );
-    if ( !reportFile.exists() )
-    {
-      JOptionPane.showMessageDialog( rootPane, "The specified report directory does not exist." );
-      return;
-    }
-    if ( !reportFile.isDirectory() )
-    {
-      JOptionPane.showMessageDialog( rootPane, "The specified report directory is not a directory." );
-      return;
-    }
-    ArchiveDirectoryTreeNode root = (ArchiveDirectoryTreeNode)treeModel.getRoot();
-    ReportProcessor processor = new ReportProcessor( reportFile, root );
-    processor.start();
-    
+    JOptionPane.showMessageDialog( rootPane, "Button not implemented." );
   }//GEN-LAST:event_reportAllButtonActionPerformed
 
   /**
@@ -505,7 +466,6 @@ public class BubbleCarverFrame extends javax.swing.JFrame
   private javax.swing.JPanel jPanel2;
   private javax.swing.JScrollPane jScrollPane1;
   private javax.swing.JScrollPane jScrollPane10;
-  private javax.swing.JScrollPane jScrollPane2;
   private javax.swing.JScrollPane jScrollPane3;
   private javax.swing.JScrollPane jScrollPane4;
   private javax.swing.JScrollPane jScrollPane5;
@@ -521,7 +481,6 @@ public class BubbleCarverFrame extends javax.swing.JFrame
   private javax.swing.JTextField reportBaseDirTextField;
   private javax.swing.JButton scanArchivesButton;
   private javax.swing.JTextField scanDirTextField;
-  private javax.swing.JTextPane userReportTextPane;
   private javax.swing.JTree usersTree;
   // End of variables declaration//GEN-END:variables
 }
