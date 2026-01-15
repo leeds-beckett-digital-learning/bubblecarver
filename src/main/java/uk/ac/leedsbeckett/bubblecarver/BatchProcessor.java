@@ -51,7 +51,7 @@ import org.w3c.dom.Document;
  *
  * @author maber01
  */
-public class BatchProcessor
+public class BatchProcessor implements Runnable
 {
   public static void main( String[] args )
   {
@@ -59,8 +59,8 @@ public class BatchProcessor
     Path out = new File("c:\\temp\\students").toPath();
     try
     {
-      BatchProcessor bp = new BatchProcessor( in, out );
-      bp.process();
+      BatchProcessor bp = new BatchProcessor( null, in, out );
+      bp.processForReal();
     }
     catch ( Exception ex )
     {
@@ -71,16 +71,21 @@ public class BatchProcessor
   private final Path searchPath;
   private final Path studentPath;
 
-  private final Transformer transformListStudents;
-  private final Transformer transformStudentReport;
+  private Transformer transformListStudents;
+  private Transformer transformStudentReport;
   
   ProcessProgress progress;
+  private final BatchProcessorListener listener;
   
-  public BatchProcessor( Path searchPath, Path studentPath ) throws IOException, TransformerConfigurationException
+  public BatchProcessor( BatchProcessorListener listener, Path searchPath, Path studentPath )
   {
+    this.listener = listener;
     this.searchPath = searchPath;
-    this.studentPath = studentPath;
-    
+    this.studentPath = studentPath;    
+  }
+
+  private void init() throws IOException, TransformerConfigurationException
+  {
     TransformerFactory tFactory = TransformerFactory.newInstance();
     try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/liststudents.xsl" ) )
     {
@@ -91,11 +96,33 @@ public class BatchProcessor
     {
       Templates templates = tFactory.newTemplates( new StreamSource( in ) );
       transformStudentReport = templates.newTransformer();
-    }
+    }    
   }
- 
-  public void process() throws IOException
+  
+  @Override
+  public void run()
   {
+    Throwable caught = null;
+    if ( listener != null )
+      listener.batchProcessorStarted( this );
+    try
+    {
+      processForReal();
+    }
+    catch ( Throwable th )
+    {
+      caught = th;
+    }
+    finally
+    {
+      if ( listener != null )
+        listener.batchProcessorCompleted( this, caught );
+    }
+  }  
+  
+  private void processForReal() throws IOException, TransformerConfigurationException
+  {
+    init();
     progress = new ProcessProgress();
     UnzippedArchiveSearcher searcher = new UnzippedArchiveSearcher();
     Stream<Path> streamSearch = Files.find( searchPath, 2, searcher );
@@ -116,7 +143,7 @@ public class BatchProcessor
       progress.firstException.printStackTrace();
     }    
   }
-  
+
   public class ProcessProgress
   {
     public int completedCount=0;
@@ -132,6 +159,8 @@ public class BatchProcessor
         return;
       
       System.out.println( "Processing " + t.toUri() );
+      if ( listener != null )
+        listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
       FileCataloguer fc = new FileCataloguer( t );
       Document catalogue = null;
       try

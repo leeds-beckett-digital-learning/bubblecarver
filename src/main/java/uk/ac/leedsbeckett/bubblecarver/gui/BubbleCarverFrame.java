@@ -27,24 +27,32 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeModel;
 import uk.ac.leedsbeckett.bubblecarver.Archive;
 import uk.ac.leedsbeckett.bubblecarver.ArchiveException;
+import uk.ac.leedsbeckett.bubblecarver.BatchProcessor;
+import uk.ac.leedsbeckett.bubblecarver.BatchProcessorListener;
 import uk.ac.leedsbeckett.bubblecarver.data.ArchiveDirectoryTreeNode;
 
 /**
  *
  * @author maber01
  */
-public class BubbleCarverFrame extends javax.swing.JFrame
+public class BubbleCarverFrame 
+        extends javax.swing.JFrame
+        implements BatchProcessorListener
 {
   FileNameExtensionFilter filter = new FileNameExtensionFilter( "ZIP Archive Files", "zip" );
 
   File baseDir=null;
   
+  File reportDir=null;
+  BatchProcessor batchProcessor = null;
+        
   /**
    * Creates new form BubbleCarverFrame
    */
   public BubbleCarverFrame()
   {
     initComponents();
+    this.setTitle( "Bubble Carver");
     this.archiveDirectoryTree.setModel( null );
     clear();
   }
@@ -79,6 +87,8 @@ public class BubbleCarverFrame extends javax.swing.JFrame
     browseReportDirButton = new javax.swing.JButton();
     scanArchivesButton = new javax.swing.JButton();
     reportAllButton = new javax.swing.JButton();
+    jLabel3 = new javax.swing.JLabel();
+    progressLabel = new javax.swing.JLabel();
     jSplitPane1 = new javax.swing.JSplitPane();
     jScrollPane9 = new javax.swing.JScrollPane();
     archiveDirectoryTree = new javax.swing.JTree();
@@ -124,7 +134,7 @@ public class BubbleCarverFrame extends javax.swing.JFrame
     });
 
     jLabel2.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
-    jLabel2.setText("Report Base Directory:");
+    jLabel2.setText("Student Base Directory:");
 
     reportBaseDirTextField.setEditable(false);
 
@@ -146,7 +156,7 @@ public class BubbleCarverFrame extends javax.swing.JFrame
       }
     });
 
-    reportAllButton.setText("Report All...");
+    reportAllButton.setText("Process All...");
     reportAllButton.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(java.awt.event.ActionEvent evt)
@@ -155,30 +165,39 @@ public class BubbleCarverFrame extends javax.swing.JFrame
       }
     });
 
+    jLabel3.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
+    jLabel3.setText("Progress:");
+
     javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
     jPanel1.setLayout(jPanel1Layout);
     jPanel1Layout.setHorizontalGroup(
       jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
       .addGroup(jPanel1Layout.createSequentialGroup()
         .addContainerGap()
-        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-          .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-          .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, 200, Short.MAX_VALUE))
-        .addGap(18, 18, 18)
-        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-          .addComponent(scanDirTextField)
-          .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 250, Short.MAX_VALUE))
+        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+          .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+            .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 200, Short.MAX_VALUE)
+            .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+          .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE))
         .addGap(18, 18, 18)
         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
           .addGroup(jPanel1Layout.createSequentialGroup()
-            .addComponent(browseScanDirButton)
-            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-            .addComponent(scanArchivesButton))
-          .addGroup(jPanel1Layout.createSequentialGroup()
-            .addComponent(browseReportDirButton)
-            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-            .addComponent(reportAllButton)))
-        .addContainerGap(152, Short.MAX_VALUE))
+            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+              .addComponent(scanDirTextField)
+              .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 250, Short.MAX_VALUE))
+            .addGap(18, 18, 18)
+            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+              .addGroup(jPanel1Layout.createSequentialGroup()
+                .addComponent(browseScanDirButton)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(scanArchivesButton))
+              .addGroup(jPanel1Layout.createSequentialGroup()
+                .addComponent(browseReportDirButton)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(reportAllButton)))
+            .addGap(0, 120, Short.MAX_VALUE))
+          .addComponent(progressLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        .addContainerGap())
     );
     jPanel1Layout.setVerticalGroup(
       jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -192,11 +211,16 @@ public class BubbleCarverFrame extends javax.swing.JFrame
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
           .addComponent(jLabel2)
-          .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-            .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-            .addComponent(browseReportDirButton)
-            .addComponent(reportAllButton)))
-        .addContainerGap(302, Short.MAX_VALUE))
+          .addGroup(jPanel1Layout.createSequentialGroup()
+            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+              .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+              .addComponent(browseReportDirButton)
+              .addComponent(reportAllButton))
+            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+              .addComponent(progressLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
+              .addComponent(jLabel3))))
+        .addContainerGap(315, Short.MAX_VALUE))
     );
 
     jScrollPane8.setViewportView(jPanel1);
@@ -334,7 +358,7 @@ public class BubbleCarverFrame extends javax.swing.JFrame
     int outcome = chooser.showOpenDialog( this );
     if ( outcome == JFileChooser.APPROVE_OPTION )
     {
-      File reportDir = chooser.getSelectedFile();
+      reportDir = chooser.getSelectedFile();
       reportBaseDirTextField.setText( reportDir.getAbsolutePath() );
     }
 
@@ -382,12 +406,12 @@ public class BubbleCarverFrame extends javax.swing.JFrame
     }
     if ( !baseDir.exists() )
     {
-      JOptionPane.showMessageDialog( rootPane, "Selected an archive scan directory doesn't exist." );
+      JOptionPane.showMessageDialog( rootPane, "Selected archive scan directory doesn't exist." );
       return;            
     }
     if ( !baseDir.isDirectory() )
     {
-      JOptionPane.showMessageDialog( rootPane, "Selected an archive scan directory isn't a directory." );
+      JOptionPane.showMessageDialog( rootPane, "Selected archive scan directory isn't a directory." );
       return;            
     }
     ArchiveDirectoryTreeNode root = new ArchiveDirectoryTreeNode( baseDir );
@@ -397,8 +421,41 @@ public class BubbleCarverFrame extends javax.swing.JFrame
 
   private void reportAllButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_reportAllButtonActionPerformed
   {//GEN-HEADEREND:event_reportAllButtonActionPerformed
+    if ( baseDir == null )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Select an archive scan directory first." );
+      return;            
+    }
+    if ( !baseDir.exists() )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Selected archive scan directory doesn't exist." );
+      return;            
+    }
+    if ( !baseDir.isDirectory() )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Selected archive scan directory isn't a directory." );
+      return;            
+    }
+    if ( reportDir == null )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Select a student report directory first." );
+      return;            
+    }
+    if ( !reportDir.exists() )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Selected student report directory doesn't exist." );
+      return;            
+    }
+    if ( !reportDir.isDirectory() )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Selected student report directory isn't a directory." );
+      return;            
+    }
     
-    JOptionPane.showMessageDialog( rootPane, "Button not implemented." );
+    batchProcessor = new BatchProcessor( this, baseDir.toPath(), reportDir.toPath() );
+    Thread t = new Thread( batchProcessor );
+    t.start();
+    
   }//GEN-LAST:event_reportAllButtonActionPerformed
 
   /**
@@ -460,6 +517,7 @@ public class BubbleCarverFrame extends javax.swing.JFrame
   private javax.swing.JTree gradebookTree;
   private javax.swing.JLabel jLabel1;
   private javax.swing.JLabel jLabel2;
+  private javax.swing.JLabel jLabel3;
   private javax.swing.JMenu jMenu1;
   private javax.swing.JMenuBar jMenuBar1;
   private javax.swing.JPanel jPanel1;
@@ -477,10 +535,31 @@ public class BubbleCarverFrame extends javax.swing.JFrame
   private javax.swing.JButton loadSelectedArchiveButton;
   private javax.swing.JTree manifestTree;
   private javax.swing.JTree membershipTree;
+  private javax.swing.JLabel progressLabel;
   private javax.swing.JButton reportAllButton;
   private javax.swing.JTextField reportBaseDirTextField;
   private javax.swing.JButton scanArchivesButton;
   private javax.swing.JTextField scanDirTextField;
   private javax.swing.JTree usersTree;
   // End of variables declaration//GEN-END:variables
+
+  @Override
+  public void batchProcessorStarted( BatchProcessor bp )
+  {
+    Logger.getLogger( BubbleCarverFrame.class.getName() ).log( Level.INFO, "Batch started" );
+  }
+
+  @Override
+  public void batchProcessorProgress( BatchProcessor bp, String message, int completeCount, int totalCount )
+  {
+    Logger.getLogger( BubbleCarverFrame.class.getName() ).log( Level.INFO, "Batch progress " + message );
+    progressLabel.setText( message );
+  }
+
+  @Override
+  public void batchProcessorCompleted( BatchProcessor bp, Throwable th )
+  {
+    Logger.getLogger( BubbleCarverFrame.class.getName() ).log( Level.INFO, "Batch completed" );
+    progressLabel.setText( "Complete" );
+  }
 }
