@@ -15,10 +15,10 @@
  */
 package uk.ac.leedsbeckett.bubblecarver;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -52,7 +52,7 @@ public class Archive
   DocumentBuilder builder;
   XPath xPath = XPathFactory.newInstance().newXPath();
 
-  File zipdir;
+  Path zipdir;
   Document manifestDocument;
   TreeModel manifestTreeModel;
   Document courseSettingsDocument;
@@ -69,9 +69,9 @@ public class Archive
 
   ArrayList<Element> outdefList = new ArrayList<>();
   
-  public Archive( File file )
+  public Archive( Path path )
   {
-    this.zipdir = file;
+    this.zipdir = path;
   }
 
   public Document getManifestDocument()
@@ -81,7 +81,7 @@ public class Archive
   
   public void load() throws ArchiveException
   {
-    File manifestfile;
+    Path manifestpath;
     manifestTreeModel = null;
     courseSettingsTreeModel = null;
     usersTreeModel = null;
@@ -93,10 +93,10 @@ public class Archive
       DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
       factory.setNamespaceAware( true );
       builder = factory.newDocumentBuilder();
-      manifestfile = new File( zipdir, "imsmanifest.xml" );
-      if ( !manifestfile.exists() )
+      manifestpath = zipdir.resolve( "imsmanifest.xml" );
+      if ( !Files.exists( manifestpath ) )
         throw new ArchiveException( "The ZIP file does not contain an IMS manifest and so doesn't look like a BBL archive." );
-      manifestDocument = loadXMLDocument( manifestfile );
+      manifestDocument = loadXMLDocument( manifestpath );
       courseSettingsDocument = loadXMLDocument( findCourseSettings() );
       usersDocument = loadXMLDocument( findUsers() );
       membershipDocument = loadXMLDocument( findMembership() );
@@ -163,12 +163,12 @@ public class Archive
     String filename = resource.getAttributeNS( NS_BB_PACKAGE, "file" );
     if ( filename == null || filename.trim().length() == 0 )
       throw new ArchiveException( "Archive's entry that matches " + expression + " does not have a filename." );
-    File file = new File( this.zipdir, filename );
-    if ( !file.exists() )
+    Path path = this.zipdir.resolve( filename );
+    if ( !Files.exists( path ) )
       throw new ArchiveException( "Archive's entry named " + filename + " does not exist in unzipped archive." );
     return new Resource( 
             resource.getAttributeNS( "http://www.w3.org/XML/1998/namespace", "base" ), 
-            file );
+            path );
   }
 
   public ArrayList<Resource> findEntries( String expression ) throws XPathExpressionException, ArchiveException
@@ -181,12 +181,12 @@ public class Archive
       String filename = resource.getAttributeNS( NS_BB_PACKAGE, "file" );
       if ( filename == null || filename.trim().length() == 0 )
         throw new ArchiveException( "Archive's entry that matches " + expression + " does not have a filename." );
-      File file = new File( this.zipdir, filename );
-      if ( !file.exists() )
+      Path path = this.zipdir.resolve( filename );
+      if ( !Files.exists( path ) )
         throw new ArchiveException( "Archive's entry named " + filename + " does not exist in unzipped archive." );
       list.add( 
           new Resource( resource.getAttributeNS( "http://www.w3.org/XML/1998/namespace", "base" ), 
-          file ) );
+          path ) );
     }
     return list;
   }
@@ -226,13 +226,13 @@ public class Archive
   Document loadXMLDocument( Resource resource ) throws IOException, SAXException
   {
     if ( resource == null ) return null;
-    if ( resource.getFile() == null ) return null;
-    return loadXMLDocument( resource.getFile() );
+    if ( resource.getPath() == null ) return null;
+    return loadXMLDocument( resource.getPath() );
   }
   
-  Document loadXMLDocument( File file ) throws IOException, SAXException
+  Document loadXMLDocument( Path path ) throws IOException, SAXException
   {
-    try ( InputStream in = new FileInputStream( file ) )
+    try ( InputStream in = Files.newInputStream( path ) )
     {
       Document doc = builder.parse( in );
       doc.getDocumentElement().normalize();
@@ -313,13 +313,13 @@ public class Archive
   public class Resource
   {
     private final String base;
-    private final File file;
+    private final Path path;
     private Document document = null;
 
-    public Resource( String base, File file )
+    public Resource( String base, Path path )
     {
       this.base = base;
-      this.file = file;
+      this.path = path;
     }
 
     public String getBase()
@@ -327,9 +327,9 @@ public class Archive
       return base;
     }
 
-    public File getFile()
+    public Path getPath()
     {
-      return file;
+      return path;
     }
 
     public Document getDocument()

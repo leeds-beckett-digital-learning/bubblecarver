@@ -16,6 +16,11 @@
 package uk.ac.leedsbeckett.bubblecarver.gui;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFileChooser;
@@ -53,7 +58,6 @@ public class BubbleCarverFrame
   {
     initComponents();
     this.setTitle( "Bubble Carver");
-    this.archiveDirectoryTree.setModel( null );
     clear();
   }
 
@@ -77,24 +81,6 @@ public class BubbleCarverFrame
   {
 
     jTabbedPane1 = new javax.swing.JTabbedPane();
-    jScrollPane8 = new javax.swing.JScrollPane();
-    jPanel1 = new javax.swing.JPanel();
-    jLabel1 = new javax.swing.JLabel();
-    scanDirTextField = new javax.swing.JTextField();
-    browseScanDirButton = new javax.swing.JButton();
-    jLabel2 = new javax.swing.JLabel();
-    reportBaseDirTextField = new javax.swing.JTextField();
-    browseReportDirButton = new javax.swing.JButton();
-    scanArchivesButton = new javax.swing.JButton();
-    reportAllButton = new javax.swing.JButton();
-    jLabel3 = new javax.swing.JLabel();
-    progressLabel = new javax.swing.JLabel();
-    jSplitPane1 = new javax.swing.JSplitPane();
-    jScrollPane9 = new javax.swing.JScrollPane();
-    archiveDirectoryTree = new javax.swing.JTree();
-    jScrollPane10 = new javax.swing.JScrollPane();
-    jPanel2 = new javax.swing.JPanel();
-    loadSelectedArchiveButton = new javax.swing.JButton();
     jScrollPane1 = new javax.swing.JScrollPane();
     manifestTree = new javax.swing.JTree();
     jScrollPane7 = new javax.swing.JScrollPane();
@@ -106,11 +92,44 @@ public class BubbleCarverFrame
     jScrollPane5 = new javax.swing.JScrollPane();
     gradebookTree = new javax.swing.JTree();
     attemptFilesTabbedPane = new javax.swing.JTabbedPane();
+    jScrollPane8 = new javax.swing.JScrollPane();
+    jPanel1 = new javax.swing.JPanel();
+    jLabel1 = new javax.swing.JLabel();
+    scanDirTextField = new javax.swing.JTextField();
+    browseScanDirButton = new javax.swing.JButton();
+    jLabel2 = new javax.swing.JLabel();
+    reportBaseDirTextField = new javax.swing.JTextField();
+    browseReportDirButton = new javax.swing.JButton();
+    reportAllButton = new javax.swing.JButton();
+    jLabel3 = new javax.swing.JLabel();
+    progressLabel = new javax.swing.JLabel();
     jMenuBar1 = new javax.swing.JMenuBar();
     jMenu1 = new javax.swing.JMenu();
+    openMenuItem = new javax.swing.JMenuItem();
     exitMenuItem = new javax.swing.JMenuItem();
 
     setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+
+    jScrollPane1.setViewportView(manifestTree);
+
+    jTabbedPane1.addTab("imsmanifest", jScrollPane1);
+
+    jScrollPane7.setViewportView(courseSettingsTree);
+
+    jTabbedPane1.addTab("Course Settings", jScrollPane7);
+
+    jScrollPane3.setViewportView(usersTree);
+
+    jTabbedPane1.addTab("Users", jScrollPane3);
+
+    jScrollPane4.setViewportView(membershipTree);
+
+    jTabbedPane1.addTab("Membership", jScrollPane4);
+
+    jScrollPane5.setViewportView(gradebookTree);
+
+    jTabbedPane1.addTab("Gradebook", jScrollPane5);
+    jTabbedPane1.addTab("Attempt Files", attemptFilesTabbedPane);
 
     jLabel1.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
     jLabel1.setText("Archive Scan Directory:");
@@ -147,15 +166,6 @@ public class BubbleCarverFrame
       }
     });
 
-    scanArchivesButton.setText("Scan...");
-    scanArchivesButton.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(java.awt.event.ActionEvent evt)
-      {
-        scanArchivesButtonActionPerformed(evt);
-      }
-    });
-
     reportAllButton.setText("Process All...");
     reportAllButton.addActionListener(new java.awt.event.ActionListener()
     {
@@ -187,10 +197,7 @@ public class BubbleCarverFrame
               .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 250, Short.MAX_VALUE))
             .addGap(18, 18, 18)
             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-              .addGroup(jPanel1Layout.createSequentialGroup()
-                .addComponent(browseScanDirButton)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(scanArchivesButton))
+              .addComponent(browseScanDirButton)
               .addGroup(jPanel1Layout.createSequentialGroup()
                 .addComponent(browseReportDirButton)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -206,8 +213,7 @@ public class BubbleCarverFrame
         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
           .addComponent(jLabel1)
           .addComponent(scanDirTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-          .addComponent(browseScanDirButton)
-          .addComponent(scanArchivesButton))
+          .addComponent(browseScanDirButton))
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
           .addComponent(jLabel2)
@@ -225,70 +231,21 @@ public class BubbleCarverFrame
 
     jScrollPane8.setViewportView(jPanel1);
 
-    jTabbedPane1.addTab("Scan Settings", jScrollPane8);
-
-    jSplitPane1.setDividerLocation(300);
-
-    jScrollPane9.setViewportView(archiveDirectoryTree);
-
-    jSplitPane1.setLeftComponent(jScrollPane9);
-
-    loadSelectedArchiveButton.setText("Load Selected");
-    loadSelectedArchiveButton.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(java.awt.event.ActionEvent evt)
-      {
-        loadSelectedArchiveButtonActionPerformed(evt);
-      }
-    });
-
-    javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
-    jPanel2.setLayout(jPanel2Layout);
-    jPanel2Layout.setHorizontalGroup(
-      jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGroup(jPanel2Layout.createSequentialGroup()
-        .addContainerGap()
-        .addComponent(loadSelectedArchiveButton)
-        .addContainerGap(424, Short.MAX_VALUE))
-    );
-    jPanel2Layout.setVerticalGroup(
-      jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGroup(jPanel2Layout.createSequentialGroup()
-        .addContainerGap()
-        .addComponent(loadSelectedArchiveButton)
-        .addContainerGap(331, Short.MAX_VALUE))
-    );
-
-    jScrollPane10.setViewportView(jPanel2);
-
-    jSplitPane1.setRightComponent(jScrollPane10);
-
-    jTabbedPane1.addTab("Archives", jSplitPane1);
-
-    jScrollPane1.setViewportView(manifestTree);
-
-    jTabbedPane1.addTab("imsmanifest", jScrollPane1);
-
-    jScrollPane7.setViewportView(courseSettingsTree);
-
-    jTabbedPane1.addTab("Course Settings", jScrollPane7);
-
-    jScrollPane3.setViewportView(usersTree);
-
-    jTabbedPane1.addTab("Users", jScrollPane3);
-
-    jScrollPane4.setViewportView(membershipTree);
-
-    jTabbedPane1.addTab("Membership", jScrollPane4);
-
-    jScrollPane5.setViewportView(gradebookTree);
-
-    jTabbedPane1.addTab("Gradebook", jScrollPane5);
-    jTabbedPane1.addTab("Attempt Files", attemptFilesTabbedPane);
+    jTabbedPane1.addTab("Batch Processing", jScrollPane8);
 
     getContentPane().add(jTabbedPane1, java.awt.BorderLayout.CENTER);
 
     jMenu1.setText("File");
+
+    openMenuItem.setText("Open Archive...");
+    openMenuItem.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(java.awt.event.ActionEvent evt)
+      {
+        openMenuItemActionPerformed(evt);
+      }
+    });
+    jMenu1.add(openMenuItem);
 
     exitMenuItem.setText("Exit");
     jMenu1.add(exitMenuItem);
@@ -300,15 +257,16 @@ public class BubbleCarverFrame
     pack();
   }// </editor-fold>//GEN-END:initComponents
 
-  private void loadArchive( File selected )
+  private void loadArchive( Path selected, String title )
   {
     Archive a = new Archive( selected );
     clear();
     try
     {
+      jTabbedPane1.setSelectedIndex( 0 );
       a.load();
       a.loadTrees();
-      this.setTitle( "Bubblecarver - " + selected.getName() );
+      this.setTitle( "Bubblecarver - " + title );
       this.manifestTree.setModel(     a.getManifestTreeModel()     );
       this.courseSettingsTree.setModel( a.getCourseSettingsTreeModel()  );
       this.usersTree.setModel(        a.getUsersTreeModel()        );
@@ -364,61 +322,7 @@ public class BubbleCarverFrame
 
     
   }//GEN-LAST:event_browseReportDirButtonActionPerformed
-
-  private void loadSelectedArchiveButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_loadSelectedArchiveButtonActionPerformed
-  {//GEN-HEADEREND:event_loadSelectedArchiveButtonActionPerformed
-    
-    if ( archiveDirectoryTree.getSelectionPath() == null )
-    {
-      JOptionPane.showMessageDialog( rootPane, "Nothing selected in archive list." );
-      return;
-    }
-//    File reportFile = new File( reportBaseDirTextField.getText() );
-//    if ( !reportFile.exists() )
-//    {
-//      JOptionPane.showMessageDialog( rootPane, "The specified report directory does not exist." );
-//      return;
-//    }
-//    if ( !reportFile.isDirectory() )
-//    {
-//      JOptionPane.showMessageDialog( rootPane, "The specified report directory is not a directory." );
-//      return;
-//    }
-    
-    clear();
-    ArchiveDirectoryTreeNode treenode = (ArchiveDirectoryTreeNode)archiveDirectoryTree.getSelectionPath().getLastPathComponent();
-    File selectedFile = treenode.getFileData().getFile();
-    if ( !selectedFile.getName().endsWith( ".zip" ) )
-    {
-      JOptionPane.showMessageDialog( rootPane, "Select a directory ending '.zip'." );
-      return;      
-    }
-    loadArchive( selectedFile );
-  }//GEN-LAST:event_loadSelectedArchiveButtonActionPerformed
-
-  private void scanArchivesButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_scanArchivesButtonActionPerformed
-  {//GEN-HEADEREND:event_scanArchivesButtonActionPerformed
-    // TODO add your handling code here:
-    if ( baseDir == null )
-    {
-      JOptionPane.showMessageDialog( rootPane, "Select an archive scan directory first." );
-      return;            
-    }
-    if ( !baseDir.exists() )
-    {
-      JOptionPane.showMessageDialog( rootPane, "Selected archive scan directory doesn't exist." );
-      return;            
-    }
-    if ( !baseDir.isDirectory() )
-    {
-      JOptionPane.showMessageDialog( rootPane, "Selected archive scan directory isn't a directory." );
-      return;            
-    }
-    ArchiveDirectoryTreeNode root = new ArchiveDirectoryTreeNode( baseDir );
-    DefaultTreeModel treeModel = new DefaultTreeModel( root );
-    archiveDirectoryTree.setModel( treeModel );
-  }//GEN-LAST:event_scanArchivesButtonActionPerformed
-
+  
   private void reportAllButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_reportAllButtonActionPerformed
   {//GEN-HEADEREND:event_reportAllButtonActionPerformed
     if ( baseDir == null )
@@ -457,6 +361,60 @@ public class BubbleCarverFrame
     t.start();
     
   }//GEN-LAST:event_reportAllButtonActionPerformed
+
+  private void openMenuItemActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_openMenuItemActionPerformed
+  {//GEN-HEADEREND:event_openMenuItemActionPerformed
+    
+    JFileChooser chooser = new JFileChooser();
+    chooser.setFileSelectionMode( JFileChooser.FILES_ONLY );
+    int outcome = chooser.showOpenDialog( this );
+    if ( outcome == JFileChooser.APPROVE_OPTION )
+    {
+      File selectedArchiveFile = chooser.getSelectedFile();
+      if ( !selectedArchiveFile.exists() )
+      {
+        JOptionPane.showMessageDialog( rootPane, "Selected file doesn't exist." );
+        return;            
+      }
+      if ( !selectedArchiveFile.isFile() )
+      {
+        JOptionPane.showMessageDialog( rootPane, "Selected file is not a regular file." );
+        return;            
+      }
+      FileSystem zipfs;
+      Path root;
+      Path p;
+      try
+      {
+        zipfs = FileSystems.newFileSystem( selectedArchiveFile.toPath(), this.getClass().getClassLoader() );
+        root = zipfs.getPath( "/" );
+        p = root.resolve( "imsmanifest.xml" );
+        if ( !Files.exists( p ) )
+        {
+          JOptionPane.showMessageDialog( rootPane, "Zip file is not a BBL course archive because there is no imsmanifest.xml file in it." );
+          return;          
+        }
+      }
+      catch ( Exception ex )
+      {
+        ex.printStackTrace();
+        JOptionPane.showMessageDialog( rootPane, "Problem reading file - perhaps not a ZIP archive." );
+        return;
+      }
+
+      try
+      {
+        clear();
+        loadArchive( root, selectedArchiveFile.getName() );
+        zipfs.close();
+      }
+      catch ( IOException ex )
+      {
+      }
+      JOptionPane.showMessageDialog( rootPane, "Functionality incomplete." );
+    }
+    
+  }//GEN-LAST:event_openMenuItemActionPerformed
 
   /**
    * @param args the command line arguments
@@ -508,7 +466,6 @@ public class BubbleCarverFrame
   }
 
   // Variables declaration - do not modify//GEN-BEGIN:variables
-  private javax.swing.JTree archiveDirectoryTree;
   private javax.swing.JTabbedPane attemptFilesTabbedPane;
   private javax.swing.JButton browseReportDirButton;
   private javax.swing.JButton browseScanDirButton;
@@ -521,24 +478,19 @@ public class BubbleCarverFrame
   private javax.swing.JMenu jMenu1;
   private javax.swing.JMenuBar jMenuBar1;
   private javax.swing.JPanel jPanel1;
-  private javax.swing.JPanel jPanel2;
   private javax.swing.JScrollPane jScrollPane1;
-  private javax.swing.JScrollPane jScrollPane10;
   private javax.swing.JScrollPane jScrollPane3;
   private javax.swing.JScrollPane jScrollPane4;
   private javax.swing.JScrollPane jScrollPane5;
   private javax.swing.JScrollPane jScrollPane7;
   private javax.swing.JScrollPane jScrollPane8;
-  private javax.swing.JScrollPane jScrollPane9;
-  private javax.swing.JSplitPane jSplitPane1;
   private javax.swing.JTabbedPane jTabbedPane1;
-  private javax.swing.JButton loadSelectedArchiveButton;
   private javax.swing.JTree manifestTree;
   private javax.swing.JTree membershipTree;
+  private javax.swing.JMenuItem openMenuItem;
   private javax.swing.JLabel progressLabel;
   private javax.swing.JButton reportAllButton;
   private javax.swing.JTextField reportBaseDirTextField;
-  private javax.swing.JButton scanArchivesButton;
   private javax.swing.JTextField scanDirTextField;
   private javax.swing.JTree usersTree;
   // End of variables declaration//GEN-END:variables
