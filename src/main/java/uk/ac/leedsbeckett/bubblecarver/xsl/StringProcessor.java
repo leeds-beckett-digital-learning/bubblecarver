@@ -15,14 +15,34 @@
  */
 package uk.ac.leedsbeckett.bubblecarver.xsl;
 
+import java.text.DecimalFormat;
+import java.text.ParseException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  *
  * @author maber01
  */
 public class StringProcessor
 {
+  private static DecimalFormat scoreformat = new DecimalFormat( "0.0" );
+  
   public static String replace( String src, String find, String replace )
   {
     return src.replace( find, replace );
+  }
+  
+  public static String reformatScore( String original )
+  {
+    try
+    {
+      Number n = scoreformat.parse( original );
+      return scoreformat.format( n );
+    }
+    catch ( ParseException ex )
+    {
+      return original;
+    }
   }
 }

@@ -74,7 +74,7 @@
           <xsl:otherwise>Other</xsl:otherwise>
         </xsl:choose>
       </td>
-      <td><xsl:value-of select="POINTSPOSSIBLE/@value"/></td>
+      <td><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( POINTSPOSSIBLE/@value )"/></td>
       <td>
         <xsl:apply-templates select="OUTCOMES/OUTCOME" mode="points"/>        
       </td>
@@ -108,7 +108,7 @@
         See attempt: <xsl:value-of select="../../AGGREGATIONMODEL/@value"/>        
       </xsl:when>
       <xsl:otherwise>
-        <xsl:value-of select="OVERRIDE_SCORE/text()"/> (Attempt override)
+        <xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( OVERRIDE_SCORE/text() )"/> (Attempt override)
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
@@ -166,7 +166,7 @@
         </tr>
         <tr>
           <th>Score:</th>
-          <td><xsl:value-of select="SCORE/@value"/></td>
+          <td><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( SCORE/@value )"/></td>
         </tr>
         <tr>
           <th>Grade:</th>
@@ -175,14 +175,21 @@
       </tbody>
     </table>
     <div class="attempt-submission">
-      <h3>Textual Submission</h3>
-      <div>
-        <xsl:apply-templates select="STUDENTSUBMISSION"/>
-      </div>
-      <h3>Attached Files</h3>
-      <ul>
-        <xsl:apply-templates select="/bbcarv:student/bbcarv:resources/bbcarv:resource[@type = 'course/x-bb-attemptfiles']/bbcarv:data/ATTEMPTFILES/ATTEMPTFILE[ATTEMPTID/@value = $attemptid]"/>
-      </ul>
+      <!-- may or may not have text directly in the attempt depending on
+      the type of item. -->
+      <xsl:if test="count(STUDENTSUBMISSION) &gt; 0">
+        <h3>Textual Submission</h3>
+        <div>
+          <xsl:apply-templates select="STUDENTSUBMISSION"/>
+        </div>
+      </xsl:if>
+      <xsl:variable name="attachedfiles" select="/bbcarv:student/bbcarv:resources/bbcarv:resource[@type = 'course/x-bb-attemptfiles']/bbcarv:data/ATTEMPTFILES/ATTEMPTFILE[ATTEMPTID/@value = $attemptid]"/>
+      <xsl:if test="count( $attachedfiles ) &gt; 0">
+        <h3>Attached Files</h3>
+        <ul>
+          <xsl:apply-templates select="$attachedfiles"/>
+        </ul>
+      </xsl:if>
     </div>
     <div class="attempt-comments">
       <h3>Feedback</h3>
