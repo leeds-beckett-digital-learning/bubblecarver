@@ -32,9 +32,12 @@
     course/x-bb-coursesetting
     course/x-bb-user
     membership/x-bb-coursemembership
+    course/x-bb-group
+    membership/x-bb-groupmembership
     course/x-bb-gradebook
     course/x-bb-attemptfiles
     course/x-bb-attemptembeddedfiles
+    resource/x-bb-wiki
   </xsl:variable>
 
   <!--.
@@ -88,7 +91,6 @@
           </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="student-data-file" select="concat($student-dir,'data.xml')"/>
-        <xsl:variable name="student-report-file" select="concat($student-dir,'report.html')"/>
         <xsl:variable name="memberid" select="$unredacted/bbcarv:resources/bbcarv:resource/bbcarv:data/COURSEMEMBERSHIPS/COURSEMEMBERSHIP/USERID[@value = $uid]/../@id"/>
         <xsl:variable name="student-rel-dir">
           <xsl:call-template name="make-student-relative-uri">
@@ -108,7 +110,6 @@
             <bbcarv:student>
               <xsl:attribute name="id"><xsl:value-of select="$uid"/></xsl:attribute>
               <xsl:attribute name="memberid"><xsl:value-of select="$memberid"/></xsl:attribute>
-              <xsl:attribute name="uri"><xsl:value-of select="$student-dir"/></xsl:attribute>
               <xsl:attribute name="rel-uri"><xsl:value-of select="$student-rel-dir"/></xsl:attribute>
             </bbcarv:student>
             <xsl:copy-of select="$unredacted"/>
@@ -143,21 +144,6 @@
           </bbcarv:student>
         </redirect:write>
         
-        <!-- This is not doable because the output might not be
-                well formed XML. (E.g. <img>, <br> unclosed.)    -->
-        <!--
-        <xsl:variable name="redactedstudentdatafrag" select="document($student-data-file)"/>
-        <xsl:variable name="redactedstudentdata" select="nodeset($redactedstudentdatafrag)"/>
-        <redirect:write file="{$student-report-file}">
-          <html>
-            <body>
-              <xsl:for-each select="$redactedstudentdata//TEXT">
-                <div><xsl:value-of select="text()" /></div>
-              </xsl:for-each>
-            </body>
-          </html>
-        </redirect:write>
-        -->
       </xsl:for-each>
     </archive-log>
   </xsl:template>
@@ -213,7 +199,7 @@
 
   <!-- This 'redact' template is specialised to processing elements that
   have a COURSEMEMBERSHIPID child element. -->
-  <xsl:template match="OUTCOME" mode="redact">
+  <xsl:template match="OUTCOME | GROUPMEMBERSHIP" mode="redact">
     <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
     <xsl:choose>
       <xsl:when test="count( COURSEMEMBERSHIPID[@value = $memberid] ) = 0">
@@ -290,6 +276,27 @@
   </xsl:template>
 
   <!-- ====================================================================== -->
+  <xsl:template match="wiki" mode="redact">
+    <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
+    <xsl:variable name="gid" select="groupID/text()"/>
+    <xsl:variable name="gmships" select="./ancestor::bbcarv:studentandfiles/bbcarv:resources/bbcarv:resource/bbcarv:data/GROUPMEMBERSHIPS/GROUPMEMBERSHIP[GROUPID/@value = $gid and COURSEMEMBERSHIPID/@value = $memberid]"/>
+    
+    <xsl:choose>
+      <xsl:when test="count( $gmships ) = 0">
+        <xsl:comment>Whole wiki redacted - student not member of group.</xsl:comment>        
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:for-each select="@*">
+            <xsl:copy-of select="."/>
+          </xsl:for-each>
+          <xsl:apply-templates select="*" mode="redact"/>
+        </xsl:copy>        
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <!-- ====================================================================== -->
 
   <!-- 
        This 'redact' template is specialised to file elements. This is complicated
@@ -318,16 +325,15 @@
     <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
 
     <xsl:choose>
+      <xsl:when test="$context = 'resource/x-bb-wiki'">
+        <!-- Assumes that whole wikis can be redacted. If wiki is included, include all its files. -->
+        <xsl:copy-of select="."/>
+      </xsl:when>
       <xsl:when test="$memberattempts = 0">
         <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:copy>
-          <xsl:for-each select="@*">
-            <xsl:copy-of select="."/>
-          </xsl:for-each>
-          <xsl:apply-templates select="*" mode="redact"/>
-        </xsl:copy>
+        <xsl:copy-of select="."/>
       </xsl:otherwise>
     </xsl:choose>
 
@@ -433,8 +439,11 @@
       <xsl:when test="$restype = 'course/x-bb-attemptembeddedfiles'">
         <xsl:apply-templates select="." mode="redact-resattemptembed"/>
       </xsl:when>
+      <xsl:when test="$restype = 'resource/x-bb-wiki'">
+        <xsl:apply-templates select="." mode="redact-reswiki"/>
+      </xsl:when>
       <xsl:otherwise>
-        <!-- <xsl:comment>Redacted catalogue file. Not in csfiles and not in an interesting resource subfolder.</xsl:comment> -->
+        <xsl:comment>Redacted catalogue file. Not in csfiles and not in an interesting resource subfolder. <xsl:value-of select="@uri"/></xsl:comment>
       </xsl:otherwise>      
     </xsl:choose>
   </xsl:template>
@@ -468,6 +477,29 @@
         <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( $file-processor-id, @uri, $dsturi )"/></log>
       </xsl:otherwise>
     </xsl:choose>       
+  </xsl:template>
+
+  <xsl:template match="cat:file" mode="redact-reswiki">
+    <!--
+    <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
+    <xsl:variable name="sub" select="cat:dir[1]/@name"/>
+    <xsl:variable name="wiki" select="/manifest/resources/resource[ @xml:base = $sub and @type = 'course/x-bb-wiki' ]"/>
+    <xsl:variable name="gid" select="$wiki/groupID/text()"/>
+    <xsl:variable name="gmships" select="./ancestor::bbcarv:studentandfiles/bbcarv:resources/bbcarv:resource/bbcarv:data/GROUPMEMBERSHIPS/GROUPMEMBERSHIP[GROUPID/@value = $gid and COURSEMEMBERSHIPID/@value = $memberid]"/>
+-->
+    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@rel-uri"/>
+    <!--
+    <xsl:choose>
+      <xsl:when test="count( $gmships ) = 0">
+        <xsl:comment>Redacted catalogue file. Relates to group student is not in.</xsl:comment>        
+      </xsl:when>
+      <xsl:otherwise>
+        -->
+        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( $file-processor-id, @uri, $dsturi )"/></log>
+        <!--
+      </xsl:otherwise>
+    </xsl:choose>       
+          -->
   </xsl:template>
 
 

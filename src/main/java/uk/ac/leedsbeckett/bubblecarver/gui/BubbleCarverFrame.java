@@ -356,7 +356,7 @@ public class BubbleCarverFrame
       return;            
     }
     
-    batchProcessor = new BatchProcessor( this, baseDir.toPath(), reportDir.toPath() );
+    batchProcessor = new BatchProcessor( this, baseDir.toPath(), reportDir.toPath(), true, true );
     Thread t = new Thread( batchProcessor );
     t.start();
     
@@ -411,7 +411,6 @@ public class BubbleCarverFrame
       catch ( IOException ex )
       {
       }
-      JOptionPane.showMessageDialog( rootPane, "Functionality incomplete." );
     }
     
   }//GEN-LAST:event_openMenuItemActionPerformed

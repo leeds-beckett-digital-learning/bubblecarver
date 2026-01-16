@@ -71,7 +71,8 @@
           <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-bloglink'">Blog or Journal</xsl:when>
           <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-wiki'">Wiki</xsl:when>
           <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-plugin-scormengine'">SCORM Package</xsl:when>
-          <xsl:otherwise>Other</xsl:otherwise>
+          <xsl:when test="starts-with(HANDLERURL/@value, '/webapps/ip-turnitintool')">TurnItIn Building Block<br/>(Look for data in TTI archive)</xsl:when>
+          <xsl:otherwise>Other = <xsl:value-of select="SCORE_PROVIDER_HANDLE/@value"/> <xsl:value-of select="HANDLERURL/@value"/> </xsl:otherwise>
         </xsl:choose>
       </td>
       <td><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( POINTSPOSSIBLE/@value )"/></td>
@@ -190,6 +191,11 @@
           <xsl:apply-templates select="$attachedfiles"/>
         </ul>
       </xsl:if>
+      <xsl:if test="ancestor::OUTCOMEDEFINITION/SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-wiki'">
+        <xsl:variable name="gattemptid" select="GROUP_ATTEMPT_ID/@value"/>
+        <xsl:variable name="wiki" select="ancestor::bbcarv:resources/bbcarv:resource[@type = 'resource/x-bb-wiki']/bbcarv:data/wiki[groupAttemptID/text() = $gattemptid]"/>
+        <xsl:apply-templates select="$wiki"/>
+      </xsl:if>
     </div>
     <div class="attempt-comments">
       <h3>Feedback</h3>
@@ -252,6 +258,27 @@
       <xsl:with-param name="v" select="'@X@EmbeddedFile.location@X@'"/>
     </xsl:call-template>
   </xsl:template>
+
+  <xsl:template match="wiki">
+    <xsl:variable name="wikibase" select="concat( ancestor::bbcarv:resource/@xml:base, '/wikis/group/', uniqueID/text(), '/' )"/>
+    <p>Wiki content here.</p>
+    <xsl:for-each select="pages/page">
+      <h3>Page <xsl:value-of select="position()"/></h3>
+      <xsl:variable name="pagebase" select="concat( $wikibase, guid/text(), '/' )"/>
+      <xsl:for-each select="versions/version">
+        <h3>Version <xsl:value-of select="position()"/> <xsl:value-of select="name/text()"/></h3>
+        <p>Edited by <xsl:value-of select="createdBy"/> on <xsl:value-of select="createdOn"/></p>
+        <xsl:call-template name="textoutputwiki">
+          <xsl:with-param name="t" select="contentText/text()"/>
+          <xsl:with-param name="base" select="$pagebase"/>
+          <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
+        </xsl:call-template>
+      </xsl:for-each>      
+    </xsl:for-each>
+  </xsl:template>
+    
+            
+
 
   <xsl:template match="INSTRUCTORCOMMENTS">
     <xsl:variable name="attemptid" select="../@id"/>
@@ -320,7 +347,7 @@
       <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
     </xsl:call-template>
   </xsl:template>
-    
+
   <xsl:template name="textoutput">
     <xsl:param name="t"/>
     <xsl:param name="base"/>
@@ -341,5 +368,16 @@
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
-  
+
+  <xsl:template name="textoutputwiki">
+    <xsl:param name="t"/>
+    <xsl:param name="base"/>
+    <xsl:param name="v"/>
+    <xsl:variable name="rebased" select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.replace( $t, $v, $base )"/>
+    
+    <div class="userhtml">
+      <xsl:value-of select="$rebased" disable-output-escaping="yes"/>
+    </div>
+  </xsl:template>
+    
 </xsl:stylesheet>

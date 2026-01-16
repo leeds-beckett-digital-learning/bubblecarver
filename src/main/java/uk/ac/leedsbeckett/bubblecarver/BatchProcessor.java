@@ -55,11 +55,12 @@ public class BatchProcessor implements Runnable
 {
   public static void main( String[] args )
   {
-    Path in  = Path.of( "c:\\temp\\sample" );
+    Path in  = Path.of( "c:\\temp\\samplea" );
     Path out = Path.of( "c:\\temp\\students" );
     try
     {
-      BatchProcessor bp = new BatchProcessor( null, in, out );
+      BatchProcessor bp = new BatchProcessor( null, in, out, true, true );
+      bp.setForceReport( true );
       bp.processForReal();
     }
     catch ( Exception ex )
@@ -70,6 +71,9 @@ public class BatchProcessor implements Runnable
   
   private final Path searchPath;
   private final Path studentPath;
+  private final boolean extract;
+  private final boolean report;
+  private boolean forcereport = false;
 
   private Transformer transformListStudents;
   private Transformer transformStudentReport;
@@ -77,11 +81,28 @@ public class BatchProcessor implements Runnable
   ProcessProgress progress;
   private final BatchProcessorListener listener;
   
-  public BatchProcessor( BatchProcessorListener listener, Path searchPath, Path studentPath )
+  public BatchProcessor( 
+          BatchProcessorListener listener, 
+          Path searchPath, 
+          Path studentPath,
+          boolean extract,
+          boolean report   )
   {
     this.listener = listener;
     this.searchPath = searchPath;
-    this.studentPath = studentPath;    
+    this.studentPath = studentPath;
+    this.extract = extract;
+    this.report = report;
+  }
+
+  public boolean isForceReport()
+  {
+    return forcereport;
+  }
+
+  public void setForceReport( boolean forcereport )
+  {
+    this.forcereport = forcereport;
   }
 
   private void init() throws IOException, TransformerConfigurationException
@@ -123,27 +144,34 @@ public class BatchProcessor implements Runnable
   private void processForReal() throws IOException, TransformerConfigurationException
   {
     init();
+    
     // Get the data out of the archives...
-    progress = new ProcessProgress();
-    ArchiveSearcher searcher = new ArchiveSearcher();
-    Stream<Path> streamSearch = Files.find( searchPath, 2, searcher );
-    streamSearch.forEach( new ArchiveProcessor() );
-    if ( progress.firstException != null )
+    if ( extract )
     {
-      System.out.println( "Exception while processing stream of archives..." );
-      progress.firstException.printStackTrace();
+      progress = new ProcessProgress();
+      ArchiveSearcher searcher = new ArchiveSearcher();
+      Stream<Path> streamSearch = Files.find( searchPath, 2, searcher );
+      streamSearch.forEach( new ArchiveProcessor() );
+      if ( progress.firstException != null )
+      {
+        System.out.println( "Exception while processing stream of archives..." );
+        progress.firstException.printStackTrace();
+      }
     }
     
     // For each student rebuild the module/community reports
-    progress = new ProcessProgress();
-    StudentArchiveDataSearcher sdsearcher = new StudentArchiveDataSearcher();
-    Stream<Path> studentArchiveDataSearch = Files.find( studentPath, 10, sdsearcher );
-    studentArchiveDataSearch.forEach( new StudentArchiveDataProcessor() );
-    if ( progress.firstException != null )
+    if ( report )
     {
-      System.out.println( "Exception while processing stream of archives..." );
-      progress.firstException.printStackTrace();
-    }    
+      progress = new ProcessProgress();
+      StudentArchiveDataSearcher sdsearcher = new StudentArchiveDataSearcher();
+      Stream<Path> studentArchiveDataSearch = Files.find( studentPath, 10, sdsearcher );
+      studentArchiveDataSearch.forEach( new StudentArchiveDataProcessor() );
+      if ( progress.firstException != null )
+      {
+        System.out.println( "Exception while processing stream of archives..." );
+        progress.firstException.printStackTrace();
+      }    
+    }
   }
   
   Path getRootOfArchive( Path t ) throws IOException
@@ -269,6 +297,7 @@ public class BatchProcessor implements Runnable
       Path relpath = studentPath.relativize( t );
       if ( relpath.getNameCount() != 7 ) return false;
       if ( !"bbarchives".equals( relpath.getName( 4 ).toString() ) ) return false;
+      if ( forcereport ) return true;
       Path reppath = t.getParent().resolve( "report.html" );
       if ( !Files.exists( reppath ) ) return true;
       try
