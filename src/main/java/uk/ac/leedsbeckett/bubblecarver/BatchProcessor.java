@@ -15,17 +15,16 @@
  */
 package uk.ac.leedsbeckett.bubblecarver;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringWriter;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -46,6 +45,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import org.w3c.dom.Document;
+import uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor;
 
 /**
  *
@@ -55,8 +55,8 @@ public class BatchProcessor implements Runnable
 {
   public static void main( String[] args )
   {
-    Path in = new File("c:\\temp\\archives").toPath();
-    Path out = new File("c:\\temp\\students").toPath();
+    Path in  = Path.of( "c:\\temp\\sample" );
+    Path out = Path.of( "c:\\temp\\students" );
     try
     {
       BatchProcessor bp = new BatchProcessor( null, in, out );
@@ -123,8 +123,9 @@ public class BatchProcessor implements Runnable
   private void processForReal() throws IOException, TransformerConfigurationException
   {
     init();
+    // Get the data out of the archives...
     progress = new ProcessProgress();
-    UnzippedArchiveSearcher searcher = new UnzippedArchiveSearcher();
+    ArchiveSearcher searcher = new ArchiveSearcher();
     Stream<Path> streamSearch = Files.find( searchPath, 2, searcher );
     streamSearch.forEach( new ArchiveProcessor() );
     if ( progress.firstException != null )
@@ -132,7 +133,8 @@ public class BatchProcessor implements Runnable
       System.out.println( "Exception while processing stream of archives..." );
       progress.firstException.printStackTrace();
     }
-
+    
+    // For each student rebuild the module/community reports
     progress = new ProcessProgress();
     StudentArchiveDataSearcher sdsearcher = new StudentArchiveDataSearcher();
     Stream<Path> studentArchiveDataSearch = Files.find( studentPath, 10, sdsearcher );
@@ -143,7 +145,15 @@ public class BatchProcessor implements Runnable
       progress.firstException.printStackTrace();
     }    
   }
-
+  
+  Path getRootOfArchive( Path t ) throws IOException
+  {
+    if ( Files.isDirectory( t ) )
+      return t;
+    FileSystem zipfs = FileSystems.newFileSystem( t, this.getClass().getClassLoader() );
+    return zipfs.getPath( "/" );
+  }  
+  
   public class ProcessProgress
   {
     public int completedCount=0;
@@ -161,10 +171,13 @@ public class BatchProcessor implements Runnable
       System.out.println( "Processing " + t.toUri() );
       if ( listener != null )
         listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
-      FileCataloguer fc = new FileCataloguer( t );
+      
       Document catalogue = null;
+      Path root = null;
       try
       {
+        root = getRootOfArchive( t );  
+        FileCataloguer fc = new FileCataloguer( root );
         catalogue = fc.getCatalogue();
       }
       catch ( ParserConfigurationException | IOException ex )
@@ -173,14 +186,16 @@ public class BatchProcessor implements Runnable
         throw new RuntimeException( ex );
       }
       
-      Resolver resolver = new Resolver( t, catalogue );
+      Resolver resolver = new Resolver( root, catalogue );
+      FileProcessor fp = new FileProcessor( root, studentPath );
       
-      try ( InputStream in = new FileInputStream( t.resolve( "imsmanifest.xml" ).toFile() ) )
+      try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
       {
         StreamSource source = new StreamSource( in );
         StringBufferResult result = createStringBufferResult();
         transformListStudents.reset();
         transformListStudents.setParameter( "output-base-uri", studentPath.toString() );
+        transformListStudents.setParameter( "file-processor-id", fp.getId() );
         transformListStudents.setURIResolver( resolver );
         transformListStudents.transform( source, result );
         System.out.println( result.toString() );
@@ -190,8 +205,13 @@ public class BatchProcessor implements Runnable
         progress.firstException = ex;
         throw new RuntimeException( ex );
       }
+      finally
+      {
+        fp.release();
+      }
       progress.completedCount++;
     }
+    
   }
 
   public class StudentArchiveDataProcessor implements Consumer<Path>
@@ -207,8 +227,8 @@ public class BatchProcessor implements Runnable
       Resolver resolver = new Resolver( t, null );
 
       Path report = t.getParent().resolve( "report.html" );
-      try ( InputStream in = new FileInputStream( t.toFile() );
-            OutputStream out = new FileOutputStream( report.toFile() ) )
+      try ( InputStream in = Files.newInputStream( t );
+            OutputStream out = Files.newOutputStream( report ) )
       {
         StreamSource source = new StreamSource( in );
         StreamResult result = new StreamResult( out );
@@ -225,17 +245,15 @@ public class BatchProcessor implements Runnable
     }
   }
   
-  public class UnzippedArchiveSearcher implements BiPredicate<Path,BasicFileAttributes>
+  public class ArchiveSearcher implements BiPredicate<Path,BasicFileAttributes>
   {
     @Override
     public boolean test( Path t, BasicFileAttributes u )
     {
-      if ( !u.isDirectory() )
+      // Will accept either zip file or directory named with '.zip'
+      if ( !t.getFileName().toString().endsWith( ".zip" ) )
         return false;
-      if ( !t.getFileName().toString().endsWith( ".zip") )
-        return false;
-      Path im = t.resolve( "imsmanifest.xml" );
-      return Files.exists( im );
+      return Files.exists( t );
     }
   }  
   
@@ -301,10 +319,17 @@ public class BatchProcessor implements Runnable
     @Override
     public Source resolve( String href, String base ) throws TransformerException
     {
-      //System.out.println( "Resolving [" + href + "], [" + base + "]" );
+      System.out.println( "Resolving [" + href + "], [" + base + "]" );
       if ( href.equals( "catalogue:" ) )
         return new DOMSource( catalogue );
-      return new StreamSource( archiveBase.resolve( href ).toFile() );
+      try
+      {
+        return new StreamSource( Files.newInputStream( archiveBase.resolve( href ) ) );
+      }
+      catch ( IOException ex )
+      {
+      }
+      return null;
     }
     
   }

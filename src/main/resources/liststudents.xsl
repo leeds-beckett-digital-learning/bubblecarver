@@ -21,6 +21,7 @@
   <xsl:output method="xml" indent="yes"/>
 
   <xsl:param name="output-base-uri" select="'unknown path to nowhere'"/>
+  <xsl:param name="file-processor-id" select="'unknown'"/>
 
   <!--
       This variable lists the MIME types of all the resources from the
@@ -89,6 +90,11 @@
         <xsl:variable name="student-data-file" select="concat($student-dir,'data.xml')"/>
         <xsl:variable name="student-report-file" select="concat($student-dir,'report.html')"/>
         <xsl:variable name="memberid" select="$unredacted/bbcarv:resources/bbcarv:resource/bbcarv:data/COURSEMEMBERSHIPS/COURSEMEMBERSHIP/USERID[@value = $uid]/../@id"/>
+        <xsl:variable name="student-rel-dir">
+          <xsl:call-template name="make-student-relative-uri">
+            <xsl:with-param name="sid" select="$sid"/>
+          </xsl:call-template>
+        </xsl:variable>
         
         <!-- 
               This variable puts the unredacted data into a tree with
@@ -96,13 +102,14 @@
               any template to find the current student ID based purely
               on the context node. This is done because we need to use
               apply-templates and there is no mechanism to send parameters.
-        -->
+.        -->
         <xsl:variable name="unredactedparameterizedfrag">
           <bbcarv:studentandfiles>
             <bbcarv:student>
               <xsl:attribute name="id"><xsl:value-of select="$uid"/></xsl:attribute>
               <xsl:attribute name="memberid"><xsl:value-of select="$memberid"/></xsl:attribute>
               <xsl:attribute name="uri"><xsl:value-of select="$student-dir"/></xsl:attribute>
+              <xsl:attribute name="rel-uri"><xsl:value-of select="$student-rel-dir"/></xsl:attribute>
             </bbcarv:student>
             <xsl:copy-of select="$unredacted"/>
           </bbcarv:studentandfiles>
@@ -390,13 +397,13 @@
     <xsl:variable name="attemptid" select="cat:dir[6]/@name"/>
     <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
     <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
-    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@uri"/>
+    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@rel-uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
         <xsl:comment>Redacted catalogue file. Relates to other student's attempt.</xsl:comment>
       </xsl:when>
       <xsl:otherwise>
-        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( ../@uri, @uri, $dsturi )"/></log>
+        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( $file-processor-id, @uri, $dsturi )"/></log>
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
@@ -405,13 +412,13 @@
     <xsl:variable name="outcomeid" select="cat:dir[6]/@name"/>
     <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
     <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME[@id = $outcomeid]/COURSEMEMBERSHIPID[@value = $memberid])"/>
-    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@uri"/>
+    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@rel-uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
         <xsl:comment>Redacted catalogue file. Relates to other student's outcome.</xsl:comment>
       </xsl:when>
       <xsl:otherwise>
-        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( ../@uri, @uri, $dsturi )"/></log>
+        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( $file-processor-id, @uri, $dsturi )"/></log>
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
@@ -437,13 +444,13 @@
     <xsl:variable name="attemptid" select="./ancestor::bbcarv:studentandfiles//ATTEMPTFILES/ATTEMPTFILE[@id = $attemptfileid]/ATTEMPTID/@value"/>
     <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
     <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
-    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@uri"/>
+    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@rel-uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
         <xsl:comment>Redacted catalogue file. Relates to other student's attempt file.</xsl:comment>        
       </xsl:when>
       <xsl:otherwise>
-        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( ../@uri, @uri, $dsturi )"/></log>
+        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( $file-processor-id, @uri, $dsturi )"/></log>
       </xsl:otherwise>
     </xsl:choose>       
   </xsl:template>
@@ -452,13 +459,13 @@
     <xsl:variable name="attemptid" select="cat:dir[2]/@name"/>
     <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
     <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
-    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@uri"/>
+    <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@rel-uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
         <xsl:comment>Redacted catalogue file. Relates to other student's attempt embedded file.</xsl:comment>        
       </xsl:when>
       <xsl:otherwise>
-        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( ../@uri, @uri, $dsturi )"/></log>
+        <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( $file-processor-id, @uri, $dsturi )"/></log>
       </xsl:otherwise>
     </xsl:choose>       
   </xsl:template>
@@ -484,6 +491,20 @@
     <xsl:text>\bbarchives\</xsl:text>
     <xsl:value-of select="$unredacted/bbcarv:resources/bbcarv:resource/bbcarv:data/COURSE/COURSEID/@value" />
     <xsl:text>\</xsl:text>
+  </xsl:template>
+  
+  <xsl:template name="make-student-relative-uri">
+    <xsl:param name="sid"/>
+    <xsl:value-of select="substring($sid,1,2)" />
+    <xsl:text>______/</xsl:text>
+    <xsl:value-of select="substring($sid,1,4)" />
+    <xsl:text>____/</xsl:text>
+    <xsl:value-of select="substring($sid,1,6)" />
+    <xsl:text>__/</xsl:text>
+    <xsl:value-of select="$sid" />
+    <xsl:text>/bbarchives/</xsl:text>
+    <xsl:value-of select="$unredacted/bbcarv:resources/bbcarv:resource/bbcarv:data/COURSE/COURSEID/@value" />
+    <xsl:text>/</xsl:text>
   </xsl:template>
   
 </xsl:stylesheet>

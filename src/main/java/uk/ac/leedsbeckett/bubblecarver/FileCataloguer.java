@@ -80,16 +80,19 @@ public class FileCataloguer
       if ( !Files.isRegularFile( t ) )
         return;
       Path rel = base.relativize( t );
-      URI reluri = base.toUri().relativize( t.toUri() );
       Element f = doc.createElementNS( NS, "cat:file" );
-      f.setAttribute( "uri", reluri.toString() );
       root.appendChild( f );
+      StringBuilder sb = new StringBuilder();
       for ( Path part : rel )
       {
         Element p = doc.createElementNS( NS, "cat:dir" );
         p.setAttribute( "name", part.toString() );
         f.appendChild( p );
+        if ( sb.length() > 0 )
+          sb.append( "/" );
+        sb.append( part.toString() );
       }
+      f.setAttribute( "uri", sb.toString() );
     }
   }
   

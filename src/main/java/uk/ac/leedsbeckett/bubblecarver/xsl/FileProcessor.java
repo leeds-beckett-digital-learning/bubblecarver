@@ -19,10 +19,14 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 
 /**
  *
@@ -30,33 +34,81 @@ import org.apache.commons.io.FileUtils;
  */
 public class FileProcessor
 {
-  public static String processFile( String srcbase, String name, String dstbase )
+  private static int nextKeyInt = 1000000;
+  private static final HashMap<String,FileProcessor> instanceMap = new HashMap<>();
+  
+  public static String processFile( String id, String srcrel, String dstrel )
+  {
+    FileProcessor instance;
+    synchronized( instanceMap )
+    {
+      instance = instanceMap.get( id );
+    }
+    if ( instance == null )
+      return "Unknown FileProcessor instance ID.";
+    return instance.processFile( srcrel, dstrel );
+  }
+
+  
+  
+  private final String id;
+  private final Path srcbase;
+  private final Path dstbase;
+  public FileProcessor( Path srcbase, Path dstbase )
+  {
+    this.srcbase = srcbase;
+    this.dstbase = dstbase;
+    synchronized( instanceMap )
+    {
+      this.id = "fileprocessor" + Integer.toString( nextKeyInt++ );
+      instanceMap.put( id, this );
+    }
+  }
+  
+  public String getId()
+  {
+    return id;
+  }
+  
+  public void release()
+  {
+    synchronized( instanceMap )
+    {
+      if ( instanceMap.containsKey( id ) )
+        instanceMap.remove( this.id );
+    }
+  }  
+  
+  public String processFile( String srcrel, String dstrel )
   {
     StringBuilder sb = new StringBuilder();
     try
     {
-      sb.append( "processFile copy from {" );
-      URI dstbaseuri = new File( dstbase ).toPath().toUri();
-      URI srcbaseuri = new URI( srcbase );
-      URI reluri  = new URI( name );
-      System.out.println( "    " + srcbaseuri.toString() );
-      System.out.println( "    " + dstbaseuri.toString() );
-      Path src = Path.of( srcbaseuri.resolve( reluri ) );
-      Path dst = Path.of( dstbaseuri.resolve( reluri ) );
-      System.out.println( "    " + src.toString() );
-      System.out.println( "    " + dst.toString() );
+//      System.out.println( "    Src Base " + srcbase );
+//      System.out.println( "    Dst Base " + dstbase );
+//      System.out.println( "    Src Rel " + srcrel );
+//      System.out.println( "    Dst Rel " + dstrel );
+      Path src = srcbase.resolve( srcrel );
+      Path dst = dstbase.resolve( dstrel ).resolve( srcrel );
+//      System.out.println( "    Src Path " + src.toString() );
+//      System.out.println( "    Dst Path " + dst.toString() );
+      System.out.println( "    Src URI " + src.toUri() );
+      System.out.println( "    Dst URI " + dst.toUri() );
+      sb.append( "copy {" );
       sb.append( src.toString() );
       sb.append( "} to {" );
       sb.append( dst.toString() );
       sb.append( "} " );
-      FileUtils.createParentDirectories( dst.toFile() );
-      FileUtils.copyFile( src.toFile(), dst.toFile() );
+      Files.createDirectories( dst.getParent() );
+      IOUtils.copy( Files.newInputStream( src ), Files.newOutputStream( dst ) );
       sb.append( "success" );
     }
-    catch ( URISyntaxException | IOException ex )
+    catch ( IOException ex )
     {
+      ex.printStackTrace();
       sb.append( " failed" );
     }
     return sb.toString();
   }
+  
 }
