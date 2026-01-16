@@ -38,6 +38,11 @@
     course/x-bb-attemptfiles
     course/x-bb-attemptembeddedfiles
     resource/x-bb-wiki
+    assessment/x-bb-qti-test
+  </xsl:variable>
+
+  <xsl:variable name="types-files-not-resource">
+    assessment/x-bb-qti-attempt
   </xsl:variable>
 
   <!--.
@@ -48,13 +53,28 @@
   <xsl:variable name="unredactedfrag">
     <bbcarv:resources>
       <xsl:for-each select="/manifest/resources/resource[ contains( $types, @type ) ]">
-        <bbcarv:resource type="{@type}" xml:base="{@xml:base}">
+        <bbcarv:resource type="{@type}" xml:base="{@xml:base}" identifier="{@identifier}">
           <bbcarv:data>
             <xsl:copy-of select="document( ./@bb:file )"/>
           </bbcarv:data>          
           <xsl:for-each select="file">
             <bbcarv:file>
               <xsl:attribute name="href"><xsl:value-of select="@href"/></xsl:attribute>
+            </bbcarv:file>
+          </xsl:for-each>
+        </bbcarv:resource>
+      </xsl:for-each>
+      <xsl:for-each select="/manifest/resources/resource[ contains( $types-files-not-resource, @type ) ]">
+        <bbcarv:resource type="{@type}" xml:base="{@xml:base}" identifier="{@identifier}">
+          <xsl:for-each select="file">
+            <bbcarv:file>
+              <xsl:attribute name="href"><xsl:value-of select="@href"/></xsl:attribute>
+              <bbcarv:data>
+                <xsl:attribute name="href">
+                  <xsl:value-of select="concat( ../@xml:base, '/', @href )"/>
+                </xsl:attribute>
+                <xsl:copy-of select="document( concat( ../@xml:base, '/', @href ) ) "/>
+              </bbcarv:data>          
             </bbcarv:file>
           </xsl:for-each>
         </bbcarv:resource>
@@ -325,6 +345,19 @@
     <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
 
     <xsl:choose>
+      <xsl:when test="$context = 'assessment/x-bb-qti-attempt'">
+        <xsl:variable name="resultid" select="@href"/>
+        <xsl:variable name="memberresults" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT/RESULTOBJECTID[@value = $resultid])"/>
+        <!-- <debug resultid="{$resultid}" memberresults="{$memberresults}"></debug> -->
+        <xsl:choose>
+          <xsl:when test="$memberresults = 0">
+            <xsl:comment>Redacted test results for other student.</xsl:comment>
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:copy-of select="."/>
+          </xsl:otherwise>        
+        </xsl:choose>
+      </xsl:when>
       <xsl:when test="$context = 'resource/x-bb-wiki'">
         <!-- Assumes that whole wikis can be redacted. If wiki is included, include all its files. -->
         <xsl:copy-of select="."/>
