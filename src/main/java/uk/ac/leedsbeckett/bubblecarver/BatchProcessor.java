@@ -15,10 +15,12 @@
  */
 package uk.ac.leedsbeckett.bubblecarver;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringWriter;
+import java.io.Writer;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitOption;
@@ -55,11 +57,11 @@ public class BatchProcessor implements Runnable
 {
   public static void main( String[] args )
   {
-    Path in  = Path.of( "c:\\temp\\samplea" );
+    Path in  = Path.of( "z:\\blackboard_archives" );
     Path out = Path.of( "c:\\temp\\students" );
     try
     {
-      BatchProcessor bp = new BatchProcessor( null, in, out, true, true );
+      BatchProcessor bp = new BatchProcessor( null, in, out, false, false, true );
       bp.setForceReport( true );
       bp.processForReal();
     }
@@ -73,9 +75,12 @@ public class BatchProcessor implements Runnable
   private final Path studentPath;
   private final boolean extract;
   private final boolean report;
+  private final boolean digest;
   private boolean forcereport = false;
 
   private Transformer transformListStudents;
+  private Transformer transformDigestArchive;
+  private Transformer transformSummariseDigest;
   private Transformer transformStudentReport;
   
   ProcessProgress progress;
@@ -86,13 +91,15 @@ public class BatchProcessor implements Runnable
           Path searchPath, 
           Path studentPath,
           boolean extract,
-          boolean report   )
+          boolean report,
+          boolean digest )
   {
     this.listener = listener;
     this.searchPath = searchPath;
     this.studentPath = studentPath;
     this.extract = extract;
     this.report = report;
+    this.digest = digest;
   }
 
   public boolean isForceReport()
@@ -117,6 +124,16 @@ public class BatchProcessor implements Runnable
     {
       Templates templates = tFactory.newTemplates( new StreamSource( in ) );
       transformStudentReport = templates.newTransformer();
+    }    
+    try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/digestarchive.xsl" ) )
+    {
+      Templates templates = tFactory.newTemplates( new StreamSource( in ) );
+      transformDigestArchive = templates.newTransformer();
+    }    
+    try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/summarisedigest.xsl" ) )
+    {
+      Templates templates = tFactory.newTemplates( new StreamSource( in ) );
+      transformSummariseDigest = templates.newTransformer();
     }    
   }
   
@@ -144,6 +161,21 @@ public class BatchProcessor implements Runnable
   private void processForReal() throws IOException, TransformerConfigurationException
   {
     init();
+    
+    if ( digest )
+    {
+      ArchiveDigestProcessor adp = new ArchiveDigestProcessor();
+      progress = new ProcessProgress();
+      ArchiveSearcher searcher = new ArchiveSearcher();
+      Stream<Path> streamSearch = Files.find( searchPath, 2, searcher );
+      streamSearch.forEach( adp );
+      adp.close();
+      if ( progress.firstException != null )
+      {
+        System.out.println( "Exception while processing stream of archives..." );
+        progress.firstException.printStackTrace();
+      }
+    }
     
     // Get the data out of the archives...
     if ( extract )
@@ -242,6 +274,101 @@ public class BatchProcessor implements Runnable
     
   }
 
+  public class ArchiveDigestProcessor implements Consumer<Path>
+  {
+    Path f;
+    Writer writer;
+    Path s;
+    
+    public ArchiveDigestProcessor()
+    {
+      f = studentPath.resolve( "digest_" + System.currentTimeMillis() + ".xml" );
+      s = studentPath.resolve( "summary_" + System.currentTimeMillis() + ".xml" );
+      try
+      {
+        writer = Files.newBufferedWriter( f );
+        writer.write( "<?xml version=\"1.0\"?>\n" );
+        writer.write( "<digest>\n" );
+      }
+      catch ( IOException ex )
+      {
+        Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );
+        writer = null;
+      }
+    }
+    
+    public void close()
+    {
+      try
+      {
+        writer.write( "</digest>\n" );
+        writer.close();
+      }
+      catch ( IOException ex )
+      {
+        Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );
+        throw new RuntimeException( ex );
+      }
+      
+      try ( InputStream in = Files.newInputStream( f ); Writer swriter = Files.newBufferedWriter( s ) )
+      {
+        StreamSource source = new StreamSource( in );
+        StreamResult result = new StreamResult( swriter );
+        transformSummariseDigest.reset();
+        transformSummariseDigest.transform( source, result );
+        System.out.println( result.toString() );
+      }
+      catch ( IOException | TransformerException ex )
+      {
+        Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );
+        throw new RuntimeException( ex );
+      }
+    }
+    
+    @Override
+    public void accept( Path t )
+    {
+      if ( progress.firstException != null )
+        return;
+      
+      System.out.println( "Processing " + t.toUri() );
+      if ( listener != null )
+        listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
+      
+      Path root = null;
+      try
+      {
+        root = getRootOfArchive( t );  
+      }
+      catch ( IOException ex )
+      {
+        progress.firstException = ex;
+        throw new RuntimeException( ex );
+      }
+      
+      Resolver resolver = new Resolver( root, null );
+     
+      try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
+      {
+        StreamSource source = new StreamSource( in );
+        StringBufferResult result = createStringBufferResult();
+        transformDigestArchive.reset();
+        transformDigestArchive.setURIResolver( resolver );
+        transformDigestArchive.setParameter( "filename", t.getFileName().toString() );
+        transformDigestArchive.transform( source, result );
+        //System.out.println( result.toString() );
+        writer.write( result.toString() );
+      }
+      catch ( IOException | TransformerException ex )
+      {
+        progress.firstException = ex;
+        throw new RuntimeException( ex );
+      }
+      progress.completedCount++;
+    }
+    
+  }
+  
   public class StudentArchiveDataProcessor implements Consumer<Path>
   {
     @Override

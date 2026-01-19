@@ -356,7 +356,7 @@ public class BubbleCarverFrame
       return;            
     }
     
-    batchProcessor = new BatchProcessor( this, baseDir.toPath(), reportDir.toPath(), true, true );
+    batchProcessor = new BatchProcessor( this, baseDir.toPath(), reportDir.toPath(), true, true, false );
     Thread t = new Thread( batchProcessor );
     t.start();
     
