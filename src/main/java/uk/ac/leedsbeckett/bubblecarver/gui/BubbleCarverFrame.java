@@ -27,14 +27,22 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTree;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeModel;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.xml.sax.SAXException;
 import uk.ac.leedsbeckett.bubblecarver.Archive;
+import uk.ac.leedsbeckett.bubblecarver.Archive.Resource;
 import uk.ac.leedsbeckett.bubblecarver.ArchiveException;
 import uk.ac.leedsbeckett.bubblecarver.BatchProcessor;
 import uk.ac.leedsbeckett.bubblecarver.BatchProcessorListener;
 import uk.ac.leedsbeckett.bubblecarver.data.ArchiveDirectoryTreeNode;
+import uk.ac.leedsbeckett.bubblecarver.data.ElementTreeData;
 
 /**
  *
@@ -42,7 +50,7 @@ import uk.ac.leedsbeckett.bubblecarver.data.ArchiveDirectoryTreeNode;
  */
 public class BubbleCarverFrame 
         extends javax.swing.JFrame
-        implements BatchProcessorListener
+        implements BatchProcessorListener, TreeSelectionListener
 {
   FileNameExtensionFilter filter = new FileNameExtensionFilter( "ZIP Archive Files", "zip" );
 
@@ -50,6 +58,10 @@ public class BubbleCarverFrame
   
   File reportDir=null;
   BatchProcessor batchProcessor = null;
+  
+  FileSystem zipfs=null;
+  Archive archive=null;
+  Element selectedElement = null;
         
   /**
    * Creates new form BubbleCarverFrame
@@ -59,16 +71,31 @@ public class BubbleCarverFrame
     initComponents();
     this.setTitle( "Bubble Carver");
     clear();
+    this.manifestTree.addTreeSelectionListener( this );
   }
 
   private void clear()
   {
+    if ( zipfs != null )
+    {
+      try
+      {
+        zipfs.close();
+      }
+      catch ( IOException ex )
+      {
+        Logger.getLogger( BubbleCarverFrame.class.getName() ).log( Level.SEVERE, null, ex );
+      }
+    }
+    archive = null;
+    selectedElement = null;
     this.manifestTree.setModel(         null );
     this.courseSettingsTree.setModel(   null );
     this.usersTree.setModel(            null );
     this.membershipTree.setModel(       null );
     this.gradebookTree.setModel(        null );
     this.attemptFilesTabbedPane.removeAll();
+    this.otherResourcesTabbedPane.removeAll();
   }
   /**
    * This method is called from within the constructor to initialize the form.
@@ -92,6 +119,7 @@ public class BubbleCarverFrame
     jScrollPane5 = new javax.swing.JScrollPane();
     gradebookTree = new javax.swing.JTree();
     attemptFilesTabbedPane = new javax.swing.JTabbedPane();
+    otherResourcesTabbedPane = new javax.swing.JTabbedPane();
     jScrollPane8 = new javax.swing.JScrollPane();
     jPanel1 = new javax.swing.JPanel();
     jLabel1 = new javax.swing.JLabel();
@@ -106,6 +134,8 @@ public class BubbleCarverFrame
     jMenuBar1 = new javax.swing.JMenuBar();
     jMenu1 = new javax.swing.JMenu();
     openMenuItem = new javax.swing.JMenuItem();
+    openResourceMenuItem = new javax.swing.JMenuItem();
+    jSeparator1 = new javax.swing.JPopupMenu.Separator();
     exitMenuItem = new javax.swing.JMenuItem();
 
     setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -130,6 +160,7 @@ public class BubbleCarverFrame
 
     jTabbedPane1.addTab("Gradebook", jScrollPane5);
     jTabbedPane1.addTab("Attempt Files", attemptFilesTabbedPane);
+    jTabbedPane1.addTab("Other Resources", otherResourcesTabbedPane);
 
     jLabel1.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
     jLabel1.setText("Archive Scan Directory:");
@@ -247,6 +278,18 @@ public class BubbleCarverFrame
     });
     jMenu1.add(openMenuItem);
 
+    openResourceMenuItem.setText("Open Selected Resource");
+    openResourceMenuItem.setEnabled(false);
+    openResourceMenuItem.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(java.awt.event.ActionEvent evt)
+      {
+        openResourceMenuItemActionPerformed(evt);
+      }
+    });
+    jMenu1.add(openResourceMenuItem);
+    jMenu1.add(jSeparator1);
+
     exitMenuItem.setText("Exit");
     jMenu1.add(exitMenuItem);
 
@@ -259,21 +302,20 @@ public class BubbleCarverFrame
 
   private void loadArchive( Path selected, String title )
   {
-    Archive a = new Archive( selected );
-    clear();
+    archive = new Archive( selected );
     try
     {
       jTabbedPane1.setSelectedIndex( 0 );
-      a.load();
-      a.loadTrees();
+      archive.load();
+      archive.loadTrees();
       this.setTitle( "Bubblecarver - " + title );
-      this.manifestTree.setModel(     a.getManifestTreeModel()     );
-      this.courseSettingsTree.setModel( a.getCourseSettingsTreeModel()  );
-      this.usersTree.setModel(        a.getUsersTreeModel()        );
-      this.membershipTree.setModel(   a.getMembershipTreeModel()   );
-      this.gradebookTree.setModel(    a.getGradebookTreeModel()    );
+      this.manifestTree.setModel(archive.getManifestTreeModel()     );
+      this.courseSettingsTree.setModel(archive.getCourseSettingsTreeModel()  );
+      this.usersTree.setModel(archive.getUsersTreeModel()        );
+      this.membershipTree.setModel(archive.getMembershipTreeModel()   );
+      this.gradebookTree.setModel(archive.getGradebookTreeModel()    );
       int n=1;
-      for ( TreeModel tm : a.getAttemptFilesTreeModel() )
+      for ( TreeModel tm : archive.getAttemptFilesTreeModel() )
       {
         JScrollPane sp = new JScrollPane();
         JTree tree = new JTree();
@@ -381,7 +423,9 @@ public class BubbleCarverFrame
         JOptionPane.showMessageDialog( rootPane, "Selected file is not a regular file." );
         return;            
       }
-      FileSystem zipfs;
+
+      clear();
+
       Path root;
       Path p;
       try
@@ -402,18 +446,43 @@ public class BubbleCarverFrame
         return;
       }
 
-      try
-      {
-        clear();
-        loadArchive( root, selectedArchiveFile.getName() );
-        zipfs.close();
-      }
-      catch ( IOException ex )
-      {
-      }
+      loadArchive( root, selectedArchiveFile.getName() );
     }
     
   }//GEN-LAST:event_openMenuItemActionPerformed
+
+  private void openResourceMenuItemActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_openResourceMenuItemActionPerformed
+  {//GEN-HEADEREND:event_openResourceMenuItemActionPerformed
+    
+    if ( this.archive == null )
+    {
+      JOptionPane.showMessageDialog( rootPane, "No archive open." );
+      return;                  
+    }
+    
+    if ( this.selectedElement == null )
+    {
+      JOptionPane.showMessageDialog( rootPane, "No Selected resource in the manifest panel." );
+      return;            
+    }
+    
+    try
+    {
+      Resource resource = this.archive.findEntry( selectedElement );
+      Document document = this.archive.loadXMLDocument( resource );
+      TreeModel tm = this.archive.loadTreeModel( document );
+      JScrollPane sp = new JScrollPane();
+      JTree tree = new JTree();
+      tree.setModel( tm );
+      sp.getViewport().add( tree );
+      this.otherResourcesTabbedPane.add( selectedElement.getAttribute( "xml:base" ), sp );
+    }
+    catch ( ArchiveException | IOException | SAXException ex )
+    {
+      Logger.getLogger( BubbleCarverFrame.class.getName() ).log( Level.SEVERE, null, ex );
+    }
+    
+  }//GEN-LAST:event_openResourceMenuItemActionPerformed
 
   /**
    * @param args the command line arguments
@@ -483,10 +552,13 @@ public class BubbleCarverFrame
   private javax.swing.JScrollPane jScrollPane5;
   private javax.swing.JScrollPane jScrollPane7;
   private javax.swing.JScrollPane jScrollPane8;
+  private javax.swing.JPopupMenu.Separator jSeparator1;
   private javax.swing.JTabbedPane jTabbedPane1;
   private javax.swing.JTree manifestTree;
   private javax.swing.JTree membershipTree;
   private javax.swing.JMenuItem openMenuItem;
+  private javax.swing.JMenuItem openResourceMenuItem;
+  private javax.swing.JTabbedPane otherResourcesTabbedPane;
   private javax.swing.JLabel progressLabel;
   private javax.swing.JButton reportAllButton;
   private javax.swing.JTextField reportBaseDirTextField;
@@ -512,5 +584,48 @@ public class BubbleCarverFrame
   {
     Logger.getLogger( BubbleCarverFrame.class.getName() ).log( Level.INFO, "Batch completed" );
     progressLabel.setText( "Complete" );
+  }
+
+  @Override
+  public void valueChanged( TreeSelectionEvent e )
+  {
+    if ( e.getSource() != this.manifestTree )
+      return;
+
+    selectedElement = null;
+    Object o = e.getPath().getLastPathComponent();
+    if ( o == null )
+    {
+      this.openResourceMenuItem.setEnabled( false );
+      return;
+    }
+    System.out.println( o.getClass().toString() );
+    if ( !(o instanceof DefaultMutableTreeNode) )
+    {
+      this.openResourceMenuItem.setEnabled( false );
+      return;
+    }
+    DefaultMutableTreeNode node = (DefaultMutableTreeNode)o;
+    Object uo = node.getUserObject();
+    if ( !(uo instanceof ElementTreeData ) )
+    {
+      this.openResourceMenuItem.setEnabled( false );
+      return;      
+    }
+    ElementTreeData etd = (ElementTreeData)uo;
+    if ( etd.getElement() == null )
+    {
+      this.openResourceMenuItem.setEnabled( false );
+      return;      
+    }
+
+    if ( !"resource".equals( etd.getElement().getLocalName() ) )
+    {
+      this.openResourceMenuItem.setEnabled( false );
+      return;      
+    }
+    
+    this.selectedElement = etd.getElement();
+    this.openResourceMenuItem.setEnabled( true );
   }
 }

@@ -57,7 +57,7 @@ public class BatchProcessor implements Runnable
 {
   public static void main( String[] args )
   {
-    Path in  = Path.of( "z:\\blackboard_archives" );
+    Path in  = Path.of( "z:\\blackboard_archives\\sisfeed_2021_2022_Part1" );
     Path out = Path.of( "c:\\temp\\students" );
     try
     {

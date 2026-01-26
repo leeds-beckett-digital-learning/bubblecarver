@@ -40,6 +40,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.Attr;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
+import uk.ac.leedsbeckett.bubblecarver.data.ElementTreeData;
 
 /**
  *
@@ -160,9 +161,14 @@ public class Archive
     if ( nodeList.getLength() == 0 )
       throw new ArchiveException( "Archive doesn't contain data file that matches " + expression + "." );
     Element resource = (Element)nodeList.item( 0 );
+    return findEntry( resource );
+  }
+
+  public Resource findEntry( Element resource ) throws ArchiveException
+  {
     String filename = resource.getAttributeNS( NS_BB_PACKAGE, "file" );
     if ( filename == null || filename.trim().length() == 0 )
-      throw new ArchiveException( "Archive's entry that matches " + expression + " does not have a filename." );
+      throw new ArchiveException( "Archive's entry does not have a filename." );
     Path path = this.zipdir.resolve( filename );
     if ( !Files.exists( path ) )
       throw new ArchiveException( "Archive's entry named " + filename + " does not exist in unzipped archive." );
@@ -223,7 +229,7 @@ public class Archive
   }
   
   
-  Document loadXMLDocument( Resource resource ) throws IOException, SAXException
+  public Document loadXMLDocument( Resource resource ) throws IOException, SAXException
   {
     if ( resource == null ) return null;
     if ( resource.getPath() == null ) return null;
@@ -242,7 +248,7 @@ public class Archive
 
   
   
-  TreeModel loadTreeModel( Document doc )
+  public TreeModel loadTreeModel( Document doc )
   {
     return new DefaultTreeModel( loadTreeModelNode( doc.getDocumentElement() ) );
   }
@@ -274,7 +280,7 @@ public class Archive
     }
     sb.append( ">" );
     
-    DefaultMutableTreeNode node = new DefaultMutableTreeNode( sb.toString() );
+    DefaultMutableTreeNode node = new DefaultMutableTreeNode( new ElementTreeData( e, sb.toString() ) );
     NodeList children = e.getChildNodes();
     if ( children.getLength() == 1 &&
          ( children.item( 0 ).getNodeType() == Node.TEXT_NODE ||
