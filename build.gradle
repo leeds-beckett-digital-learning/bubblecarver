@@ -43,3 +43,9 @@ tasks.named('test') {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
 }
+
+tasks.register( 'runBatch', JavaExec ) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'uk.ac.leedsbeckett.bubblecarver.BatchProcessor'
+    jvmArgs( ['-Xms3g', '-Xmx3g'] )
+}

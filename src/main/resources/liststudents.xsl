@@ -29,16 +29,20 @@
       output. They are concatenated and delimited by new lines.
   -->
   <xsl:variable name="types">
+    assessment/x-bb-qti-test
+    course/x-bb-attemptembeddedfiles
+    course/x-bb-attemptfiles
+    course/x-bb-availability-rule
     course/x-bb-coursesetting
+    course/x-bb-gradebook
+    course/x-bb-group
     course/x-bb-user
     membership/x-bb-coursemembership
-    course/x-bb-group
     membership/x-bb-groupmembership
-    course/x-bb-gradebook
-    course/x-bb-attemptfiles
-    course/x-bb-attemptembeddedfiles
+    resource/x-bb-achievements
+    resource/x-bb-document
+    resource/x-bb-retention
     resource/x-bb-wiki
-    assessment/x-bb-qti-test
   </xsl:variable>
 
   <xsl:variable name="types-files-not-resource">
@@ -195,6 +199,50 @@
   </xsl:template>
 
   <!-- ====================================================================== -->
+  <xsl:template match="bbcarv:resource" mode="redact">
+    <xsl:apply-templates select="." mode="redactpass"/>
+  </xsl:template>
+
+  <!-- ====================================================================== -->
+  <xsl:template match="bbcarv:resource[@type = 'resource/x-bb-document']" mode="redact">
+    <xsl:variable name="contenthandler" select="bbcarv:data/CONTENT/CONTENTHANDLER/@value"/>
+    <xsl:if test="$contenthandler = 'resource/x-bb-achievement'">
+      <xsl:apply-templates select="." mode="redactpass"/>        
+    </xsl:if>
+  </xsl:template>
+
+  <!-- ====================================================================== -->
+  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-availability-rule']" mode="redact">
+    <xsl:variable name="contentid" select="bbcarv:data/RULE/CONTENT_ID/@value"/>
+    <!-- find corresponding content that this rule applies to -->
+    <xsl:variable name="content" select="ancestor::bbcarv:resources/bbcarv:resource[@identifier = $contentid]"/>
+    <xsl:variable name="contenttype" select="$content/@type"/>
+    <xsl:variable name="contenthandler" select="$content/bbcarv:data/CONTENT/CONTENTHANDLER/@value"/>
+    <xsl:if test="$contenttype = 'resource/x-bb-document' and $contenthandler = 'resource/x-bb-achievement'">
+      <xsl:apply-templates select="." mode="redactpass"/>        
+    </xsl:if>
+  </xsl:template>
+
+  <!-- ====================================================================== -->
+  <xsl:template match="bbcarv:resource[@type = 'resource/x-bb-achievements']" mode="redact">
+    <xsl:variable name="uid" select="bbcarv:data/achievementNotification/userId"/>
+    <xsl:variable name="id" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@id"/>
+    <xsl:if test="$uid = $id">
+      <xsl:apply-templates select="." mode="redactpass"/>      
+    </xsl:if>
+  </xsl:template>
+
+  <!-- ====================================================================== -->
+  <xsl:template match="bbcarv:resource" mode="redactpass">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*" mode="redact"/>
+    </xsl:copy>        
+  </xsl:template>
+  
+  <!-- ====================================================================== -->
   
   <!-- This 'redact' template is specialised to processing elements that
   have an 'id' attribute which is a blackboard database user ID. -->
@@ -202,7 +250,7 @@
     <xsl:variable name="id" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@id"/>
     <xsl:choose>
       <xsl:when test="not( @id = $id )">
-        <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
+        <!-- <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment> -->
       </xsl:when>
       <xsl:otherwise>
         <xsl:copy>
@@ -223,7 +271,7 @@
     <xsl:variable name="memberid" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@memberid"/>
     <xsl:choose>
       <xsl:when test="count( COURSEMEMBERSHIPID[@value = $memberid] ) = 0">
-        <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
+        <!-- <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment> -->
       </xsl:when>
       <xsl:otherwise>
         <xsl:copy>
@@ -244,7 +292,7 @@
     <xsl:variable name="id" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@id"/>
     <xsl:choose>
       <xsl:when test="count( USERID[@value = $id] ) = 0">
-        <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
+        <!-- <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment> -->
       </xsl:when>
       <xsl:otherwise>
         <xsl:copy>
@@ -282,7 +330,7 @@
     <xsl:variable name="memberattempts" select="count(./ancestor::bbcarv:studentandfiles//OUTCOME/COURSEMEMBERSHIPID[@value = $memberid]/../ATTEMPTS/ATTEMPT[@id = $attemptid])"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
-        <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
+        <!-- <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment> -->
       </xsl:when>
       <xsl:otherwise>
         <xsl:copy>
@@ -303,7 +351,7 @@
     
     <xsl:choose>
       <xsl:when test="count( $gmships ) = 0">
-        <xsl:comment>Whole wiki redacted - student not member of group.</xsl:comment>        
+        <!-- <xsl:comment>Whole wiki redacted - student not member of group.</xsl:comment> -->
       </xsl:when>
       <xsl:otherwise>
         <xsl:copy>
@@ -351,7 +399,7 @@
         <!-- <debug resultid="{$resultid}" memberresults="{$memberresults}"></debug> -->
         <xsl:choose>
           <xsl:when test="$memberresults = 0">
-            <xsl:comment>Redacted test results for other student.</xsl:comment>
+            <!-- <xsl:comment>Redacted test results for other student.</xsl:comment> -->
           </xsl:when>
           <xsl:otherwise>
             <xsl:copy-of select="."/>
@@ -363,7 +411,7 @@
         <xsl:copy-of select="."/>
       </xsl:when>
       <xsl:when test="$memberattempts = 0">
-        <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment>
+        <!-- <xsl:comment>Element <xsl:value-of select="name()"/> redacted.</xsl:comment> -->
       </xsl:when>
       <xsl:otherwise>
         <xsl:copy-of select="."/>
@@ -439,7 +487,7 @@
     <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@rel-uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
-        <xsl:comment>Redacted catalogue file. Relates to other student's attempt.</xsl:comment>
+        <!-- <xsl:comment>Redacted catalogue file. Relates to other student's attempt.</xsl:comment> -->
       </xsl:when>
       <xsl:otherwise>
         <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( $file-processor-id, @uri, $dsturi )"/></log>
@@ -454,7 +502,7 @@
     <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@rel-uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
-        <xsl:comment>Redacted catalogue file. Relates to other student's outcome.</xsl:comment>
+        <!-- <xsl:comment>Redacted catalogue file. Relates to other student's outcome.</xsl:comment> -->
       </xsl:when>
       <xsl:otherwise>
         <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( $file-processor-id, @uri, $dsturi )"/></log>
@@ -476,7 +524,7 @@
         <xsl:apply-templates select="." mode="redact-reswiki"/>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:comment>Redacted catalogue file. Not in csfiles and not in an interesting resource subfolder. <xsl:value-of select="@uri"/></xsl:comment>
+        <!-- <xsl:comment>Redacted catalogue file. Not in csfiles and not in an interesting resource subfolder. <xsl:value-of select="@uri"/></xsl:comment> -->
       </xsl:otherwise>      
     </xsl:choose>
   </xsl:template>
@@ -489,7 +537,7 @@
     <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@rel-uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
-        <xsl:comment>Redacted catalogue file. Relates to other student's attempt file.</xsl:comment>        
+        <!-- <xsl:comment>Redacted catalogue file. Relates to other student's attempt file.</xsl:comment>       -->
       </xsl:when>
       <xsl:otherwise>
         <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( $file-processor-id, @uri, $dsturi )"/></log>
@@ -504,7 +552,7 @@
     <xsl:variable name="dsturi" select="./ancestor::bbcarv:studentandfiles/bbcarv:student/@rel-uri"/>
     <xsl:choose>
       <xsl:when test="$memberattempts = 0">
-        <xsl:comment>Redacted catalogue file. Relates to other student's attempt embedded file.</xsl:comment>        
+        <!-- <xsl:comment>Redacted catalogue file. Relates to other student's attempt embedded file.</xsl:comment>        -->
       </xsl:when>
       <xsl:otherwise>
         <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( $file-processor-id, @uri, $dsturi )"/></log>

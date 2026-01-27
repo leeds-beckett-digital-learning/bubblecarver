@@ -57,11 +57,12 @@ public class BatchProcessor implements Runnable
 {
   public static void main( String[] args )
   {
-    Path in  = Path.of( "z:\\blackboard_archives\\sisfeed_2021_2022_Part1" );
+    //Path in  = Path.of( "z:\\blackboard_archives\\sisfeed_2021_2022_Part1" );
+    Path in  = Path.of( "c:\\temp\\samplea" );
     Path out = Path.of( "c:\\temp\\students" );
     try
     {
-      BatchProcessor bp = new BatchProcessor( null, in, out, false, false, true );
+      BatchProcessor bp = new BatchProcessor( null, in, out, true, true, false );
       bp.setForceReport( true );
       bp.processForReal();
     }
@@ -475,7 +476,7 @@ public class BatchProcessor implements Runnable
     @Override
     public Source resolve( String href, String base ) throws TransformerException
     {
-      System.out.println( "Resolving [" + href + "], [" + base + "]" );
+      //System.out.println( "Resolving [" + href + "], [" + base + "]" );
       if ( href.equals( "catalogue:" ) )
         return new DOMSource( catalogue );
       try
