@@ -15,6 +15,7 @@
  */
 package uk.ac.leedsbeckett.bubblecarver;
 
+import uk.ac.leedsbeckett.bubblecarver.data.ModuleUserInfo;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,12 +29,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
+import javax.xml.namespace.NamespaceContext;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.Source;
 import javax.xml.transform.Templates;
@@ -46,8 +51,18 @@ import javax.xml.transform.dom.DOMResult;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookups;
 import uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor;
+import uk.ac.leedsbeckett.bubblecarver.xsl.ModuleUserInfoMapper;
 
 /**
  *
@@ -58,11 +73,12 @@ public class BatchProcessor implements Runnable
   public static void main( String[] args )
   {
     //Path in  = Path.of( "z:\\blackboard_archives\\sisfeed_2021_2022_Part1" );
-    Path in  = Path.of( "c:\\temp\\samplea" );
-    Path out = Path.of( "c:\\temp\\students" );
+    Path in     = Path.of( "c:\\temp\\samplea" );
+    Path inter  = Path.of( "c:\\temp\\temp" );
+    Path out    = Path.of( "c:\\temp\\students" );
     try
     {
-      BatchProcessor bp = new BatchProcessor( null, in, out, true, true, false );
+      BatchProcessor bp = new BatchProcessor( null, in, inter, out, true, true, false );
       bp.setForceReport( true );
       bp.processForReal();
     }
@@ -73,23 +89,28 @@ public class BatchProcessor implements Runnable
   }
   
   private final Path searchPath;
+  private final Path intermediatePath;
   private final Path studentPath;
   private final boolean extract;
   private final boolean report;
   private final boolean digest;
   private boolean forcereport = false;
 
+  private Transformer transformCombineModule;
   private Transformer transformListStudents;
+  private Transformer transformRedactForStudent;
   private Transformer transformDigestArchive;
   private Transformer transformSummariseDigest;
   private Transformer transformStudentReport;
-  
+  private XPath xPath;
+        
   ProcessProgress progress;
   private final BatchProcessorListener listener;
   
   public BatchProcessor( 
           BatchProcessorListener listener, 
           Path searchPath, 
+          Path intermediatePath,
           Path studentPath,
           boolean extract,
           boolean report,
@@ -97,6 +118,7 @@ public class BatchProcessor implements Runnable
   {
     this.listener = listener;
     this.searchPath = searchPath;
+    this.intermediatePath = intermediatePath;
     this.studentPath = studentPath;
     this.extract = extract;
     this.report = report;
@@ -115,11 +137,24 @@ public class BatchProcessor implements Runnable
 
   private void init() throws IOException, TransformerConfigurationException
   {
+    xPath = XPathFactory.newInstance().newXPath();
+    xPath.setNamespaceContext( new NamespaceContextImpl() );
+
     TransformerFactory tFactory = TransformerFactory.newInstance();
+    try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/combinemodule.xsl" ) )
+    {
+      Templates templates = tFactory.newTemplates( new StreamSource( in ) );
+      transformCombineModule = templates.newTransformer();
+    }
     try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/liststudents.xsl" ) )
     {
       Templates templates = tFactory.newTemplates( new StreamSource( in ) );
       transformListStudents = templates.newTransformer();
+    }
+    try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/redactforstudent.xsl" ) )
+    {
+      Templates templates = tFactory.newTemplates( new StreamSource( in ) );
+      transformRedactForStudent = templates.newTransformer();
     }
     try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/studentreport.xsl" ) )
     {
@@ -137,6 +172,26 @@ public class BatchProcessor implements Runnable
       transformSummariseDigest = templates.newTransformer();
     }    
   }
+  
+  private Path getStudentPath( String courseid, ModuleUserInfo mui )
+  {
+    String part1 = mui.getSid().substring( 0, 2 ) + "______";
+    String part2 = mui.getSid().substring( 0, 4 ) + "____";
+    String part3 = mui.getSid().substring( 0, 6 ) + "__";
+    return studentPath
+            .resolve( part1 )
+            .resolve( part2 )
+            .resolve( part3 )
+            .resolve( mui.getSid() )
+            .resolve( "bblarchives" )
+            .resolve( courseid );
+  }
+
+  private Path getStudentDataPath( String courseid, ModuleUserInfo mui )
+  {
+    return getStudentPath( courseid, mui ).resolve( "data.xml" );
+  }
+
   
   @Override
   public void run()
@@ -184,7 +239,7 @@ public class BatchProcessor implements Runnable
       progress = new ProcessProgress();
       ArchiveSearcher searcher = new ArchiveSearcher();
       Stream<Path> streamSearch = Files.find( searchPath, 2, searcher );
-      streamSearch.forEach( new ArchiveProcessor() );
+      streamSearch.forEach( new ArchiveCombinerProcessor() );
       if ( progress.firstException != null )
       {
         System.out.println( "Exception while processing stream of archives..." );
@@ -221,6 +276,158 @@ public class BatchProcessor implements Runnable
     public Exception firstException = null;
   }
   
+  public class ArchiveCombinerProcessor implements Consumer<Path>
+  {
+    @Override
+    public void accept( Path t )
+    {
+      if ( progress.firstException != null )
+        return;
+      
+      System.out.println( "Processing " + t.toUri() );
+      if ( listener != null )
+        listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
+      
+      Path root = null;
+      try
+      {
+        root = getRootOfArchive( t );  
+      }
+      catch ( IOException ex )
+      {
+        progress.firstException = ex;
+        throw new RuntimeException( ex );
+      }
+      
+      Resolver resolver = new Resolver( root, null );
+      StringBufferResult result = createStringBufferResult();
+      DataLookups datalookups = null;
+      HashMap<String,HashSet<String>> resultobjectidmap;
+      ModuleUserInfoMapper mapper = null;
+      HashMap<String,ModuleUserInfo> usermap = null;
+      try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
+      {
+        datalookups = new DataLookups();
+        mapper = new ModuleUserInfoMapper();
+        StreamSource source = new StreamSource( in );
+        transformListStudents.reset();
+        transformListStudents.setParameter( "mapper-id", mapper.getId() );
+        transformListStudents.setParameter( "data-lookups-id", datalookups.getId() );
+        transformListStudents.setURIResolver( resolver );
+        transformListStudents.transform( source, result );
+        usermap = mapper.getMap();
+        resultobjectidmap = datalookups.getResultObjectIdMap();
+      }
+      catch ( IOException | TransformerException ex )
+      {
+        progress.firstException = ex;
+        throw new RuntimeException( ex );
+      }
+      finally
+      {
+        if ( datalookups != null ) datalookups.release();
+        if ( mapper != null ) mapper.release();
+      }
+      System.out.println( result.toString() );
+      
+      if ( usermap == null )
+      {
+        progress.firstException = new RuntimeException( "Unexpected null usermap." );
+        throw new RuntimeException( progress.firstException );
+      }
+
+      if ( usermap.isEmpty() )
+      {
+        // Done already - no error.
+        progress.completedCount++;
+        return;
+      }
+      
+      if ( resultobjectidmap == null )
+      {
+        progress.firstException = new RuntimeException( "Unexpected null datalookups." );
+        throw new RuntimeException( progress.firstException );
+      }
+  
+//      for ( String mid : resultobjectidmap.keySet() )
+//      {
+//        System.out.println( "mid: " + mid );
+//        HashSet<String> set = resultobjectidmap.get( mid );
+//        for ( String roid : set )
+//          System.out.println( "    roid: " + roid );
+//      }
+
+      DOMResult domresult = new DOMResult();
+      try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
+      {
+        StreamSource source = new StreamSource( in );
+        transformCombineModule.reset();
+        transformCombineModule.setURIResolver( resolver );
+        transformCombineModule.transform( source, domresult );
+      }
+      catch ( IOException | TransformerException ex )
+      {
+        progress.firstException = ex;
+        throw new RuntimeException( ex );
+      }
+
+      System.out.println( domresult.toString() );
+      String courseid = null;
+      try
+      {
+        courseid = xPath.evaluateExpression(
+                "/bbcarv:resources/bbcarv:resource[@type='course/x-bb-coursesetting']/bbcarv:data/COURSE/COURSEID/@value",
+                domresult.getNode(),
+                String.class );
+      }
+      catch ( XPathExpressionException ex )
+      {
+        progress.firstException = ex;
+        throw new RuntimeException( ex );
+      }
+      
+      if ( courseid == null || courseid.length() == 0 )
+      {
+        progress.firstException = new RuntimeException( "Course ID not found in archive." );
+        throw new RuntimeException( progress.firstException );        
+      }
+      System.out.println( "Course ID = " + courseid );
+
+      for ( ModuleUserInfo mui : usermap.values() )
+      {
+        System.out.println( "Working on " + mui.toString() );
+        Path studentdata = getStudentDataPath( courseid, mui );
+        datalookups = null;
+        try
+        {
+          datalookups = new DataLookups( resultobjectidmap );
+          Files.createDirectories( studentdata.getParent() );
+          StreamResult sresult = new StreamResult( studentdata.toFile() );
+          DOMSource source = new DOMSource( domresult.getNode() );
+          transformRedactForStudent.reset();
+          transformRedactForStudent.setParameter( "data-lookups-id", datalookups.getId() );
+          transformRedactForStudent.setParameter( "uid", mui.getUid() );
+          transformRedactForStudent.setParameter( "sid", mui.getSid() );
+          transformRedactForStudent.setParameter( "mid", mui.getMid() );
+          transformRedactForStudent.setURIResolver( resolver );
+          transformRedactForStudent.transform( source, sresult );
+        }
+        catch ( IOException | TransformerException ex )
+        {
+          progress.firstException = ex;
+          throw new RuntimeException( ex );
+        }      
+        finally
+        {
+          if ( datalookups != null ) datalookups.release();
+        }
+      }
+      
+      progress.completedCount++;
+    }
+    
+  }
+
   public class ArchiveProcessor implements Consumer<Path>
   {
     @Override
@@ -487,6 +694,33 @@ public class BatchProcessor implements Runnable
       {
       }
       return null;
+    }
+    
+  }
+  
+  public class NamespaceContextImpl implements NamespaceContext
+  {
+
+    @Override
+    public String getNamespaceURI( String prefix )
+    {
+      switch ( prefix )
+      {
+        case "bbcarv": return "http://www.leedsbeckett.ac.uk/bubblecarver";
+        default: return "";
+      }
+    }
+
+    @Override
+    public String getPrefix( String namespaceURI )
+    {
+      throw new UnsupportedOperationException( "Not supported yet." ); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
+    @Override
+    public Iterator<String> getPrefixes( String namespaceURI )
+    {
+      throw new UnsupportedOperationException( "Not supported yet." ); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
     
   }
