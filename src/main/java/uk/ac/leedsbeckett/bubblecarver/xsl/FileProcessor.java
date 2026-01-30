@@ -37,7 +37,7 @@ public class FileProcessor
   private static int nextKeyInt = 1000000;
   private static final HashMap<String,FileProcessor> instanceMap = new HashMap<>();
   
-  public static String processFile( String id, String srcrel, String dstrel )
+  public static String processFile( String id, String srcrel )
   {
     FileProcessor instance;
     synchronized( instanceMap )
@@ -46,18 +46,17 @@ public class FileProcessor
     }
     if ( instance == null )
       return "Unknown FileProcessor instance ID.";
-    return instance.processFile( srcrel, dstrel );
+    return instance.processFile( srcrel );
   }
 
   
   
   private final String id;
   private final Path srcbase;
-  private final Path dstbase;
-  public FileProcessor( Path srcbase, Path dstbase )
+  private Path dstbase = null;
+  public FileProcessor( Path srcbase )
   {
     this.srcbase = srcbase;
-    this.dstbase = dstbase;
     synchronized( instanceMap )
     {
       this.id = "fileprocessor" + Integer.toString( nextKeyInt++ );
@@ -78,8 +77,13 @@ public class FileProcessor
         instanceMap.remove( this.id );
     }
   }  
+
+  public void setDestinationBase( Path dstbase )
+  {
+    this.dstbase = dstbase;
+  }
   
-  public String processFile( String srcrel, String dstrel )
+  public String processFile( String srcrel )
   {
     StringBuilder sb = new StringBuilder();
     try
@@ -89,11 +93,11 @@ public class FileProcessor
 //      System.out.println( "    Src Rel " + srcrel );
 //      System.out.println( "    Dst Rel " + dstrel );
       Path src = srcbase.resolve( srcrel );
-      Path dst = dstbase.resolve( dstrel ).resolve( srcrel );
+      Path dst = dstbase.resolve( srcrel );
 //      System.out.println( "    Src Path " + src.toString() );
 //      System.out.println( "    Dst Path " + dst.toString() );
-      System.out.println( "    Src URI " + src.toUri() );
-      System.out.println( "    Dst URI " + dst.toUri() );
+//      System.out.println( "    Src URI " + src.toUri() );
+//      System.out.println( "    Dst URI " + dst.toUri() );
       sb.append( "copy {" );
       sb.append( src.toString() );
       sb.append( "} to {" );

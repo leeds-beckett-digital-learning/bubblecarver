@@ -60,6 +60,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookups;
 import uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor;
 import uk.ac.leedsbeckett.bubblecarver.xsl.ModuleUserInfoMapper;
@@ -288,74 +289,66 @@ public class BatchProcessor implements Runnable
       if ( listener != null )
         listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
       
+      // Set up coordinating data objects...
       Path root = null;
+      DataLookupHelper datalookuphelper = null;
+      ModuleUserInfoMapper mapper = null;
+      FileProcessor fp = null;
       try
       {
-        root = getRootOfArchive( t );  
-      }
-      catch ( IOException ex )
-      {
-        progress.firstException = ex;
-        throw new RuntimeException( ex );
-      }
-      
-      Resolver resolver = new Resolver( root, null );
-      StringBufferResult result = createStringBufferResult();
-      DataLookups datalookups = null;
-      HashMap<String,HashSet<String>> resultobjectidmap;
-      ModuleUserInfoMapper mapper = null;
-      HashMap<String,ModuleUserInfo> usermap = null;
-      try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
-      {
-        datalookups = new DataLookups();
+        root = getRootOfArchive( t );          
         mapper = new ModuleUserInfoMapper();
-        StreamSource source = new StreamSource( in );
-        transformListStudents.reset();
-        transformListStudents.setParameter( "mapper-id", mapper.getId() );
-        transformListStudents.setParameter( "data-lookups-id", datalookups.getId() );
-        transformListStudents.setURIResolver( resolver );
-        transformListStudents.transform( source, result );
-        usermap = mapper.getMap();
-        resultobjectidmap = datalookups.getResultObjectIdMap();
+        datalookuphelper = new DataLookupHelper( new DataLookups() );
+        fp = new FileProcessor( root );
+        process( root, mapper, datalookuphelper, fp );
+        progress.completedCount++;
       }
-      catch ( IOException | TransformerException ex )
+      catch ( XPathExpressionException | TransformerException | ParserConfigurationException | IOException ex )
       {
+        Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );
         progress.firstException = ex;
         throw new RuntimeException( ex );
       }
       finally
       {
-        if ( datalookups != null ) datalookups.release();
+        if ( root != null )
+        {
+          try {root.getFileSystem().close();}
+          catch ( IOException ex ) {Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );}
+        }
+        if ( datalookuphelper != null ) datalookuphelper.release();
         if ( mapper != null ) mapper.release();
+        if ( fp != null ) fp.release();
       }
-      System.out.println( result.toString() );
+    }
+    
+    private void process( Path root, ModuleUserInfoMapper mapper, DataLookupHelper datalookuphelper, FileProcessor fp )
+            throws ParserConfigurationException, IOException, TransformerException, XPathExpressionException
+    {      
+      FileCataloguer fc = new FileCataloguer( root );
+      Document catalogue = fc.getCatalogue();
       
-      if ( usermap == null )
+      Resolver resolver = new Resolver( root, catalogue );
+      StringBufferResult result = createStringBufferResult();
+      HashMap<String,ModuleUserInfo> usermap;
+      
+      try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
       {
-        progress.firstException = new RuntimeException( "Unexpected null usermap." );
-        throw new RuntimeException( progress.firstException );
+        StreamSource source = new StreamSource( in );
+        transformListStudents.reset();
+        transformListStudents.setParameter( "mapper-id", mapper.getId() );
+        transformListStudents.setParameter( "data-lookups-id", datalookuphelper.getId() );
+        transformListStudents.setURIResolver( resolver );
+        transformListStudents.transform( source, result );
       }
 
+      //System.out.println( result.toString() );
+      usermap = mapper.getMap();
       if ( usermap.isEmpty() )
-      {
-        // Done already - no error.
-        progress.completedCount++;
         return;
-      }
-      
-      if ( resultobjectidmap == null )
-      {
-        progress.firstException = new RuntimeException( "Unexpected null datalookups." );
-        throw new RuntimeException( progress.firstException );
-      }
-  
-//      for ( String mid : resultobjectidmap.keySet() )
-//      {
-//        System.out.println( "mid: " + mid );
-//        HashSet<String> set = resultobjectidmap.get( mid );
-//        for ( String roid : set )
-//          System.out.println( "    roid: " + roid );
-//      }
+
+//      datalookups.dump();
+//      if ( true ) return;
 
       DOMResult domresult = new DOMResult();
       try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
@@ -365,119 +358,35 @@ public class BatchProcessor implements Runnable
         transformCombineModule.setURIResolver( resolver );
         transformCombineModule.transform( source, domresult );
       }
-      catch ( IOException | TransformerException ex )
-      {
-        progress.firstException = ex;
-        throw new RuntimeException( ex );
-      }
 
       System.out.println( domresult.toString() );
-      String courseid = null;
-      try
-      {
-        courseid = xPath.evaluateExpression(
+      String courseid = xPath.evaluateExpression(
                 "/bbcarv:resources/bbcarv:resource[@type='course/x-bb-coursesetting']/bbcarv:data/COURSE/COURSEID/@value",
                 domresult.getNode(),
                 String.class );
-      }
-      catch ( XPathExpressionException ex )
-      {
-        progress.firstException = ex;
-        throw new RuntimeException( ex );
-      }
       
       if ( courseid == null || courseid.length() == 0 )
-      {
-        progress.firstException = new RuntimeException( "Course ID not found in archive." );
-        throw new RuntimeException( progress.firstException );        
-      }
+        throw new IOException( "Course ID not found in archive." );        
       System.out.println( "Course ID = " + courseid );
 
       for ( ModuleUserInfo mui : usermap.values() )
       {
         System.out.println( "Working on " + mui.toString() );
+        Path studentdir = getStudentPath( courseid, mui );
         Path studentdata = getStudentDataPath( courseid, mui );
-        datalookups = null;
-        try
-        {
-          datalookups = new DataLookups( resultobjectidmap );
-          Files.createDirectories( studentdata.getParent() );
-          StreamResult sresult = new StreamResult( studentdata.toFile() );
-          DOMSource source = new DOMSource( domresult.getNode() );
-          transformRedactForStudent.reset();
-          transformRedactForStudent.setParameter( "data-lookups-id", datalookups.getId() );
-          transformRedactForStudent.setParameter( "uid", mui.getUid() );
-          transformRedactForStudent.setParameter( "sid", mui.getSid() );
-          transformRedactForStudent.setParameter( "mid", mui.getMid() );
-          transformRedactForStudent.setURIResolver( resolver );
-          transformRedactForStudent.transform( source, sresult );
-        }
-        catch ( IOException | TransformerException ex )
-        {
-          progress.firstException = ex;
-          throw new RuntimeException( ex );
-        }      
-        finally
-        {
-          if ( datalookups != null ) datalookups.release();
-        }
-      }
-      
-      progress.completedCount++;
-    }
-    
-  }
-
-  public class ArchiveProcessor implements Consumer<Path>
-  {
-    @Override
-    public void accept( Path t )
-    {
-      if ( progress.firstException != null )
-        return;
-      
-      System.out.println( "Processing " + t.toUri() );
-      if ( listener != null )
-        listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
-      
-      Document catalogue = null;
-      Path root = null;
-      try
-      {
-        root = getRootOfArchive( t );  
-        FileCataloguer fc = new FileCataloguer( root );
-        catalogue = fc.getCatalogue();
-      }
-      catch ( ParserConfigurationException | IOException ex )
-      {
-        progress.firstException = ex;
-        throw new RuntimeException( ex );
-      }
-      
-      Resolver resolver = new Resolver( root, catalogue );
-      FileProcessor fp = new FileProcessor( root, studentPath );
-      
-      try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
-      {
-        StreamSource source = new StreamSource( in );
-        StringBufferResult result = createStringBufferResult();
-        transformListStudents.reset();
-        transformListStudents.setParameter( "output-base-uri", studentPath.toString() );
-        transformListStudents.setParameter( "file-processor-id", fp.getId() );
-        transformListStudents.setURIResolver( resolver );
-        transformListStudents.transform( source, result );
-        System.out.println( result.toString() );
-      }
-      catch ( IOException | TransformerException ex )
-      {
-        progress.firstException = ex;
-        throw new RuntimeException( ex );
-      }
-      finally
-      {
-        fp.release();
-      }
-      progress.completedCount++;
+        fp.setDestinationBase( studentdir );
+        Files.createDirectories( studentdata.getParent() );
+        StreamResult sresult = new StreamResult( studentdata.toFile() );
+        DOMSource source = new DOMSource( domresult.getNode() );
+        transformRedactForStudent.reset();
+        transformRedactForStudent.setParameter( "data-lookups-id", datalookuphelper.getId() );
+        transformRedactForStudent.setParameter( "file-processor-id", fp.getId() );
+        transformRedactForStudent.setParameter( "uid", mui.getUid() );
+        transformRedactForStudent.setParameter( "sid", mui.getSid() );
+        transformRedactForStudent.setParameter( "mid", mui.getMid() );
+        transformRedactForStudent.setURIResolver( resolver );
+        transformRedactForStudent.transform( source, sresult );
+      }      
     }
     
   }

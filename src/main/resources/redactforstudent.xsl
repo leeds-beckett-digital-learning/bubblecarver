@@ -21,6 +21,7 @@
   <xsl:output method="xml" indent="yes"/>
 
   <xsl:param name="data-lookups-id" select="'unknown'"/>
+  <xsl:param name="file-processor-id" select="'unknown'"/>
   <xsl:param name="uid" select="'unknown'"/>
   <xsl:param name="sid" select="'unknown'"/>
   <xsl:param name="mid" select="'unknown'"/>
@@ -69,16 +70,9 @@
       <xsl:for-each select="bbcarv:file">
         <!-- The file name (href) is resultobjectid value from the grade centre attempt -->
         <xsl:variable name="href" select="@href"/>
-        <!--
-        <xsl:variable name="found" 
-            select="count( $gradebookoutdef/OUTCOMEDEFINITION/OUTCOMES/OUTCOME[COURSEMEMBERSHIPID/@value = $mid]/ATTEMPTS/ATTEMPT/RESULTOBJECTID[@value = $href] )"/>
-        <xsl:if test="$found &gt; 0">
-          <xsl:copy-of select="."/>
-        </xsl:if>
-                -->
-        <xsl:variable name="found"
-          select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookups.isResultObjectOfMember( $data-lookups-id, $mid, $href )"/>
-        <xsl:if test="$found = 'true'">
+        <xsl:variable name="midofro"
+          select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'member-resultobj', $href )"/>
+        <xsl:if test="$midofro = $mid">
           <xsl:copy-of select="."/>
         </xsl:if>
       </xsl:for-each>
@@ -86,7 +80,164 @@
   </xsl:template>
   
   <!-- ================================================================== -->
+
+  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-attemptfiles']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactattemptfiles"/>
+    </xsl:copy>    
+  </xsl:template>
   
+  <xsl:template match="ATTEMPTFILE" mode="redactattemptfiles">
+    <xsl:variable name="fid" select="@id"/>
+    <xsl:variable name="attemptoffile"
+      select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'attempt-file', $fid )"/>
+    <xsl:variable name="midofa"
+      select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'member-attempt', $attemptoffile )"/>
+    <xsl:if test="$midofa = $mid">
+      <xsl:copy-of select="."/>
+    </xsl:if>
+  </xsl:template> 
+
+  <xsl:template match="bbcarv:file" mode="redactattemptfiles">
+    <xsl:variable name="fid" select="substring-before( @href, '/' )"/>
+    <xsl:variable name="attemptoffile"
+      select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'attempt-file', $fid )"/>
+    <xsl:variable name="midofa"
+      select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'member-attempt', $attemptoffile )"/>
+    <xsl:if test="$midofa = $mid">
+      <xsl:copy-of select="."/>
+    </xsl:if>
+  </xsl:template> 
+
+  <xsl:template match="*" mode="redactattemptfiles">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactattemptfiles"/>
+    </xsl:copy>        
+  </xsl:template>
+  
+  <!-- ================================================================== -->
+
+  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-attemptembeddedfiles']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactattemptEfiles"/>
+    </xsl:copy>    
+  </xsl:template>
+  
+  <xsl:template match="ATTEMPTEMBEDDEDFILE" mode="redactattemptEfiles">
+    <xsl:variable name="attemptoffile"
+      select="ATTEMPTID/@value"/>
+    <xsl:variable name="midofa"
+      select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'member-attempt', $attemptoffile )"/>
+    <xsl:if test="$midofa = $mid">
+      <xsl:copy-of select="."/>
+    </xsl:if>
+  </xsl:template> 
+
+  <xsl:template match="bbcarv:file" mode="redactattemptEfiles">
+    <xsl:variable name="attemptoffile" select="substring-before( @href, '/' )"/>
+    <xsl:variable name="midofa"
+      select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'member-attempt', $attemptoffile )"/>
+    <xsl:if test="$midofa = $mid">
+      <xsl:copy-of select="."/>
+    </xsl:if>
+  </xsl:template> 
+
+  <xsl:template match="*" mode="redactattemptEfiles">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactattemptEfiles"/>
+    </xsl:copy>        
+  </xsl:template>
+  
+  <!-- ================================================================== -->
+
+  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-coursemessage']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactmessages"/>
+    </xsl:copy>    
+  </xsl:template>
+  
+  
+  <xsl:template match="COURSEMESSAGE" mode="redactmessages">
+    <xsl:variable name="parts" select="PARTICIPANTS/PARTICIPANT/USERID[@value = $uid]"/>
+    <xsl:if test="count( $parts ) &gt; 0">
+      <xsl:copy>
+        <xsl:for-each select="@*">
+          <xsl:copy-of select="."/>
+        </xsl:for-each>
+        <xsl:apply-templates select="*|text()" mode="redactmessages"/>
+      </xsl:copy>        
+    </xsl:if>
+  </xsl:template>
+  
+  
+  <xsl:template match="*" mode="redactmessages">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactmessages"/>
+    </xsl:copy>        
+  </xsl:template>
+  
+  <!-- ================================================================== -->
+
+  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-crsrubriceval']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="rubriceval"/>
+    </xsl:copy>    
+  </xsl:template>
+  
+  <!-- Might be linked to an attempt directly or might be linked to
+       a grade book history entry. -->
+  <xsl:template match="RUBRIC_EVALUATION" mode="rubriceval">
+    <xsl:variable name="aid" select="ATTEMPT_ID/@value"/>
+    <xsl:variable name="logid" select="GRADEBOOK_LOG_ID/@value"/>
+    <xsl:choose>
+      <xsl:when test="string-length( $aid ) &gt; 0">
+        <xsl:variable name="midofa"
+          select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'member-attempt', $aid )"/>
+        <xsl:if test="$midofa = $mid">
+          <xsl:copy-of select="."/>
+        </xsl:if>        
+      </xsl:when>
+      <xsl:when test="string-length( $logid ) &gt; 0">
+        <xsl:comment>Redacted rubric evaluation that is kept because only for a grade book log entry.</xsl:comment>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:comment>Redacted rubric evaluation that is connected neither to attempt of grade book log entry.</xsl:comment>        
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+  
+  <xsl:template match="*" mode="rubriceval">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="rubriceval"/>
+    </xsl:copy>        
+  </xsl:template>
+  
+      
+  <!-- ================================================================== -->
   <xsl:template match="bbcarv:resource[@type = 'course/x-bb-user']">
     <xsl:copy>
       <xsl:for-each select="@*">
@@ -215,9 +366,8 @@
   
 
 
-  
-    
-        
+  <!-- ================================================================== -->  
+            
   <xsl:template match="*">
     <xsl:copy>
       <xsl:for-each select="@*">
@@ -233,5 +383,24 @@
     </xsl:text>
   </xsl:template>
   
-      
+  <!-- ================================================================== -->  
+
+  <xsl:template match="cat:catalogue">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="node()"/>
+    </xsl:copy>
+  </xsl:template>
+
+  <xsl:template match="cat:file">
+    <xsl:variable name="filemid" 
+       select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'member-uri', @uri )"/>
+    <xsl:if test="$mid = $filemid">
+      <cat:file uri="{@uri}"/>
+      <log><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor.processFile( $file-processor-id, @uri )"/></log>
+    </xsl:if>
+  </xsl:template>
+
 </xsl:stylesheet>

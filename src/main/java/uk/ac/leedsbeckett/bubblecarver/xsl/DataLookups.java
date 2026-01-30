@@ -22,61 +22,51 @@ import java.util.HashSet;
  *
  * @author maber01
  */
-public class DataLookups extends XSLHelper
-{  
-  public static String addResultObjectId( String helperid, String mid, String roid )
-  {
-    DataLookups helper = get(DataLookups.class, helperid );
-    if ( helper == null ) return "";
-    return helper.addResultObjectId( mid, roid );
-  }
+public class DataLookups
+{
+  private final HashMap<String,HashMap<String,String>> parentmapmap = new HashMap<>();
 
-  public static String isResultObjectOfMember( String helperid, String mid, String roid )
+  public HashMap<String,String> getMap( String type )
   {
-    DataLookups helper = get(DataLookups.class, helperid );
-    if ( helper == null ) return "false";
-    return helper.isResultObjectOfMember( mid, roid );    
-  }
-
-  
-  private final HashMap<String,HashSet<String>> resultobjectidmap;
-
-  public DataLookups()
-  {
-    this.resultobjectidmap = new HashMap<>();
+    return parentmapmap.get( type );
   }
   
-  public DataLookups( HashMap<String,HashSet<String>> resultobjectidmap )
+  public String setParentChild( String type, String parent, String child )
   {
-    this.resultobjectidmap = resultobjectidmap;
-  }
-  
-  public String addResultObjectId( String mid, String roid )
-  {
-    if ( mid == null || mid.length() == 0 || roid == null || roid.length() == 0 )
-      return "mid: " + mid + " roid: " + roid;
-    HashSet set = resultobjectidmap.get( mid );
-    if ( set == null )
+    if ( type   == null || type.length()   == 0 || 
+         parent == null || parent.length() == 0 || 
+         child  == null || child.length()  == 0 )
+      return "parent: " + parent + " child: " + child;
+    HashMap<String,String> parentmap = parentmapmap.get( type );
+    if ( parentmap == null )
     {
-      set = new HashSet();
-      resultobjectidmap.put( mid, set );
+      parentmap = new HashMap<>();
+      parentmapmap.put( type, parentmap );
     }
-    set.add( roid );
-    return "mid: " + mid + " roid: " + roid;
+    parentmap.put( child, parent );
+    return "parent: " + parent + " child: " + child;
   }
 
-  public String isResultObjectOfMember( String mid, String roid )
+  public String getParentOfChild( String type, String child )
   {
-    if ( mid == null || mid.length() == 0 || roid == null || roid.length() == 0 )
-      return "false";
-    HashSet<String> set = resultobjectidmap.get( mid );
-    if ( set == null )
-      return "false";
-    return set.contains( roid ) ? "true" : "false";
-  } 
-
-  public HashMap<String, HashSet<String>> getResultObjectIdMap()
+    if ( type  == null || type.length()  == 0 || 
+         child == null || child.length() == 0 )
+      return "unknown";
+    HashMap<String,String> parentmap = parentmapmap.get( type );
+    if ( parentmap == null ) return "unknown";
+    String parent = parentmap.get( child );
+    if ( parent == null || parent.length() == 0 ) return "unknown";
+    return parent;
+  }
+  
+  public void dump()
   {
-    return resultobjectidmap;
+    for ( String type : parentmapmap.keySet() )
+    {
+      System.out.println( "Map type: " + type );
+      HashMap<String,String> map = parentmapmap.get( type );
+      for ( String child : map.keySet() )
+        System.out.println( "    child: " + child + "   parent: " + map.get( child ) );
+    }
   }
 }

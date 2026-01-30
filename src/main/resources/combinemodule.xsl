@@ -74,6 +74,7 @@
       <xsl:for-each select="/manifest/resources/resource[ contains( $types, @type ) ]">
         <xsl:apply-templates select="."/>
       </xsl:for-each>
+      <xsl:copy-of select="document( 'catalogue:' )"/>
     </bbcarv:resources>
   </xsl:template>
 
