@@ -27,6 +27,7 @@
       <xsl:apply-templates select="/manifest/resources/resource[ @type = 'membership/x-bb-coursemembership' ]" mode="member"/>
       <xsl:apply-templates select="/manifest/resources/resource[ @type = 'course/x-bb-gradebook' ]" mode="gradebook"/>
       <xsl:apply-templates select="/manifest/resources/resource[ @type = 'course/x-bb-attemptfiles' ]" mode="attemptfiles"/>
+      <xsl:apply-templates select="/manifest/resources/resource[ @type = 'resource/x-bb-document' ]" mode="document"/>
       <xsl:apply-templates select="document('catalogue:')/cat:catalogue"/>
     </archive-log>
   </xsl:template>
@@ -47,6 +48,21 @@
     <xsl:apply-templates select="document( ./@bb:file )/ATTEMPTFILES/ATTEMPTFILE"/>
   </xsl:template>
 
+  <xsl:template match="resource" mode="document">
+    <xsl:variable name="identifier" select="@identifier"/>
+    <doc i="{@identifier}">
+      <xsl:for-each select="document( ./@bb:file )/CONTENT">
+        <content>
+          <xsl:if test="string-length( URL/@value ) &gt; 0">
+            <xsl:variable name="ignore" 
+               select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.setParentChild( $data-lookups-id, 'url-document', URL/@value, $identifier )"/>
+            <d x="{$ignore}"/>
+          </xsl:if>
+        </content>      
+      </xsl:for-each>
+    </doc>
+  </xsl:template>
+
   <xsl:template match="USER">
     <xsl:variable name="ignore" 
        select="java:uk.ac.leedsbeckett.bubblecarver.xsl.ModuleUserInfoMapper.addUser( $mapper-id, @id, STUDENTID/@value )"/>
@@ -61,6 +77,9 @@
   
   <xsl:template match="OUTCOME">
     <xsl:variable name="mid" select="COURSEMEMBERSHIPID/@value"/>
+    <xsl:variable name="ignoreo" 
+       select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.setParentChild( $data-lookups-id, 'member-outcome', $mid, @id )"/>
+    <out x="{$ignoreo}"/>
     <xsl:for-each select="ATTEMPTS/ATTEMPT">
       <xsl:variable name="aid" select="@id"/>
       <xsl:variable name="ignorea" 
@@ -97,7 +116,7 @@
         <xsl:apply-templates select="." mode="redact-csfiles"/>
       </xsl:when>
       <xsl:otherwise>
-        
+        <xsl:apply-templates select="." mode="redact-resfiles"/>        
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
@@ -119,7 +138,7 @@
         <xsl:apply-templates select="." mode="redact-attempt"/>
       </xsl:when>
       <xsl:when test="cat:dir[5]/@name = 'gradeHistory' or cat:dir[5]/@name = 'gradeHistoryNotes' or cat:dir[5]/@name = 'gradeDetail'  or cat:dir[5]/@name = 'gradeDetailNotes'">
-        <!-- <xsl:apply-templates select="." mode="redact-outcome"/> -->
+        <xsl:apply-templates select="." mode="redact-outcome"/>
       </xsl:when>
       <xsl:otherwise>
         <!-- <xsl:comment>Redacted catalogue file. Gradebook file of unknown type.</xsl:comment> -->
@@ -136,5 +155,55 @@
     <af x="{$ignore}"/>        
   </xsl:template>
 
+  <xsl:template match="cat:file" mode="redact-outcome">
+    <xsl:variable name="outcomeid" select="cat:dir[6]/@name"/>
+    <xsl:variable name="mid"
+      select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'member-outcome', $outcomeid )"/>
+    <xsl:variable name="ignore" 
+       select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.setParentChild( $data-lookups-id, 'member-uri', $mid, @uri )"/>
+    <of x="{$ignore}"/>        
+  </xsl:template>
+
+  <xsl:template match="cat:file" mode="redact-resfiles">
+    <xsl:variable name="sub" select="cat:dir[1]/@name"/>
+    <xsl:variable name="restype" select="/manifest/resources/resource[ @xml:base = $sub ]/@type"/>
+    <xsl:choose>
+      <xsl:when test="$restype = 'course/x-bb-attemptfiles'">
+        <xsl:apply-templates select="." mode="redact-resattempt"/>
+      </xsl:when>
+      <xsl:when test="$restype = 'course/x-bb-attemptembeddedfiles'">
+        <xsl:apply-templates select="." mode="redact-resattemptembed"/>
+      </xsl:when>
+      <xsl:when test="$restype = 'resource/x-bb-wiki'">
+        <xsl:apply-templates select="." mode="redact-reswiki"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <!-- <xsl:comment>Redacted catalogue file. Not in csfiles and not in an interesting resource subfolder. <xsl:value-of select="@uri"/></xsl:comment> -->
+      </xsl:otherwise>      
+    </xsl:choose>
+  </xsl:template>
+      
+  <xsl:template match="cat:file" mode="redact-resattempt">
+    <xsl:variable name="attemptfileid" select="cat:dir[2]/@name"/>
+    <xsl:variable name="aid"
+      select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'attempt-file', $attemptfileid )"/>
+    <xsl:variable name="mid"
+      select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'member-attempt', $aid )"/>
+    <xsl:variable name="ignore" 
+       select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.setParentChild( $data-lookups-id, 'member-uri', $mid, @uri )"/>
+    <af x="{$ignore}"/>        
+  </xsl:template>
+
+  <xsl:template match="cat:file" mode="redact-resattemptembed">
+    <xsl:variable name="aid" select="cat:dir[2]/@name"/>
+    <xsl:variable name="mid"
+      select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'member-attempt', $aid )"/>
+    <xsl:variable name="ignore" 
+       select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.setParentChild( $data-lookups-id, 'member-uri', $mid, @uri )"/>
+    <af x="{$ignore}"/>        
+  </xsl:template>
+
+  <xsl:template match="cat:file" mode="redact-reswiki">
+  </xsl:template>
       
 </xsl:stylesheet>

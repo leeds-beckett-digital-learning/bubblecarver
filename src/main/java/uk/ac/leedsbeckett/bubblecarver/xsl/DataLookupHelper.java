@@ -43,4 +43,8 @@ public class DataLookupHelper extends XSLHelper
     this.dataLookups = dataLookups;
   }
   
+  public void dump()
+  {
+    dataLookups.dump();
+  }
 }

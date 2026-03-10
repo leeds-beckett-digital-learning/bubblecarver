@@ -30,6 +30,8 @@
           <xsl:value-of select=".//USERS/USER/NAMES/FAMILY/@value"/>,
           <xsl:value-of select=".//USERS/USER/NAMES/GIVEN/@value"/> 
         </h2>
+        <h1><xsl:value-of select=".//COURSE/TITLE/@value"/></h1>
+        <h2><xsl:value-of select=".//COURSE/COURSEID/@value"/></h2>
         <h1>Grade Centre Data</h1>
         <table>
           <thead>
@@ -37,6 +39,7 @@
               <th>Title</th>
               <th>Type</th>
               <th>Points Avail.</th>
+              <th>Attempts</th>
               <th>Points</th>
               <th>Grade</th>
             </tr>
@@ -60,22 +63,35 @@
         <xsl:otherwise><xsl:value-of select="TITLE/@value"/></xsl:otherwise>
       </xsl:choose>
     </xsl:variable>
+    <xsl:variable name="url" select="bbcarv:document/bbcarv:URL/@value"/>
     <tr>
       <th><xsl:value-of select="$title"/></th>
       <td>
         <xsl:if test="count( GROUPATTEMPTS/GROUPATTEMPT ) &gt; 0">Group </xsl:if>
         <xsl:choose>
           <xsl:when test="'true' = ISCALCULATED/@value">Calculated: <xsl:value-of select="CALCULATIONTYPE/@value"/></xsl:when>
-          <xsl:when test="string-length( LTI_DOMAIN_ID/@value ) &gt; 0">LTI Tool</xsl:when>
-          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-assignment'">BBL Assignment</xsl:when>
+          <xsl:when test="string-length( LTI_DOMAIN_ID/@value ) &gt; 0">LTI Tool
+            <xsl:if test="string-length( $url ) &gt; 0">
+              <br/>(<xsl:value-of select="$url"/>)
+              <br/>Score, grade and/or feedback may be on external web site.
+            </xsl:if>
+          </xsl:when>
+          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-assignment'">Assignment</xsl:when>
+          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-assessment'">Test</xsl:when>
+          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-assessment-survey'">Survey</xsl:when>
           <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-bloglink'">Blog or Journal</xsl:when>
           <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-wiki'">Wiki</xsl:when>
           <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-plugin-scormengine'">SCORM Package</xsl:when>
-          <xsl:when test="starts-with(HANDLERURL/@value, '/webapps/ip-turnitintool')">TurnItIn Building Block<br/>(Look for data in TTI archive)</xsl:when>
+          <xsl:when test="starts-with(HANDLERURL/@value, '/webapps/ip-turnitintool')">TurnItIn Building Block<br/>(Look for data in TII archive)</xsl:when>
           <xsl:otherwise>Other = <xsl:value-of select="SCORE_PROVIDER_HANDLE/@value"/> <xsl:value-of select="HANDLERURL/@value"/> </xsl:otherwise>
         </xsl:choose>
       </td>
       <td><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( POINTSPOSSIBLE/@value )"/></td>
+      <td>
+        <xsl:if test="CALCULATIONTYPE/@value = 'NON_CALCULATED'">
+          <p><xsl:value-of select="count( OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT )"/></p>
+        </xsl:if>
+      </td>
       <td>
         <xsl:apply-templates select="OUTCOMES/OUTCOME" mode="points"/>        
       </td>
@@ -93,9 +109,8 @@
             <svg width="20px" height="20px" fill="#000000" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><title>box-plus</title><path d="M96 448Q82 448 73 439 64 430 64 416L64 96Q64 82 73 73 82 64 96 64L416 64Q430 64 439 73 448 82 448 96L448 416Q448 430 439 439 430 448 416 448L96 448ZM280 368L280 280 368 280 368 232 280 232 280 144 232 144 232 232 144 232 144 280 232 280 232 368 280 368Z"></path></g></svg>
           </span>
         </th>
-        <td colspan="4">
+        <td colspan="5">
           <div class="detail" style="display: none" id="{concat( 'detail-', @id )}">
-          <h2>Detail</h2>
           <xsl:apply-templates select="OUTCOMES/OUTCOME"/>
           </div>
         </td>

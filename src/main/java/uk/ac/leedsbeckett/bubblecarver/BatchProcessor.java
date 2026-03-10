@@ -16,7 +16,6 @@
 package uk.ac.leedsbeckett.bubblecarver;
 
 import uk.ac.leedsbeckett.bubblecarver.data.ModuleUserInfo;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -24,17 +23,13 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
-import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -52,14 +47,9 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookups;
 import uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor;
@@ -75,11 +65,10 @@ public class BatchProcessor implements Runnable
   {
     //Path in  = Path.of( "z:\\blackboard_archives\\sisfeed_2021_2022_Part1" );
     Path in     = Path.of( "c:\\temp\\samplea" );
-    Path inter  = Path.of( "c:\\temp\\temp" );
     Path out    = Path.of( "c:\\temp\\students" );
     try
     {
-      BatchProcessor bp = new BatchProcessor( null, in, inter, out, true, true, false );
+      BatchProcessor bp = new BatchProcessor( null, in, out, true, true, false );
       bp.setForceReport( true );
       bp.processForReal();
     }
@@ -90,7 +79,6 @@ public class BatchProcessor implements Runnable
   }
   
   private final Path searchPath;
-  private final Path intermediatePath;
   private final Path studentPath;
   private final boolean extract;
   private final boolean report;
@@ -111,7 +99,6 @@ public class BatchProcessor implements Runnable
   public BatchProcessor( 
           BatchProcessorListener listener, 
           Path searchPath, 
-          Path intermediatePath,
           Path studentPath,
           boolean extract,
           boolean report,
@@ -119,7 +106,6 @@ public class BatchProcessor implements Runnable
   {
     this.listener = listener;
     this.searchPath = searchPath;
-    this.intermediatePath = intermediatePath;
     this.studentPath = studentPath;
     this.extract = extract;
     this.report = report;
@@ -347,8 +333,8 @@ public class BatchProcessor implements Runnable
       if ( usermap.isEmpty() )
         return;
 
-//      datalookups.dump();
-//      if ( true ) return;
+      //datalookuphelper.dump();
+      //if ( true ) return;
 
       DOMResult domresult = new DOMResult();
       try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
@@ -540,7 +526,8 @@ public class BatchProcessor implements Runnable
         return false;
       Path relpath = studentPath.relativize( t );
       if ( relpath.getNameCount() != 7 ) return false;
-      if ( !"bbarchives".equals( relpath.getName( 4 ).toString() ) ) return false;
+      if ( !"bblarchives".equals( relpath.getName( 4 ).toString() ) )
+        return false;
       if ( forcereport ) return true;
       Path reppath = t.getParent().resolve( "report.html" );
       if ( !Files.exists( reppath ) ) return true;

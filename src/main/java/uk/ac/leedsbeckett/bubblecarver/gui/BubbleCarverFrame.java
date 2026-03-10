@@ -131,6 +131,9 @@ public class BubbleCarverFrame
     reportAllButton = new javax.swing.JButton();
     jLabel3 = new javax.swing.JLabel();
     progressLabel = new javax.swing.JLabel();
+    extractCheckBox = new javax.swing.JCheckBox();
+    reportCheckBox = new javax.swing.JCheckBox();
+    digestCheckBox = new javax.swing.JCheckBox();
     jMenuBar1 = new javax.swing.JMenuBar();
     jMenu1 = new javax.swing.JMenu();
     openMenuItem = new javax.swing.JMenuItem();
@@ -209,6 +212,12 @@ public class BubbleCarverFrame
     jLabel3.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
     jLabel3.setText("Progress:");
 
+    extractCheckBox.setText("Extract");
+
+    reportCheckBox.setText("Report");
+
+    digestCheckBox.setText("Digest");
+
     javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
     jPanel1.setLayout(jPanel1Layout);
     jPanel1Layout.setHorizontalGroup(
@@ -216,14 +225,15 @@ public class BubbleCarverFrame
       .addGroup(jPanel1Layout.createSequentialGroup()
         .addContainerGap()
         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-          .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-            .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 200, Short.MAX_VALUE)
-            .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-          .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE))
-        .addGap(18, 18, 18)
-        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
           .addGroup(jPanel1Layout.createSequentialGroup()
+            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+              .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 200, Short.MAX_VALUE)
+              .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addGap(18, 18, 18)
             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+              .addComponent(digestCheckBox, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+              .addComponent(reportCheckBox, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+              .addComponent(extractCheckBox, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
               .addComponent(scanDirTextField)
               .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 250, Short.MAX_VALUE))
             .addGap(18, 18, 18)
@@ -233,9 +243,13 @@ public class BubbleCarverFrame
                 .addComponent(browseReportDirButton)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(reportAllButton)))
-            .addGap(0, 120, Short.MAX_VALUE))
-          .addComponent(progressLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-        .addContainerGap())
+            .addContainerGap(126, Short.MAX_VALUE))
+          .addGroup(jPanel1Layout.createSequentialGroup()
+            .addGap(8, 8, 8)
+            .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE)
+            .addGap(18, 18, 18)
+            .addComponent(progressLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGap(10, 10, 10))))
     );
     jPanel1Layout.setVerticalGroup(
       jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -248,16 +262,21 @@ public class BubbleCarverFrame
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
           .addComponent(jLabel2)
-          .addGroup(jPanel1Layout.createSequentialGroup()
-            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-              .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-              .addComponent(browseReportDirButton)
-              .addComponent(reportAllButton))
-            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-              .addComponent(progressLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
-              .addComponent(jLabel3))))
-        .addContainerGap(315, Short.MAX_VALUE))
+          .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+            .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+            .addComponent(browseReportDirButton)
+            .addComponent(reportAllButton)))
+        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+        .addComponent(extractCheckBox)
+        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+        .addComponent(reportCheckBox)
+        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+        .addComponent(digestCheckBox)
+        .addGap(18, 18, 18)
+        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+          .addComponent(jLabel3)
+          .addComponent(progressLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE))
+        .addContainerGap(245, Short.MAX_VALUE))
     );
 
     jScrollPane8.setViewportView(jPanel1);
@@ -398,7 +417,13 @@ public class BubbleCarverFrame
       return;            
     }
     
-    batchProcessor = new BatchProcessor( this, baseDir.toPath(), null, reportDir.toPath(), true, true, false );
+    batchProcessor = new BatchProcessor( 
+            this, 
+            baseDir.toPath(), 
+            reportDir.toPath(), 
+            extractCheckBox.isSelected(), 
+            reportCheckBox.isSelected(), 
+            digestCheckBox.isSelected() );
     Thread t = new Thread( batchProcessor );
     t.start();
     
@@ -538,7 +563,9 @@ public class BubbleCarverFrame
   private javax.swing.JButton browseReportDirButton;
   private javax.swing.JButton browseScanDirButton;
   private javax.swing.JTree courseSettingsTree;
+  private javax.swing.JCheckBox digestCheckBox;
   private javax.swing.JMenuItem exitMenuItem;
+  private javax.swing.JCheckBox extractCheckBox;
   private javax.swing.JTree gradebookTree;
   private javax.swing.JLabel jLabel1;
   private javax.swing.JLabel jLabel2;
@@ -562,6 +589,7 @@ public class BubbleCarverFrame
   private javax.swing.JLabel progressLabel;
   private javax.swing.JButton reportAllButton;
   private javax.swing.JTextField reportBaseDirTextField;
+  private javax.swing.JCheckBox reportCheckBox;
   private javax.swing.JTextField scanDirTextField;
   private javax.swing.JTree usersTree;
   // End of variables declaration//GEN-END:variables

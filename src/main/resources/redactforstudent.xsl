@@ -60,8 +60,6 @@
   
   
   <xsl:template match="bbcarv:resource[@type = 'assessment/x-bb-qti-attempt']">
-    <xsl:variable name="gradebookoutdef" 
-      select="/bbcarv:resources/bbcarv:resource[@type = 'course/x-bb-gradebook']/bbcarv:data/GRADEBOOK/OUTCOMEDEFINITIONS"/>
     <xsl:copy>
       <xsl:for-each select="@*">
         <xsl:copy-of select="."/>
@@ -238,6 +236,124 @@
   
       
   <!-- ================================================================== -->
+  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-gradebook']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactgradebook"/>
+    </xsl:copy>        
+  </xsl:template>
+
+  <xsl:template match="OUTCOMEDEFINITION" mode="redactgradebook">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactgradebook"/>
+      <bbcarv:document>
+        <xsl:variable name="contentid" select="CONTENTID/@value"/>
+        <xsl:variable name="docurl" 
+          select="java:uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper.getParentOfChild( $data-lookups-id, 'url-document', $contentid )"/>
+        <bbcarv:URL value="{$docurl}"/>
+      </bbcarv:document>
+    </xsl:copy>        
+  </xsl:template>
+  
+  <xsl:template match="OUTCOME" mode="redactgradebook">
+    <xsl:variable name="outcomemid" select="COURSEMEMBERSHIPID/@value"/>
+    <xsl:if test="$outcomemid = $mid">
+      <xsl:copy>
+        <xsl:for-each select="@*">
+          <xsl:copy-of select="."/>
+        </xsl:for-each>
+        <xsl:apply-templates select="*|text()" mode="redactgradebook"/>
+      </xsl:copy>        
+    </xsl:if>
+  </xsl:template>
+  
+  <xsl:template match="GRADE_HISTORY_ENTRY" mode="redactgradebook">
+    <xsl:variable name="outcomemid" select="USERID/@value"/>
+    <xsl:if test="$outcomemid = $uid">
+      <xsl:copy>
+        <xsl:for-each select="@*">
+          <xsl:copy-of select="."/>
+        </xsl:for-each>
+        <xsl:apply-templates select="*|text()" mode="redactgradebook"/>
+      </xsl:copy>        
+    </xsl:if>
+  </xsl:template>
+  
+  <xsl:template match="*" mode="redactgradebook">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactgradebook"/>
+    </xsl:copy>        
+  </xsl:template>
+
+  <!-- ================================================================== -->
+  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-groupattemptfiles']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactgroupattemptfile"/>
+    </xsl:copy>        
+  </xsl:template>
+
+  <xsl:template match="*" mode="redactgroupattemptfile">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactgroupattemptfile"/>
+    </xsl:copy>        
+  </xsl:template>
+
+  <!-- ================================================================== -->
+
+  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-groupupload']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactgroupupload"/>
+    </xsl:copy>        
+  </xsl:template>
+
+  <xsl:template match="*" mode="redactgroupupload">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactgroupupload"/>
+    </xsl:copy>        
+  </xsl:template>
+
+
+  <!-- ================================================================== -->
+
+  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-review-status']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <bbcarv:data>
+        <CONTENTSTATUSES>
+          <xsl:for-each select="bbcarv:data/CONTENTSTATUSES/CONTENTSTATUS/USERID[ @value = $uid ]/..">
+            <xsl:copy-of select="."/>
+          </xsl:for-each>
+        </CONTENTSTATUSES>
+      </bbcarv:data>
+    </xsl:copy>        
+  </xsl:template>
+
+
+  <!-- ================================================================== -->
+
+
   <xsl:template match="bbcarv:resource[@type = 'course/x-bb-user']">
     <xsl:copy>
       <xsl:for-each select="@*">
@@ -280,7 +396,45 @@
     </xsl:copy>        
   </xsl:template>
   
+  <!-- ================================================================== -->
+  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-usertestoption']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactusertestoption"/>
+    </xsl:copy>       
+  </xsl:template>
   
+  <xsl:template match="*" mode="redactusertestoption">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactusertestoption"/>
+    </xsl:copy>        
+  </xsl:template>
+  
+  <!-- ================================================================== -->
+  <xsl:template match="bbcarv:resource[@type = 'discussionboard/x-bb-usermsgstate']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactusermsgstate"/>
+    </xsl:copy>       
+  </xsl:template>
+  
+  <xsl:template match="*" mode="redactusermsgstate">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactusermsgstate"/>
+    </xsl:copy>        
+  </xsl:template>
+  
+  <!-- ================================================================== -->
   <xsl:template match="bbcarv:resource[@type = 'membership/x-bb-coursemembership']">
     <xsl:copy>
       <xsl:for-each select="@*">
@@ -294,68 +448,23 @@
     </xsl:copy>        
   </xsl:template>
 
-
-  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-review-status']">
+  <!-- ================================================================== -->
+  <xsl:template match="bbcarv:resource[@type = 'membership/x-bb-groupmembership']">
     <xsl:copy>
       <xsl:for-each select="@*">
         <xsl:copy-of select="."/>
       </xsl:for-each>
       <bbcarv:data>
-        <CONTENTSTATUSES>
-          <xsl:for-each select="bbcarv:data/CONTENTSTATUSES/CONTENTSTATUS/USERID[ @value = $uid ]/..">
-            <xsl:copy-of select="."/>
-          </xsl:for-each>
-        </CONTENTSTATUSES>
+        <GROUPMEMBERSHIPS>
+          <xsl:apply-templates select="bbcarv:data/GROUPMEMBERSHIPS/GROUPMEMBERSHIP[COURSEMEMBERSHIPID/@value = $mid]"/>
+        </GROUPMEMBERSHIPS>
       </bbcarv:data>
     </xsl:copy>        
   </xsl:template>
 
 
 
-  <xsl:template match="bbcarv:resource[@type = 'course/x-bb-gradebook']">
-    <xsl:copy>
-      <xsl:for-each select="@*">
-        <xsl:copy-of select="."/>
-      </xsl:for-each>
-      <xsl:apply-templates select="*|text()" mode="redactgradebook"/>
-    </xsl:copy>        
-  </xsl:template>
-
-  <xsl:template match="OUTCOME" mode="redactgradebook">
-    <xsl:variable name="outcomemid" select="COURSEMEMBERSHIPID/@value"/>
-    <xsl:if test="$outcomemid = $mid">
-      <xsl:copy>
-        <xsl:for-each select="@*">
-          <xsl:copy-of select="."/>
-        </xsl:for-each>
-        <xsl:apply-templates select="*|text()" mode="redactgradebook"/>
-      </xsl:copy>        
-    </xsl:if>
-  </xsl:template>
-  
-  <xsl:template match="GRADE_HISTORY_ENTRY" mode="redactgradebook">
-    <xsl:variable name="outcomemid" select="USERID/@value"/>
-    <xsl:if test="$outcomemid = $uid">
-      <xsl:copy>
-        <xsl:for-each select="@*">
-          <xsl:copy-of select="."/>
-        </xsl:for-each>
-        <xsl:apply-templates select="*|text()" mode="redactgradebook"/>
-      </xsl:copy>        
-    </xsl:if>
-  </xsl:template>
-  
-  <xsl:template match="*" mode="redactgradebook">
-    <xsl:copy>
-      <xsl:for-each select="@*">
-        <xsl:copy-of select="."/>
-      </xsl:for-each>
-      <xsl:apply-templates select="*|text()" mode="redactgradebook"/>
-    </xsl:copy>        
-  </xsl:template>
-
-
-
+  <!-- ================================================================== -->
             
   <xsl:template match="bbcarv:resource[@type = 'resource/x-bb-achievements']">
     <xsl:variable name="resuid" select="bbcarv:data/achievementNotification/userId"/>
@@ -365,6 +474,217 @@
   </xsl:template>
   
 
+  <!-- ================================================================== -->
+            
+  <xsl:template match="bbcarv:resource[@type = 'resource/x-bb-attendance']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactattendance"/>
+    </xsl:copy>       
+  </xsl:template>
+  
+  <xsl:template match="attendanceRecord" mode="redactattendance">
+    <xsl:if test="userId/text() = $uid">
+      <xsl:copy>
+        <xsl:for-each select="@*">
+          <xsl:copy-of select="."/>
+        </xsl:for-each>
+        <xsl:apply-templates select="*|text()" mode="redactattendance"/>
+      </xsl:copy>        
+    </xsl:if>
+  </xsl:template>
+  
+  <xsl:template match="*" mode="redactattendance">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactattendance"/>
+    </xsl:copy>        
+  </xsl:template>
+
+
+  <!-- ================================================================== -->
+            
+  <xsl:template match="bbcarv:resource[@type = 'resource/x-bb-blog']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactblog"/>
+    </xsl:copy>       
+  </xsl:template>
+
+  <xsl:template match="BLOG" mode="redactblog">
+    <xsl:variable name="blogtype" select="BLOGTYPE/@value"/>
+    <xsl:choose>
+      <xsl:when test="$blogtype = 'GROUP'">
+        <xsl:copy>
+          <xsl:for-each select="@*">
+            <xsl:copy-of select="."/>
+          </xsl:for-each>
+          <xsl:apply-templates select="*|text()" mode="redactbloggroup"/>
+        </xsl:copy>        
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:copy>
+          <xsl:for-each select="@*">
+            <xsl:copy-of select="."/>
+          </xsl:for-each>
+          <xsl:apply-templates select="*|text()" mode="redactblog"/>
+        </xsl:copy>        
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="ENTRY" mode="redactblog">
+    <xsl:variable name="postermid" select="CREATOR_ID/@value"/>
+    <xsl:if test="$postermid = $mid">
+      <xsl:copy>
+        <xsl:for-each select="@*">
+          <xsl:copy-of select="."/>
+        </xsl:for-each>
+        <xsl:apply-templates select="*|text()" mode="redactblog"/>
+      </xsl:copy>
+    </xsl:if>
+  </xsl:template>
+  
+  <xsl:template match="ENTRY" mode="redactbloggroup">
+    <xsl:variable name="postermid" select="CREATOR_ID/@value"/>
+    <xsl:if test="$postermid = $mid">
+      <xsl:copy>
+        <xsl:for-each select="@*">
+          <xsl:copy-of select="."/>
+        </xsl:for-each>
+        <xsl:apply-templates select="*|text()" mode="redactblog"/>
+      </xsl:copy>
+    </xsl:if>
+  </xsl:template>
+  
+  <xsl:template match="*" mode="redactblog">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactblog"/>
+    </xsl:copy>        
+  </xsl:template>
+
+  <xsl:template match="*" mode="redactbloggroup">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactblog"/>
+    </xsl:copy>        
+  </xsl:template>
+
+  <!-- ================================================================== -->
+            
+  <xsl:template match="bbcarv:resource[@type = 'resource/x-bb-retention']">
+    <xsl:variable name="basetype" select="name( bbcarv:data/*[1] )"/>
+    <xsl:if test="$basetype = 'NOTIFICATIONRULES' or 
+                  $basetype = 'NOTIFICATIONNOTES' or 
+                  $basetype = 'EWSCOURSEUSERS'">
+      <xsl:copy>
+        <xsl:for-each select="@*">
+          <xsl:copy-of select="."/>
+        </xsl:for-each>
+        <xsl:apply-templates select="*|text()" mode="redactretention"/>
+      </xsl:copy>               
+    </xsl:if>
+  </xsl:template>
+
+  <xsl:template match="*" mode="redactretention">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactretention"/>
+    </xsl:copy>        
+  </xsl:template>
+
+  <!-- ================================================================== -->
+            
+  <xsl:template match="bbcarv:resource[@type = 'resource/x-bb-taskprogress']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redacttaskprog"/>
+    </xsl:copy>               
+  </xsl:template>
+
+  <xsl:template match="*" mode="redacttaskprog">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redacttaskprog"/>
+    </xsl:copy>        
+  </xsl:template>
+
+  <!-- ================================================================== -->
+            
+  <xsl:template match="bbcarv:resource[@type = 'resource/x-bb-video-integration']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactvidint"/>
+    </xsl:copy>               
+  </xsl:template>
+
+  <xsl:template match="*" mode="redactvidint">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactvidint"/>
+    </xsl:copy>        
+  </xsl:template>
+
+  <!-- ================================================================== -->
+            
+  <xsl:template match="bbcarv:resource[@type = 'resource/x-bb-wiki']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactwiki"/>
+    </xsl:copy>               
+  </xsl:template>
+
+  <xsl:template match="*" mode="redactwiki">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactwiki"/>
+    </xsl:copy>        
+  </xsl:template>
+
+  <!-- ================================================================== -->
+            
+  <xsl:template match="bbcarv:resource[@type = 'resource/x-plugin-scormengine']">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactscorm"/>
+    </xsl:copy>               
+  </xsl:template>
+
+  <xsl:template match="*" mode="redactscorm">
+    <xsl:copy>
+      <xsl:for-each select="@*">
+        <xsl:copy-of select="."/>
+      </xsl:for-each>
+      <xsl:apply-templates select="*|text()" mode="redactscorm"/>
+    </xsl:copy>        
+  </xsl:template>
 
   <!-- ================================================================== -->  
             
