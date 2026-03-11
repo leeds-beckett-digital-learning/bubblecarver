@@ -16,21 +16,22 @@
   version="1.0">
   <xsl:output method="xml" indent="yes"/>
 
-  <xsl:key name="bytype" match="resource" use="@type" />  
+  <xsl:key name="bytype" match="resource" use="@bbcarv:typesubtype" />  
   
   <xsl:template match="/">
     <xsl:text>
 </xsl:text>
 
     <summary>
-      <xsl:for-each select="/digest/archive/resource[ count( . | key( 'bytype', @type )[1] ) = 1]">
-        <xsl:sort select="@type"/>
-        <xsl:variable name="t" select="@type"/>
-        <xsl:variable name="n" select="count(/digest/archive/resource[@type = $t])"/>
-        <type type="{@type}" count="{$n}">
-          <xsl:for-each select="/digest/archive/resource[ @type = $t ]">
-            <xsl:if test="position() &lt; 101">
-              <resource archivename="{@bbcarv:archivename}"/>
+      <xsl:for-each select="/digest/archive/resource[ count( . | key( 'bytype', @bbcarv:typesubtype )[1] ) = 1]">
+        <xsl:sort select="@bbcarv:typesubtype"/>
+        <xsl:variable name="t" select="@bbcarv:typesubtype"/>
+        <xsl:variable name="n" select="count(/digest/archive/resource[@bbcarv:typesubtype = $t])"/>
+        <xsl:variable name="samplespacing" select="floor( $n div 10 ) + 1"/>
+        <type type="{@bbcarv:typesubtype}" count="{$n}">
+          <xsl:for-each select="/digest/archive/resource[ @bbcarv:typesubtype = $t ]">
+            <xsl:if test="$n &lt; 11 or (position() mod $samplespacing) = 1">
+              <xsl:copy-of select="."/>
             </xsl:if>
           </xsl:for-each>
         </type>

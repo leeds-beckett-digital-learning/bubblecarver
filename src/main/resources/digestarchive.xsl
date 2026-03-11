@@ -28,11 +28,18 @@
     <archive>
       <xsl:attribute name="bbcarv:archivename"><xsl:value-of select="$filename"/></xsl:attribute>
       <xsl:for-each select="/manifest/resources/resource">
+        <xsl:variable name="typesubtype">
+          <xsl:choose>
+            <xsl:when test="@type = 'resource/x-bb-document'"><xsl:value-of select="concat( @type, ':', document( ./@bb:file )/CONTENT/CONTENTHANDLER/@value )"/></xsl:when>
+            <xsl:otherwise><xsl:value-of select="@type"/></xsl:otherwise>
+          </xsl:choose>
+        </xsl:variable>
         <xsl:copy>
-          <xsl:attribute name="bbcarv:archivename"><xsl:value-of select="$filename"/></xsl:attribute>
           <xsl:for-each select="@*">
             <xsl:copy-of select="."/>
           </xsl:for-each>
+          <xsl:attribute name="bbcarv:archivename"><xsl:value-of select="$filename"/></xsl:attribute>
+          <xsl:attribute name="bbcarv:typesubtype"><xsl:value-of select="$typesubtype"/></xsl:attribute>
         </xsl:copy>
       </xsl:for-each>
       
