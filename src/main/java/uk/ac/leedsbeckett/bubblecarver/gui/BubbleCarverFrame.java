@@ -200,7 +200,7 @@ public class BubbleCarverFrame
       }
     });
 
-    reportAllButton.setText("Process All...");
+    reportAllButton.setText("Start Processing");
     reportAllButton.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(java.awt.event.ActionEvent evt)
@@ -224,32 +224,30 @@ public class BubbleCarverFrame
       jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
       .addGroup(jPanel1Layout.createSequentialGroup()
         .addContainerGap()
+        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+          .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE)
+          .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+            .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 200, Short.MAX_VALUE)
+            .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+        .addGap(18, 18, 18)
         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+          .addComponent(progressLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
           .addGroup(jPanel1Layout.createSequentialGroup()
-            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-              .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 200, Short.MAX_VALUE)
-              .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-            .addGap(18, 18, 18)
-            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-              .addComponent(digestCheckBox, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-              .addComponent(reportCheckBox, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-              .addComponent(extractCheckBox, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-              .addComponent(scanDirTextField)
-              .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 250, Short.MAX_VALUE))
-            .addGap(18, 18, 18)
             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-              .addComponent(browseScanDirButton)
+              .addComponent(reportAllButton)
               .addGroup(jPanel1Layout.createSequentialGroup()
-                .addComponent(browseReportDirButton)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(reportAllButton)))
-            .addContainerGap(126, Short.MAX_VALUE))
-          .addGroup(jPanel1Layout.createSequentialGroup()
-            .addGap(8, 8, 8)
-            .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE)
-            .addGap(18, 18, 18)
-            .addComponent(progressLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addGap(10, 10, 10))))
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                  .addComponent(digestCheckBox, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                  .addComponent(reportCheckBox, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                  .addComponent(extractCheckBox, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                  .addComponent(scanDirTextField)
+                  .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 250, Short.MAX_VALUE))
+                .addGap(18, 18, 18)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                  .addComponent(browseScanDirButton)
+                  .addComponent(browseReportDirButton))))
+            .addGap(0, 226, Short.MAX_VALUE)))
+        .addContainerGap())
     );
     jPanel1Layout.setVerticalGroup(
       jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -264,19 +262,23 @@ public class BubbleCarverFrame
           .addComponent(jLabel2)
           .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
             .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-            .addComponent(browseReportDirButton)
-            .addComponent(reportAllButton)))
+            .addComponent(browseReportDirButton)))
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
         .addComponent(extractCheckBox)
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
         .addComponent(reportCheckBox)
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
         .addComponent(digestCheckBox)
-        .addGap(18, 18, 18)
-        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-          .addComponent(jLabel3)
-          .addComponent(progressLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE))
-        .addContainerGap(245, Short.MAX_VALUE))
+        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+          .addGroup(jPanel1Layout.createSequentialGroup()
+            .addGap(49, 49, 49)
+            .addComponent(jLabel3))
+          .addGroup(jPanel1Layout.createSequentialGroup()
+            .addGap(18, 18, 18)
+            .addComponent(reportAllButton)
+            .addGap(12, 12, 12)
+            .addComponent(progressLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)))
+        .addGap(50, 50, 50))
     );
 
     jScrollPane8.setViewportView(jPanel1);
@@ -350,85 +352,7 @@ public class BubbleCarverFrame
       JOptionPane.showMessageDialog( rootPane, "Something went wrong reading that archive: " + ex.getMessage() );
     }
   }
-  
-  private void scanDirTextFieldActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_scanDirTextFieldActionPerformed
-  {//GEN-HEADEREND:event_scanDirTextFieldActionPerformed
-
     
-  }//GEN-LAST:event_scanDirTextFieldActionPerformed
-
-  private void browseScanDirButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_browseScanDirButtonActionPerformed
-  {//GEN-HEADEREND:event_browseScanDirButtonActionPerformed
-    JFileChooser chooser = new JFileChooser();
-    chooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
-    int outcome = chooser.showOpenDialog( this );
-    if ( outcome == JFileChooser.APPROVE_OPTION )
-    {
-      baseDir = chooser.getSelectedFile();
-      scanDirTextField.setText( baseDir.getAbsolutePath() );
-    }
-  }//GEN-LAST:event_browseScanDirButtonActionPerformed
-
-  private void browseReportDirButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_browseReportDirButtonActionPerformed
-  {//GEN-HEADEREND:event_browseReportDirButtonActionPerformed
-
-    JFileChooser chooser = new JFileChooser();
-    chooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
-    int outcome = chooser.showOpenDialog( this );
-    if ( outcome == JFileChooser.APPROVE_OPTION )
-    {
-      reportDir = chooser.getSelectedFile();
-      reportBaseDirTextField.setText( reportDir.getAbsolutePath() );
-    }
-
-    
-  }//GEN-LAST:event_browseReportDirButtonActionPerformed
-  
-  private void reportAllButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_reportAllButtonActionPerformed
-  {//GEN-HEADEREND:event_reportAllButtonActionPerformed
-    if ( baseDir == null )
-    {
-      JOptionPane.showMessageDialog( rootPane, "Select an archive scan directory first." );
-      return;            
-    }
-    if ( !baseDir.exists() )
-    {
-      JOptionPane.showMessageDialog( rootPane, "Selected archive scan directory doesn't exist." );
-      return;            
-    }
-    if ( !baseDir.isDirectory() )
-    {
-      JOptionPane.showMessageDialog( rootPane, "Selected archive scan directory isn't a directory." );
-      return;            
-    }
-    if ( reportDir == null )
-    {
-      JOptionPane.showMessageDialog( rootPane, "Select a student report directory first." );
-      return;            
-    }
-    if ( !reportDir.exists() )
-    {
-      JOptionPane.showMessageDialog( rootPane, "Selected student report directory doesn't exist." );
-      return;            
-    }
-    if ( !reportDir.isDirectory() )
-    {
-      JOptionPane.showMessageDialog( rootPane, "Selected student report directory isn't a directory." );
-      return;            
-    }
-    
-    batchProcessor = new BatchProcessor( 
-            this, 
-            baseDir.toPath(), 
-            reportDir.toPath(), 
-            extractCheckBox.isSelected(), 
-            reportCheckBox.isSelected(), 
-            digestCheckBox.isSelected() );
-    Thread t = new Thread( batchProcessor );
-    t.start();
-    
-  }//GEN-LAST:event_reportAllButtonActionPerformed
-
   private void openMenuItemActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_openMenuItemActionPerformed
   {//GEN-HEADEREND:event_openMenuItemActionPerformed
     
@@ -508,6 +432,82 @@ public class BubbleCarverFrame
     }
     
   }//GEN-LAST:event_openResourceMenuItemActionPerformed
+
+  private void reportAllButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_reportAllButtonActionPerformed
+  {//GEN-HEADEREND:event_reportAllButtonActionPerformed
+    if ( baseDir == null )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Select an archive scan directory first." );
+      return;
+    }
+    if ( !baseDir.exists() )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Selected archive scan directory doesn't exist." );
+      return;
+    }
+    if ( !baseDir.isDirectory() )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Selected archive scan directory isn't a directory." );
+      return;
+    }
+    if ( reportDir == null )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Select a student report directory first." );
+      return;
+    }
+    if ( !reportDir.exists() )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Selected student report directory doesn't exist." );
+      return;
+    }
+    if ( !reportDir.isDirectory() )
+    {
+      JOptionPane.showMessageDialog( rootPane, "Selected student report directory isn't a directory." );
+      return;
+    }
+
+    batchProcessor = new BatchProcessor(
+      this,
+      baseDir.toPath(),
+      reportDir.toPath(),
+      extractCheckBox.isSelected(),
+      reportCheckBox.isSelected(),
+      digestCheckBox.isSelected() );
+    Thread t = new Thread( batchProcessor );
+    t.start();
+
+  }//GEN-LAST:event_reportAllButtonActionPerformed
+
+  private void browseReportDirButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_browseReportDirButtonActionPerformed
+  {//GEN-HEADEREND:event_browseReportDirButtonActionPerformed
+
+    JFileChooser chooser = new JFileChooser();
+    chooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
+    int outcome = chooser.showOpenDialog( this );
+    if ( outcome == JFileChooser.APPROVE_OPTION )
+    {
+      reportDir = chooser.getSelectedFile();
+      reportBaseDirTextField.setText( reportDir.getAbsolutePath() );
+    }
+
+  }//GEN-LAST:event_browseReportDirButtonActionPerformed
+
+  private void browseScanDirButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_browseScanDirButtonActionPerformed
+  {//GEN-HEADEREND:event_browseScanDirButtonActionPerformed
+    JFileChooser chooser = new JFileChooser();
+    chooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
+    int outcome = chooser.showOpenDialog( this );
+    if ( outcome == JFileChooser.APPROVE_OPTION )
+    {
+      baseDir = chooser.getSelectedFile();
+      scanDirTextField.setText( baseDir.getAbsolutePath() );
+    }
+  }//GEN-LAST:event_browseScanDirButtonActionPerformed
+
+  private void scanDirTextFieldActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_scanDirTextFieldActionPerformed
+  {//GEN-HEADEREND:event_scanDirTextFieldActionPerformed
+
+  }//GEN-LAST:event_scanDirTextFieldActionPerformed
 
   /**
    * @param args the command line arguments
