@@ -15,6 +15,10 @@
  */
 package uk.ac.leedsbeckett.bubblecarver.xsl;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.nio.file.Path;
 import java.util.HashMap;
 import uk.ac.leedsbeckett.bubblecarver.data.ModuleUserInfo;
 
@@ -60,5 +64,28 @@ public class ModuleUserInfoMapper extends XSLHelper
   public HashMap<String,ModuleUserInfo> getMap()
   {
     return usermap;
+  }
+  
+  public void dump( Path file )
+  {
+    try ( FileWriter writer = new FileWriter( file.toFile() ) )
+    {
+      writer.append( "ModuleUserInfoMapper Dump\n" );
+      for ( String uid : usermap.keySet() )
+      {
+        ModuleUserInfo info = usermap.get( uid );
+        writer.append( "uid: " );
+        writer.append( uid );
+        writer.append( "  sid:" );
+        writer.append( info.getSid() );
+        writer.append( "  mid:" );
+        writer.append( info.getMid() );
+        writer.append( "\n" );
+      }
+    }
+    catch (IOException ex)
+    {
+      System.getLogger(ModuleUserInfoMapper.class.getName()).log(System.Logger.Level.ERROR, "Unable to dump data.", ex);
+    }
   }
 }

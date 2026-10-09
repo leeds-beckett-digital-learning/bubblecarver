@@ -20,6 +20,8 @@
   version="1.0">
   <xsl:output method="xml" indent="yes"/>
 
+  <xsl:param name="course-data-id" select="'unknown'"/>
+
   <!--
       This variable lists the MIME types of all the resources from the
       imsmanifest that we want to put in the student centred archive
@@ -89,6 +91,30 @@
         </bbcarv:file>
       </xsl:for-each>
     </bbcarv:resource>
+  </xsl:template>
+
+  <xsl:template match="resource[@type  = 'course/x-bb-coursesetting']">
+    <xsl:variable name="identifier" select="@identifier"/>
+    <xsl:variable name="bbdoc" select="document( ./@bb:file )"/>
+    <xsl:variable name="courseid" select="$bbdoc/COURSE/COURSEID/@value"/>
+    
+    <!-- this variable must be used or optimisation will stop it being evaluated. -->
+    <!-- (Because XPath expressions don't normally have side effects.)            -->
+    <xsl:variable name="discard" select="java:uk.ac.leedsbeckett.bubblecarver.xsl.GeneralMappingHelper.put( $course-data-id, 'course', 'courseid', $courseid )"/>
+    
+    <bbcarv:resource type="{@type}" xml:base="{@xml:base}" identifier="{@identifier}">
+      <bbcarv:debug><xsl:value-of select="$courseid"/></bbcarv:debug>
+      <bbcarv:debug><xsl:value-of select="$discard"/></bbcarv:debug>
+      <bbcarv:data>
+        <xsl:copy-of select="$bbdoc"/>
+      </bbcarv:data>          
+      <xsl:for-each select="file">
+        <bbcarv:file>
+          <xsl:attribute name="href"><xsl:value-of select="@href"/></xsl:attribute>
+        </bbcarv:file>
+      </xsl:for-each>
+    </bbcarv:resource>
+      
   </xsl:template>
 
   <xsl:template match="resource[@type  = 'resource/x-bb-document']">

@@ -28,12 +28,28 @@
     <archive>
       <xsl:attribute name="bbcarv:archivename"><xsl:value-of select="$filename"/></xsl:attribute>
       <xsl:for-each select="/manifest/resources/resource">
-        <xsl:variable name="typesubtype">
+        <xsl:variable name="handler">
           <xsl:choose>
-            <xsl:when test="@type = 'resource/x-bb-document'"><xsl:value-of select="concat( @type, ':', document( ./@bb:file )/CONTENT/CONTENTHANDLER/@value )"/></xsl:when>
-            <xsl:otherwise><xsl:value-of select="@type"/></xsl:otherwise>
+            <xsl:when test="@type = 'resource/x-bb-document'">
+              <xsl:value-of select="document( ./@bb:file )/CONTENT/CONTENTHANDLER/@value"/>
+            </xsl:when>
+            <xsl:otherwise></xsl:otherwise>
           </xsl:choose>
         </xsl:variable>
+        <xsl:variable name="url">
+          <xsl:choose>
+            <xsl:when test="$handler = 'resource/x-bb-blti-link'">
+              <xsl:value-of select="document( ./@bb:file )/CONTENT/URL/@value"/>
+            </xsl:when>     
+            <xsl:otherwise></xsl:otherwise>
+          </xsl:choose>
+        </xsl:variable>
+        <xsl:variable name="typesubtype">
+          <xsl:value-of select="@type"/>
+          <xsl:if test="string-length( $handler ) &gt; 0">:<xsl:value-of select="$handler"/></xsl:if>
+          <xsl:if test="string-length( $url ) &gt; 0">:<xsl:value-of select="$url"/></xsl:if>
+        </xsl:variable>
+        
         <xsl:copy>
           <xsl:for-each select="@*">
             <xsl:copy-of select="."/>

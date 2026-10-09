@@ -35,6 +35,7 @@ import java.util.logging.Logger;
 import java.util.stream.Stream;
 import javax.xml.namespace.NamespaceContext;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.stream.XMLStreamException;
 import javax.xml.transform.Source;
 import javax.xml.transform.Templates;
 import javax.xml.transform.Transformer;
@@ -50,9 +51,14 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import org.w3c.dom.Document;
+import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
+import uk.ac.leedsbeckett.bubblecarver.data.ProcessorSession;
+import uk.ac.leedsbeckett.bubblecarver.stax.DocCombiner;
+import uk.ac.leedsbeckett.bubblecarver.stax.StudentRedactor;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookups;
 import uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor;
+import uk.ac.leedsbeckett.bubblecarver.xsl.GeneralMappingHelper;
 import uk.ac.leedsbeckett.bubblecarver.xsl.ModuleUserInfoMapper;
 
 /**
@@ -79,7 +85,7 @@ public class BatchProcessor implements Runnable
   }
   
   private final Path searchPath;
-  private final Path studentPath;
+  private final Path outputPath;
   private final boolean extract;
   private final boolean report;
   private final boolean digest;
@@ -99,14 +105,14 @@ public class BatchProcessor implements Runnable
   public BatchProcessor( 
           BatchProcessorListener listener, 
           Path searchPath, 
-          Path studentPath,
+          Path outputPath,
           boolean extract,
           boolean report,
           boolean digest )
   {
     this.listener = listener;
     this.searchPath = searchPath;
-    this.studentPath = studentPath;
+    this.outputPath = outputPath;
     this.extract = extract;
     this.report = report;
     this.digest = digest;
@@ -165,7 +171,9 @@ public class BatchProcessor implements Runnable
     String part1 = mui.getSid().substring( 0, 2 ) + "______";
     String part2 = mui.getSid().substring( 0, 4 ) + "____";
     String part3 = mui.getSid().substring( 0, 6 ) + "__";
-    return studentPath
+    return outputPath
+            .resolve( "data" )
+            .resolve( "students" )
             .resolve( part1 )
             .resolve( part2 )
             .resolve( part3 )
@@ -188,7 +196,7 @@ public class BatchProcessor implements Runnable
       listener.batchProcessorStarted( this );
     try
     {
-      processForReal();
+      caught = processForReal();
     }
     catch ( Throwable th )
     {
@@ -201,7 +209,7 @@ public class BatchProcessor implements Runnable
     }
   }  
   
-  private void processForReal() throws IOException, TransformerConfigurationException
+  private Throwable processForReal() throws IOException, TransformerConfigurationException
   {
     init();
     
@@ -210,13 +218,14 @@ public class BatchProcessor implements Runnable
       ArchiveDigestProcessor adp = new ArchiveDigestProcessor();
       progress = new ProcessProgress();
       ArchiveSearcher searcher = new ArchiveSearcher();
-      Stream<Path> streamSearch = Files.find( searchPath, 2, searcher );
+      Stream<Path> streamSearch = Files.find( searchPath, Integer.MAX_VALUE, searcher );
       streamSearch.forEach( adp );
       adp.close();
       if ( progress.firstException != null )
       {
         System.out.println( "Exception while processing stream of archives..." );
         progress.firstException.printStackTrace();
+        return progress.firstException;
       }
     }
     
@@ -225,12 +234,13 @@ public class BatchProcessor implements Runnable
     {
       progress = new ProcessProgress();
       ArchiveSearcher searcher = new ArchiveSearcher();
-      Stream<Path> streamSearch = Files.find( searchPath, 2, searcher );
+      Stream<Path> streamSearch = Files.find( searchPath, Integer.MAX_VALUE, searcher );
       streamSearch.forEach( new ArchiveCombinerProcessor() );
       if ( progress.firstException != null )
       {
         System.out.println( "Exception while processing stream of archives..." );
         progress.firstException.printStackTrace();
+        return progress.firstException;
       }
     }
     
@@ -239,14 +249,17 @@ public class BatchProcessor implements Runnable
     {
       progress = new ProcessProgress();
       StudentArchiveDataSearcher sdsearcher = new StudentArchiveDataSearcher();
-      Stream<Path> studentArchiveDataSearch = Files.find( studentPath, 10, sdsearcher );
+      Stream<Path> studentArchiveDataSearch = Files.find( outputPath, Integer.MAX_VALUE, sdsearcher );
       studentArchiveDataSearch.forEach( new StudentArchiveDataProcessor() );
       if ( progress.firstException != null )
       {
         System.out.println( "Exception while processing stream of archives..." );
         progress.firstException.printStackTrace();
+        return progress.firstException;
       }    
     }
+    
+    return null;
   }
   
   Path getRootOfArchive( Path t ) throws IOException
@@ -276,20 +289,20 @@ public class BatchProcessor implements Runnable
         listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
       
       // Set up coordinating data objects...
-      Path root = null;
-      DataLookupHelper datalookuphelper = null;
-      ModuleUserInfoMapper mapper = null;
-      FileProcessor fp = null;
+      ProcessorSession session = new ProcessorSession();
       try
       {
-        root = getRootOfArchive( t );          
-        mapper = new ModuleUserInfoMapper();
-        datalookuphelper = new DataLookupHelper( new DataLookups() );
-        fp = new FileProcessor( root );
-        process( root, mapper, datalookuphelper, fp );
+        session.processingdir    = t.getParent().resolve( t.getFileName() + ".processing" );
+        Files.createDirectories( session.processingdir );
+        session.root             = getRootOfArchive( t );          
+        session.mapper           = new ModuleUserInfoMapper();
+        session.datalookuphelper = new DataLookupHelper( new DataLookups() );
+        session.fp               = new FileProcessor( session.root );
+        session.generalmapper    = new GeneralMappingHelper();
+        process( session );
         progress.completedCount++;
       }
-      catch ( XPathExpressionException | TransformerException | ParserConfigurationException | IOException ex )
+      catch ( Exception ex )
       {
         Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );
         progress.firstException = ex;
@@ -297,82 +310,112 @@ public class BatchProcessor implements Runnable
       }
       finally
       {
-        if ( root != null )
+        session.release();
+        if ( session.root != null )
         {
-          try {root.getFileSystem().close();}
+          // Needed if the file system is a zip file
+          try {session.root.getFileSystem().close();}
           catch ( IOException ex ) {Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );}
         }
-        if ( datalookuphelper != null ) datalookuphelper.release();
-        if ( mapper != null ) mapper.release();
-        if ( fp != null ) fp.release();
       }
     }
     
-    private void process( Path root, ModuleUserInfoMapper mapper, DataLookupHelper datalookuphelper, FileProcessor fp )
-            throws ParserConfigurationException, IOException, TransformerException, XPathExpressionException
+    private void process( ProcessorSession session )
+            throws ParserConfigurationException, IOException, TransformerException, XPathExpressionException, XMLStreamException
     {      
-      FileCataloguer fc = new FileCataloguer( root );
+      FileCataloguer fc = new FileCataloguer( session.root );
       Document catalogue = fc.getCatalogue();
       
-      Resolver resolver = new Resolver( root, catalogue );
-      StringBufferResult result = createStringBufferResult();
+      Resolver resolver = new Resolver( session.root, catalogue );
       HashMap<String,ModuleUserInfo> usermap;
       
-      try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
+//      try ( InputStream in = Files.newInputStream( session.root.resolve( "imsmanifest.xml" ) ) )
+//      {
+//        StreamSource source = new StreamSource( in );
+//        StringBufferResult result = createStringBufferResult();
+//        transformListStudents.reset();
+//        transformListStudents.setParameter( "mapper-id", session.mapper.getId() );
+//        transformListStudents.setParameter( "data-lookups-id", session.datalookuphelper.getId() );
+//        transformListStudents.setURIResolver( resolver );
+//        transformListStudents.transform( source, result );
+//        //System.out.println( result.toString() );
+//      }
+//      transformListStudents.reset();
+
+//      session.datalookuphelper.dump( session.processingdir.resolve( "datalookup.txt" ) );
+//      session.mapper.dump( session.processingdir.resolve( "usermapper.txt" ) );
+//      usermap = session.mapper.getMap();
+//      if ( usermap.isEmpty() )
+//        return;
+
+      DocCombiner combiner = new DocCombiner( 
+              session.root.resolve( "imsmanifest.xml" ),
+              session.processingdir.resolve( "allinone.xml" )
+      );
+      combiner.process();
+      GeneralMap genmap = combiner.getGeneralMap();
+      genmap.dump( session.processingdir.resolve( "generalmap.txt" ) );
+
+      for ( String uid : combiner.getGeneralMap().keySet( "userid_studentid" ) )
       {
-        StreamSource source = new StreamSource( in );
-        transformListStudents.reset();
-        transformListStudents.setParameter( "mapper-id", mapper.getId() );
-        transformListStudents.setParameter( "data-lookups-id", datalookuphelper.getId() );
-        transformListStudents.setURIResolver( resolver );
-        transformListStudents.transform( source, result );
+        String sid = genmap.get( "userid_studentid", uid );
+        if ( sid.length() != 8 )
+          continue;
+        if ( sid.charAt(0) != '3' && sid.charAt(0) != '7')
+          continue;
+        
+        String mid = genmap.get( "userid_membershipid", uid );
+        StudentRedactor redactor = new StudentRedactor( 
+                session.processingdir.resolve( "allinone.xml" ), 
+                combiner.getGeneralMap(),
+                uid, sid, mid,
+                session.processingdir.resolve( "redactiontest_" + sid + ".xml" ) );
+        redactor.process();
       }
+      
+      if ( true ) return;
+      
+      //DOMResult domresult = new DOMResult();
+      StreamResult combineresult = new StreamResult( session.processingdir.resolve( "allinone.xml" ).toFile() );
 
-      //System.out.println( result.toString() );
-      usermap = mapper.getMap();
-      if ( usermap.isEmpty() )
-        return;
-
-      //datalookuphelper.dump();
-      //if ( true ) return;
-
-      DOMResult domresult = new DOMResult();
-      try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
+      try ( InputStream in = Files.newInputStream( session.root.resolve( "imsmanifest.xml" ) ) )
       {
         StreamSource source = new StreamSource( in );
         transformCombineModule.reset();
+        transformCombineModule.setParameter( "course-data-id", session.generalmapper.getId() );
         transformCombineModule.setURIResolver( resolver );
-        transformCombineModule.transform( source, domresult );
+        transformCombineModule.transform( source, combineresult );
       }
+      transformCombineModule.reset();
 
-      System.out.println( domresult.toString() );
-      String courseid = xPath.evaluateExpression(
-                "/bbcarv:resources/bbcarv:resource[@type='course/x-bb-coursesetting']/bbcarv:data/COURSE/COURSEID/@value",
-                domresult.getNode(),
-                String.class );
+      session.generalmapper.dump( session.processingdir.resolve( "coursemapper.txt" ) );
+      
+      String courseid = session.generalmapper.get(  "course", "courseid" );
       
       if ( courseid == null || courseid.length() == 0 )
         throw new IOException( "Course ID not found in archive." );        
       System.out.println( "Course ID = " + courseid );
 
-      for ( ModuleUserInfo mui : usermap.values() )
-      {
-        System.out.println( "Working on " + mui.toString() );
-        Path studentdir = getStudentPath( courseid, mui );
-        Path studentdata = getStudentDataPath( courseid, mui );
-        fp.setDestinationBase( studentdir );
-        Files.createDirectories( studentdata.getParent() );
-        StreamResult sresult = new StreamResult( studentdata.toFile() );
-        DOMSource source = new DOMSource( domresult.getNode() );
-        transformRedactForStudent.reset();
-        transformRedactForStudent.setParameter( "data-lookups-id", datalookuphelper.getId() );
-        transformRedactForStudent.setParameter( "file-processor-id", fp.getId() );
-        transformRedactForStudent.setParameter( "uid", mui.getUid() );
-        transformRedactForStudent.setParameter( "sid", mui.getSid() );
-        transformRedactForStudent.setParameter( "mid", mui.getMid() );
-        transformRedactForStudent.setURIResolver( resolver );
-        transformRedactForStudent.transform( source, sresult );
-      }      
+      
+//      for ( ModuleUserInfo mui : usermap.values() )
+//      {
+//        System.out.println( "Working on " + mui.toString() );
+//        Path studentdir = getStudentPath( courseid, mui );
+//        Path studentdata = getStudentDataPath( courseid, mui );
+//        session.fp.setDestinationBase( studentdir );
+//        Files.createDirectories( studentdata.getParent() );
+//        StreamResult sresult = new StreamResult( studentdata.toFile() );
+//        DOMSource source = new DOMSource( domresult.getNode() );
+//        transformRedactForStudent.reset();
+//        transformRedactForStudent.setParameter( "data-lookups-id", session.datalookuphelper.getId() );
+//        transformRedactForStudent.setParameter( "file-processor-id", session.fp.getId() );
+//        transformRedactForStudent.setParameter( "uid", mui.getUid() );
+//        transformRedactForStudent.setParameter( "sid", mui.getSid() );
+//        transformRedactForStudent.setParameter( "mid", mui.getMid() );
+//        transformRedactForStudent.setURIResolver( resolver );
+//        transformRedactForStudent.transform( source, sresult );
+//        Runtime.getRuntime().gc();
+//      }      
     }
     
   }
@@ -385,8 +428,8 @@ public class BatchProcessor implements Runnable
     
     public ArchiveDigestProcessor()
     {
-      f = studentPath.resolve( "digest_" + System.currentTimeMillis() + ".xml" );
-      s = studentPath.resolve( "summary_" + System.currentTimeMillis() + ".xml" );
+      f = outputPath.resolve( "data" ).resolve( "digests" ).resolve( "digest_" + System.currentTimeMillis() + ".xml" );
+      s = outputPath.resolve( "data" ).resolve( "digests" ).resolve( "summary_" + System.currentTimeMillis() + ".xml" );
       try
       {
         writer = Files.newBufferedWriter( f );
@@ -508,9 +551,11 @@ public class BatchProcessor implements Runnable
     @Override
     public boolean test( Path t, BasicFileAttributes u )
     {
+      System.out.println( "ArchiveSearcher.test( " + t.toString() + ")" );
       // Will accept either zip file or directory named with '.zip'
       if ( !t.getFileName().toString().endsWith( ".zip" ) )
         return false;
+      System.out.println( "             Looks like archive." );
       return Files.exists( t );
     }
   }  
@@ -524,8 +569,8 @@ public class BatchProcessor implements Runnable
         return false;
       if ( !t.getFileName().toString().equals( "data.xml") )
         return false;
-      Path relpath = studentPath.relativize( t );
-      if ( relpath.getNameCount() != 7 ) return false;
+      Path relpath = outputPath.relativize( t );
+      if ( relpath.getNameCount() != 9 ) return false;
       if ( !"bblarchives".equals( relpath.getName( 4 ).toString() ) )
         return false;
       if ( forcereport ) return true;

@@ -72,6 +72,8 @@ public class BubbleCarverFrame
     this.setTitle( "Bubble Carver");
     clear();
     this.manifestTree.addTreeSelectionListener( this );
+    baseDir = Path.of( "Z:\\transfers\\tempbba" ).toFile();
+    reportDir = Path.of( "C:\\Users\\maber01\\test\\studentarchive" ).toFile();
   }
 
   private void clear()
@@ -104,8 +106,7 @@ public class BubbleCarverFrame
    */
   @SuppressWarnings( "unchecked" )
   // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
-  private void initComponents()
-  {
+  private void initComponents() {
 
     jTabbedPane1 = new javax.swing.JTabbedPane();
     jScrollPane1 = new javax.swing.JScrollPane();
@@ -169,19 +170,16 @@ public class BubbleCarverFrame
     jLabel1.setText("Archive Scan Directory:");
 
     scanDirTextField.setEditable(false);
-    scanDirTextField.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(java.awt.event.ActionEvent evt)
-      {
+    scanDirTextField.setText("Z:\\transfers\\tempbba");
+    scanDirTextField.addActionListener(new java.awt.event.ActionListener() {
+      public void actionPerformed(java.awt.event.ActionEvent evt) {
         scanDirTextFieldActionPerformed(evt);
       }
     });
 
     browseScanDirButton.setText("Browse...");
-    browseScanDirButton.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(java.awt.event.ActionEvent evt)
-      {
+    browseScanDirButton.addActionListener(new java.awt.event.ActionListener() {
+      public void actionPerformed(java.awt.event.ActionEvent evt) {
         browseScanDirButtonActionPerformed(evt);
       }
     });
@@ -190,21 +188,18 @@ public class BubbleCarverFrame
     jLabel2.setText("Student Base Directory:");
 
     reportBaseDirTextField.setEditable(false);
+    reportBaseDirTextField.setText("C:\\Users\\maber01\\test\\studentarchive");
 
     browseReportDirButton.setText("Browse...");
-    browseReportDirButton.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(java.awt.event.ActionEvent evt)
-      {
+    browseReportDirButton.addActionListener(new java.awt.event.ActionListener() {
+      public void actionPerformed(java.awt.event.ActionEvent evt) {
         browseReportDirButtonActionPerformed(evt);
       }
     });
 
     reportAllButton.setText("Start Processing");
-    reportAllButton.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(java.awt.event.ActionEvent evt)
-      {
+    reportAllButton.addActionListener(new java.awt.event.ActionListener() {
+      public void actionPerformed(java.awt.event.ActionEvent evt) {
         reportAllButtonActionPerformed(evt);
       }
     });
@@ -290,10 +285,8 @@ public class BubbleCarverFrame
     jMenu1.setText("File");
 
     openMenuItem.setText("Open Archive...");
-    openMenuItem.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(java.awt.event.ActionEvent evt)
-      {
+    openMenuItem.addActionListener(new java.awt.event.ActionListener() {
+      public void actionPerformed(java.awt.event.ActionEvent evt) {
         openMenuItemActionPerformed(evt);
       }
     });
@@ -301,10 +294,8 @@ public class BubbleCarverFrame
 
     openResourceMenuItem.setText("Open Selected Resource");
     openResourceMenuItem.setEnabled(false);
-    openResourceMenuItem.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(java.awt.event.ActionEvent evt)
-      {
+    openResourceMenuItem.addActionListener(new java.awt.event.ActionListener() {
+      public void actionPerformed(java.awt.event.ActionEvent evt) {
         openResourceMenuItemActionPerformed(evt);
       }
     });
@@ -611,7 +602,10 @@ public class BubbleCarverFrame
   public void batchProcessorCompleted( BatchProcessor bp, Throwable th )
   {
     Logger.getLogger( BubbleCarverFrame.class.getName() ).log( Level.INFO, "Batch completed" );
-    progressLabel.setText( "Complete" );
+    if ( th != null )
+      progressLabel.setText( "Terminated with exception " + th.getMessage() );
+    else  
+      progressLabel.setText( "Complete" );
   }
 
   @Override

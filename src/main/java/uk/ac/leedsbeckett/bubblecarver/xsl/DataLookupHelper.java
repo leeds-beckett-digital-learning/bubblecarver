@@ -15,8 +15,9 @@
  */
 package uk.ac.leedsbeckett.bubblecarver.xsl;
 
-import java.util.HashMap;
-import java.util.HashSet;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  *
@@ -43,8 +44,15 @@ public class DataLookupHelper extends XSLHelper
     this.dataLookups = dataLookups;
   }
   
-  public void dump()
+  public void dump( Path file )
   {
-    dataLookups.dump();
+    try ( FileWriter writer = new FileWriter( file.toFile() ) )
+    {
+      dataLookups.dump( writer );
+    }
+    catch (IOException ex)
+    {
+      System.getLogger(DataLookupHelper.class.getName()).log(System.Logger.Level.ERROR, "Unable to dump data.", ex);
+    }
   }
 }

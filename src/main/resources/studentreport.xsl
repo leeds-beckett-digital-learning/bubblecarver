@@ -22,7 +22,7 @@
     <html>
       <head>
         <title>Student Course Report <xsl:value-of select="bbcarv:student/@sid"/></title>
-        <link rel="stylesheet" href="../../../../../../css/report.css" />
+        <link rel="stylesheet" href="../../../../../../../../css/report.css" />
       </head>
       <body>
         <h1><xsl:value-of select="bbcarv:student/@sid"/></h1>

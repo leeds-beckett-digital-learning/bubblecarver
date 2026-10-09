@@ -15,8 +15,9 @@
  */
 package uk.ac.leedsbeckett.bubblecarver.xsl;
 
+import java.io.IOException;
+import java.io.Writer;
 import java.util.HashMap;
-import java.util.HashSet;
 
 /**
  *
@@ -59,14 +60,14 @@ public class DataLookups
     return parent;
   }
   
-  public void dump()
+  public void dump( Writer writer ) throws IOException
   {
     for ( String type : parentmapmap.keySet() )
     {
-      System.out.println( "Map type: " + type );
+      writer.append( "Map type: " + type );
       HashMap<String,String> map = parentmapmap.get( type );
       for ( String child : map.keySet() )
-        System.out.println( "    child: " + child + "   parent: " + map.get( child ) );
+        writer.append( "    child: " + child + "   parent: " + map.get( child ) );
     }
   }
 }

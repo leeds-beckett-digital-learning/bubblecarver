@@ -23,9 +23,14 @@ public class ModuleUserInfo
 {
   
   private final String uid;
-  private final String sid;
+  private String sid = null;
   private String mid = null;
 
+  public ModuleUserInfo( String uid )
+  {
+    this.uid = uid;
+  }
+  
   public ModuleUserInfo( String uid, String sid )
   {
     this.uid = uid;
@@ -42,6 +47,11 @@ public class ModuleUserInfo
     return sid;
   }
 
+  public void setSid( String sid )
+  {
+    this.sid = sid;
+  }
+  
   public String getMid()
   {
     return mid;
