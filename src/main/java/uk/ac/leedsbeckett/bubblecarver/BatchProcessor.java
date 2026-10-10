@@ -51,10 +51,12 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import org.w3c.dom.Document;
+import uk.ac.leedsbeckett.bubblecarver.combiner.BubbleCombiner;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 import uk.ac.leedsbeckett.bubblecarver.data.ProcessorSession;
 import uk.ac.leedsbeckett.bubblecarver.stax.DocCombiner;
 import uk.ac.leedsbeckett.bubblecarver.stax.StudentRedactor;
+import uk.ac.leedsbeckett.bubblecarver.staxexample.ExampleProcessor;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookups;
 import uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor;
@@ -348,13 +350,21 @@ public class BatchProcessor implements Runnable
 //      if ( usermap.isEmpty() )
 //        return;
 
+
+      BubbleCombiner bc = new BubbleCombiner(
+              session.root.resolve( "imsmanifest.xml" ),
+              session.processingdir.resolve( "allinone.xml" )
+      );
+      bc.process();
+      GeneralMap genmap = bc.getGeneralMap();
+      genmap.dump( session.processingdir.resolve( "generalmap.txt" ) );
+      if ( true ) return;
+      
       DocCombiner combiner = new DocCombiner( 
               session.root.resolve( "imsmanifest.xml" ),
               session.processingdir.resolve( "allinone.xml" )
       );
       combiner.process();
-      GeneralMap genmap = combiner.getGeneralMap();
-      genmap.dump( session.processingdir.resolve( "generalmap.txt" ) );
 
       for ( String uid : combiner.getGeneralMap().keySet( "userid_studentid" ) )
       {

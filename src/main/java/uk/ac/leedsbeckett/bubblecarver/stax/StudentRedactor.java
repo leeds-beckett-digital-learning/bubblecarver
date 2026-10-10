@@ -19,11 +19,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
@@ -34,6 +31,7 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.Namespace;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
+import org.apache.commons.lang3.StringUtils;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 
 /**
@@ -42,58 +40,30 @@ import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
  */
 public class StudentRedactor implements MatchProcessor
 {
+  final static String BCARVNAMESPACE = "http://www.leedsbeckett.ac.uk/bubblecarver";
+  
   final static QName IDATTRIBUTE = new QName( "id" );
   final static QName IDENTIFIERATTRIBUTE = new QName( "identifier" );
   final static QName HREFATTRIBUTE = new QName( "href" );
   final static QName TYPEATTRIBUTE = new QName( "type" );
+  final static QName BCARVIDATTRIBUTE = new QName( BCARVNAMESPACE, "id" );
   
-  static StudentRedactorMatcher[] matchers = 
+  static MatcherImpl[] matchers = 
   {
-    new StudentRedactorMatcher( 
-            new String[]{ Mode.OMIT.getName() }, 
-            new String[]{}, 
-            StudentRedactor::processOmitted
-    ),
-    new StudentRedactorMatcher( 
-            new String[]{}, 
-            new String[]{ "/resources/resource" }, 
-            StudentRedactor::processResource
-    ),
-    new StudentRedactorMatcher( 
-            new String[]{ Mode.QTIATTEMPT.getName() }, 
-            new String[]{ "/resources/resource/data" }, 
-            StudentRedactor::processDataQtiAttempt
-    ),
-    new StudentRedactorMatcher( 
-            new String[]{ Mode.QTIATTEMPT.getName() }, 
-            new String[]{ "/resources/resource/file" }, 
-            StudentRedactor::processFileQtiAttempt
-    ),
-    new StudentRedactorMatcher( 
-            new String[]{ Mode.ATTEMPTFILE.getName() }, 
-            new String[]{ "/resources/resource/data/ATTEMPTFILES/ATTEMPTFILE" }, 
-            StudentRedactor::processDataAttemptFile
-    ),
-    new StudentRedactorMatcher( 
-            new String[]{ Mode.ATTEMPTFILE.getName() }, 
-            new String[]{ "/resources/resource/file" }, 
-            StudentRedactor::processFileAttemptFile
-    ),
-    new StudentRedactorMatcher( 
-            new String[]{ Mode.ATTEMPTEMBEDFILE.getName() }, 
-            new String[]{ "/resources/resource/data" }, 
-            StudentRedactor::processDataAttemptFile
-    ),
-    new StudentRedactorMatcher( 
-            new String[]{ Mode.ATTEMPTEMBEDFILE.getName() }, 
-            new String[]{ "/resources/resource/file" }, 
-            StudentRedactor::processFileAttemptFile
-    ),
-    new StudentRedactorMatcher( 
-            new String[]{}, 
-            new String[]{}, 
-            StudentRedactor::processOther
-    ),
+    new MatcherImpl( Mode.OMIT,                                           StudentRedactor::processOmitted ),
+    new MatcherImpl(                        "/resources/resource",        StudentRedactor::processResource ),
+    new MatcherImpl( Mode.QTIATTEMPT,       "/resources/resource/data",   StudentRedactor::processDataQtiAttempt ),
+    new MatcherImpl( Mode.QTIATTEMPT,       "/resources/resource/file",   StudentRedactor::processFileQtiAttempt ),
+    new MatcherImpl( Mode.ATTEMPTFILE,      "/resources/resource/data/ATTEMPTFILES/ATTEMPTFILE",  
+                     StudentRedactor::processDataAttemptFile ),
+    new MatcherImpl( Mode.ATTEMPTFILE,      "/resources/resource/file",   StudentRedactor::processFileAttemptFile ),
+    new MatcherImpl( Mode.ATTEMPTEMBEDFILE, "/resources/resource/data",   StudentRedactor::processDataAttemptFile ),
+    new MatcherImpl( Mode.ATTEMPTEMBEDFILE, "/resources/resource/file",   StudentRedactor::processFileAttemptFile ),
+    
+    new MatcherImpl( Mode.GRADEBOOK       , "/resources/resource/file/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION",   
+                     StudentRedactor::processGradebookOutcomeDefinition ),
+    
+    new MatcherImpl(                                                      StudentRedactor::processOther ),
           
   };
   
@@ -146,7 +116,7 @@ public class StudentRedactor implements MatchProcessor
         case XMLEvent.START_ELEMENT ->
         {
           erContext.push( nextEvent.asStartElement() );
-          StudentRedactorMatcher matcher = (StudentRedactorMatcher)erContext.firstMatch();
+          MatcherImpl matcher = (MatcherImpl)erContext.firstMatch();
           if ( matcher != null )
             matcher.consumer.accept( this, erContext.getCurrentContext() );
           if ( erContext.getCurrentContext().getProperty( "foroutput" ) != null )
@@ -246,6 +216,16 @@ public class StudentRedactor implements MatchProcessor
         context.putProperty( "foroutput", "true" );
         context.mode = Mode.ATTEMPTFILE.getName();
       }
+      case "course/x-bb-attemptembeddedfiles" ->
+      {
+        context.putProperty( "foroutput", "true" );
+        context.mode = Mode.ATTEMPTEMBEDFILE.getName();
+      }
+      case "course/x-bb-gradebook" ->
+      {
+        context.putProperty( "foroutput", "true" );
+        context.mode = Mode.GRADEBOOK.getName();
+      }
       default -> // Temporarily ignore all other types of resource.
         context.mode = Mode.OMIT.getName();
     }
@@ -321,6 +301,24 @@ public class StudentRedactor implements MatchProcessor
       context.mode = Mode.OMIT.getName();
   }
 
+  public static void processGradebookOutcomeDefinition( MatchProcessor r, ElementContext context )
+  {
+    StudentRedactor redactor = (StudentRedactor) r;
+    String bbcarvid = context.element.getAttributeByName( BCARVIDATTRIBUTE ).getValue();
+
+    String contentid = redactor.generalMap.get( "bcarvid-content", bbcarvid );
+    if ( contentid != null && contentid.length() > 0 )
+    {
+      String url = redactor.generalMap.get( "resource_url", contentid );
+      if ( url != null && url.length() > 0 )
+      {
+        
+      }
+    }
+
+    processOther( r, context );
+  }
+
   public static void processOmitted( MatchProcessor r, ElementContext context )
   {
   }
@@ -336,6 +334,7 @@ public class StudentRedactor implements MatchProcessor
     QTIATTEMPT( "qtiattempt" ),
     ATTEMPTFILE( "attemptfile" ),
     ATTEMPTEMBEDFILE( "attemptembedfile" ),
+    GRADEBOOK( "gradebook" ),
     OMIT( "omit" ),
     OTHER( "other" );
     
@@ -351,35 +350,4 @@ public class StudentRedactor implements MatchProcessor
     }
   }
   
-  static class StudentRedactorMatcher implements Matcher
-  {
-    final String[] modes;
-    final String[] xpaths;
-    final BiConsumer<MatchProcessor,ElementContext> consumer;
-
-    public StudentRedactorMatcher(String[] modes, String[] xpaths, BiConsumer<MatchProcessor, ElementContext> consumer)
-    {
-      this.modes = modes;
-      this.xpaths = xpaths;
-      this.consumer = consumer;
-    }
-    
-    @Override
-    public String[] getModes()
-    {
-      return modes;
-    }
-
-    @Override
-    public String[] getXPaths()
-    {
-      return xpaths;
-    }
-
-    @Override
-    public BiConsumer<MatchProcessor,ElementContext> getConsumer()
-    {
-      return consumer;
-    }
-  }
 }

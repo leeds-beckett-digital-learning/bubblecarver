@@ -72,7 +72,7 @@ public class BubbleCarverFrame
     this.setTitle( "Bubble Carver");
     clear();
     this.manifestTree.addTreeSelectionListener( this );
-    baseDir = Path.of( "Z:\\transfers\\tempbba" ).toFile();
+    baseDir = Path.of( "Z:\\transfers\\short" ).toFile();
     reportDir = Path.of( "C:\\Users\\maber01\\test\\studentarchive" ).toFile();
   }
 
@@ -170,7 +170,7 @@ public class BubbleCarverFrame
     jLabel1.setText("Archive Scan Directory:");
 
     scanDirTextField.setEditable(false);
-    scanDirTextField.setText("Z:\\transfers\\tempbba");
+    scanDirTextField.setText("Z:\\transfers\\short");
     scanDirTextField.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(java.awt.event.ActionEvent evt) {
         scanDirTextFieldActionPerformed(evt);
@@ -207,6 +207,7 @@ public class BubbleCarverFrame
     jLabel3.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
     jLabel3.setText("Progress:");
 
+    extractCheckBox.setSelected(true);
     extractCheckBox.setText("Extract");
 
     reportCheckBox.setText("Report");

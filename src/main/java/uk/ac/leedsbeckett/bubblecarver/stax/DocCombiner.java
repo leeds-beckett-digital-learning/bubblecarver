@@ -18,8 +18,10 @@ package uk.ac.leedsbeckett.bubblecarver.stax;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -45,6 +47,7 @@ public class DocCombiner
   final static QName IDENTIFIERATTRIBUTE = new QName( "identifier" );
   final static QName HREFATTRIBUTE = new QName( "href" );
   final static QName BBFILEATTRIBUTE = new QName( BBNAMESPACE, "file" );
+  final static QName BCARVIDATTRIBUTE = new QName( BCARVNAMESPACE, "id" );
   
   
   final Path manifestPath;
@@ -55,6 +58,12 @@ public class DocCombiner
   final XMLOutputFactory factory = XMLOutputFactory.newInstance();
   final XMLInputFactory xmlInputFactory = XMLInputFactory.newInstance();
   
+  // Attributes we can't add while streaming input because they aren't
+  // for the current input streamed element.  They can be added on a
+  // second pass.
+  ArrayList<DeferredAttribute> deferredAttributes = new ArrayList<>();
+  
+        
   EventReaderContext manifestContext = new EventReaderContext();
   EventReaderContext resourceContext = new EventReaderContext();
   
@@ -63,8 +72,12 @@ public class DocCombiner
   String currentResourceIdentifier = null;
 
   String currentMembershipId = null;
+  String currentOutcomeDefinitionId = null;
   
   private final GeneralMap generalMap = new GeneralMap();
+  
+  long nextbbcarvid = 0x100000;
+  String currentbbcarvid;
   
   public DocCombiner( Path manifestPath, Path outputPath) throws IOException, XMLStreamException
   {
@@ -81,6 +94,12 @@ public class DocCombiner
   void indent() throws XMLStreamException
   {
     writer.writeCharacters( " ".repeat( 4*outputdepth )  );
+  }
+  
+  String getNextId()
+  {
+    currentbbcarvid = Long.toHexString(nextbbcarvid++ );
+    return currentbbcarvid;
   }
   
   public void process() throws XMLStreamException, FileNotFoundException, IOException
@@ -242,13 +261,14 @@ public class DocCombiner
   void startElement( StartElement event ) throws XMLStreamException
   {
     resourceContext.push( event );
-
+    getNextId();
+    
     // potential data gathering done first..
     switch ( currentResourceType )
     {
       case "course/x-bb-user"                 -> analyseUser();
       case "membership/x-bb-coursemembership" -> analyseCourseMembership();
-      case "course/x-bb-gradebook"            -> analyseGradeBookStartElement();
+      case "course/x-bb-gradebook"            -> analyseGradeBook();
       case "course/x-bb-attemptfiles"         -> analyseAttemptFiles();
       case "course/x-bb-attemptembeddedfiles" -> analyseAttemptEmbedFiles();
       case "resource/x-bb-document"           -> analyseDocument();
@@ -261,6 +281,7 @@ public class DocCombiner
       Namespace ns = i.next();
       writer.writeNamespace( ns.getPrefix(), ns.getNamespaceURI() );
     }
+    writer.writeAttribute( BCARVNAMESPACE, "id", currentbbcarvid );
     for ( Iterator<Attribute> i = event.getAttributes(); i.hasNext(); )
     {
       Attribute a = i.next();
@@ -315,8 +336,22 @@ public class DocCombiner
     }
   }
   
-  void analyseGradeBookStartElement()
+  void analyseGradeBook()
   {
+    if ( resourceContext.matchesXPath( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION" ) )
+    {
+      currentOutcomeDefinitionId = currentbbcarvid;
+      return;
+    }
+    
+    if ( resourceContext.matchesXPath( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/CONTENTID" ) )
+    {
+      String contentid = resourceContext.getCurrentStartElement().getAttributeByName( VALUEATTRIBUTE ).getValue();
+      if ( contentid != null && contentid.length() > 0 )
+        generalMap.put( "bcarvid-content", currentOutcomeDefinitionId, contentid );
+      return;
+    }
+    
     if ( resourceContext.matchesXPath( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME" ) )
     {
       currentMembershipId = null;
@@ -337,6 +372,7 @@ public class DocCombiner
         throw new IllegalArgumentException( "No membership ID at start of this gradebook outcome." );
       String attemptid = resourceContext.getCurrentStartElement().getAttributeByName( IDATTRIBUTE ).getValue();
       generalMap.put( "attempt_membership", attemptid, currentMembershipId );      
+      return;
     }
 
     if ( resourceContext.matchesXPath( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT/RESULTOBJECTID" ) )
@@ -376,7 +412,7 @@ public class DocCombiner
     {
       String url = resourceContext.getCurrentStartElement().getAttributeByName( VALUEATTRIBUTE ).getValue();
       if ( !url.isEmpty() )
-        generalMap.put( "url_resource", url, currentResourceIdentifier );
+        generalMap.put( "resource_url", currentResourceIdentifier, url );
     }
   }  
   
@@ -496,5 +532,11 @@ public class DocCombiner
       
     }
   }
-  
+
+  class DeferredAttribute
+  {
+    String bcarvid;
+    QName name;
+    String value;
+  }
 }
