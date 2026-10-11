@@ -93,6 +93,8 @@ public class FullFilterContext< F extends FilterContext, R extends ReaderNodeCon
   public boolean isReaderNodeContextMatch( String[] modes, String[] xpaths )
   {
     R r = getReaderNodeContext();
+    String path = r.getPath();
+    
     boolean foundmode = modes.length == 0;
     if ( !foundmode )
     {
@@ -103,16 +105,23 @@ public class FullFilterContext< F extends FilterContext, R extends ReaderNodeCon
           break;
         }
     }
-    boolean foundxpath = xpaths.length == 0;
-    if ( !foundxpath )
+    if ( !foundmode )
+      return false;
+    // Mode match (including no mode specified) so check xpaths
+    
+    if ( xpaths.length == 0 )
+      return true;
+    
+    for ( String xpath : xpaths )
     {
-      for ( String xpath : xpaths )
-        if ( xpath.equals( r.getPath() ) )
-        {
-          foundxpath = true;
-          break;
-        }
+      // If absolute and equals whole path
+      if ( xpath.charAt( 0 ) == '/' && xpath.equals( path ) )
+        return true;
+      else
+        // If relative and equals end of path AND at / boundary
+        return path.endsWith( xpath ) && path.charAt( path.length() - xpath.length() - 1 ) == '/';
     }
-    return foundmode && foundxpath;
+    
+    return false;
   }
 }

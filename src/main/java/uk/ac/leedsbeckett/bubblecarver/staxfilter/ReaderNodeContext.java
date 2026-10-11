@@ -15,6 +15,7 @@
  */
 package uk.ac.leedsbeckett.bubblecarver.staxfilter;
 
+import javax.xml.namespace.QName;
 import javax.xml.stream.events.*;
 
 /**
@@ -82,5 +83,13 @@ public class ReaderNodeContext
   public void setWrittenPlan(ElementWritePlan writtenPlan)
   {
     this.writtenPlan = writtenPlan;
+  }
+  
+  public String getAttributeValue( QName name )
+  {
+    if ( startElement == null ) return null;
+    Attribute a = startElement.getAttributeByName( name );
+    if ( a == null ) return null;
+    return a.getValue();
   }
 }

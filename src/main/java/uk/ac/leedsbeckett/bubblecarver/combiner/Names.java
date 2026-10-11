@@ -34,4 +34,10 @@ public class Names
   public final static QName HREFATTRIBUTE = new QName( "href" );
   public final static QName BBFILEATTRIBUTE = new QName( BBNAMESPACE, "file" );
   public final static QName BCARVIDATTRIBUTE = new QName( BCARVNAMESPACE, "id" );
+  public final static QName BCARVCONTENTIDATTRIBUTE = new QName( BCARVNAMESPACE, "contentid" );
+  public final static QName BCARVMEMBERIDATTRIBUTE = new QName( BCARVNAMESPACE, "mid" );
+  public final static QName BCARVUSERIDATTRIBUTE = new QName( BCARVNAMESPACE, "uid" );
+  public final static QName BCARVSTUDENTIDATTRIBUTE = new QName( BCARVNAMESPACE, "sid" );
+  public final static QName BCARVUUIDATTRIBUTE = new QName( BCARVNAMESPACE, "uuid" );
+  public final static QName BCARVOUTCOMEATTRIBUTE = new QName( BCARVNAMESPACE, "outcome" );
 }

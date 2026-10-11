@@ -23,25 +23,27 @@ import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import javax.xml.stream.events.XMLEvent;
+import uk.ac.leedsbeckett.bubblecarver.data.WantedManifestResourceTypes;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 
 /**
  *
  * @author maber01
  */
-public class MainFilter extends StaxFilter<BubbleCombinerContext,ReaderNodeContext,WriterNodeContext>
+public class MainFilter extends CombinerFilter
 {
   
   FilterMatcherImpl[] matchers = 
   {
-    new FilterMatcherImpl( Mode.OMIT,                                           new ProcessOmitted() ),
-    new FilterMatcherImpl(                      "/manifest",                    new ProcessManifest() ),
-    new FilterMatcherImpl( Mode.MANIFEST,       "/manifest/organizations",      new ProcessOrganizations() ),
-    new FilterMatcherImpl( Mode.MANIFEST,       "/manifest/resources/resource", new ProcessResource() ),
-    new FilterMatcherImpl(                                                      new ProcessOther() )          
+    new FilterMatcherImpl( Mode.OMIT,                                                new ProcessOmitted() ),
+    new FilterMatcherImpl(                      "/manifest",                         new ProcessManifest() ),
+    new FilterMatcherImpl( Mode.MANIFEST,       "/manifest/organizations",           new ProcessOrganizations() ),
+    new FilterMatcherImpl( Mode.MANIFEST,       "/manifest/resources/resource",      new ProcessResource() ),
+    new FilterMatcherImpl( Mode.MANIFEST,       "/manifest/resources/resource/file", new ProcessResourceFile() ),
+    new FilterMatcherImpl(                                                           new ProcessOther() )          
   };
 
-  GradebookFilter gradebookfilter;
+  CombinerFilter subfilter;
   
   public MainFilter(
           XMLEventReader reader, 
@@ -94,54 +96,103 @@ public class MainFilter extends StaxFilter<BubbleCombinerContext,ReaderNodeConte
 
   class ProcessResource implements StartElementHandler
   {
+    ReaderNodeContext node;
+    String resourceType;
+    
     @Override
     public void handleStartElement() throws XMLStreamException, IOException
     {
-      ReaderNodeContext node = getContext().getReaderNodeContext();
-      String resourceType = node.getStartElement().getAttributeByName( Names.TYPEATTRIBUTE ).getValue();
+      node = getContext().getReaderNodeContext();
+      resourceType = node.getStartElement().getAttributeByName( Names.TYPEATTRIBUTE ).getValue();
       if ( resourceType == null ) resourceType = "";
+      
+      if ( !WantedManifestResourceTypes.isWanted( resourceType ) )
+      {
+        node.setMode( Mode.OMIT );
+        return;
+      }
+
+      
       String fileref = node.getStartElement().getAttributeByName( Names.BBFILEATTRIBUTE ).getValue();
 
-      switch ( resourceType )
-      {
-        case "course/x-bb-gradebook" ->
-        {
-          // Output the start element now because we need to do other processing
-          node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
-          writeStartElement( node );
+      node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
+      writeStartElement( node );
 
-          getWriter().writeCharacters( "\n" );
-          getWriter().writeStartElement( "resourcewrapper" );
-          getWriter().writeCharacters( "\n\n" );
-          
-          Path sourcePath = getContext().getFilterContext().inputBasePath.resolve( fileref );
-          try ( InputStream in = Files.newInputStream( sourcePath ) )
-          {
-            getConfig().outputFragment = true;
-            // Create a context with a copy of the general context but
-            // fresh reader and writer contexts.
-            FullFilterContext<BubbleCombinerContext,ReaderNodeContext,WriterNodeContext> ffc 
-                    = new FullFilterContext<>( getContext().getFilterContext() );
-            
-            XMLEventReader reader = getContext()
-                                        .getFilterContext()
-                                        .getReaderFactory()
-                                        .createXMLEventReader( in );
-            gradebookfilter = new GradebookFilter( reader, getWriter(), ffc, getConfig() );
-            gradebookfilter.process();
-          }          
-          getWriter().writeCharacters( "\n\n" );
-          getWriter().writeEndElement();
-          getWriter().writeCharacters( "\n" );        
-        }
-        default ->
+      getWriter().writeStartElement( "bbcarv", "data", Names.BCARVNAMESPACE );
+      
+      Path sourcePath = getContext().getFilterContext().inputBasePath.resolve( fileref );
+      System.out.println( "Processing resource at " + sourcePath.toString() );
+      System.out.println( "Type = " + resourceType );
+      
+      if ( WantedManifestResourceTypes.isWeird( resourceType ) )
+        processWeirdResource();
+      else
+        processNormalResource( sourcePath );
+      
+      
+      getWriter().writeEndElement();
+    }
+    
+    public void processNormalResource( Path sourcePath ) throws XMLStreamException, IOException
+    {
+      try ( InputStream in = Files.newInputStream( sourcePath ) )
+      {
+        getConfig().outputFragment = true;
+        // Create a context with a copy of the general context but
+        // fresh reader and writer contexts.
+        FullFilterContext<BubbleCombinerContext,ReaderNodeContext,WriterNodeContext> ffc 
+                = new FullFilterContext<>( getContext().getFilterContext() );
+
+        XMLEventReader reader = getContext()
+                                    .getFilterContext()
+                                    .getReaderFactory()
+                                    .createXMLEventReader( in );
+
+        switch ( resourceType )
         {
-          node.setMode( Mode.OMIT );
+          case "course/x-bb-user" ->
+            subfilter = new UsersFilter( reader, getWriter(), ffc, getConfig() );
+          case "membership/x-bb-coursemembership" ->
+            subfilter = new MembershipFilter( reader, getWriter(), ffc, getConfig() );
+          case "course/x-bb-gradebook" ->
+            subfilter = new GradebookFilter( reader, getWriter(), ffc, getConfig() );
+          default -> 
+            subfilter = new DefaultResourceFilter( reader, getWriter(), ffc, getConfig() );
         }
-      }
+        
+        try
+        {
+          subfilter.process();
+        }
+        catch ( XMLStreamException ex )
+        {
+          ex.printStackTrace();
+          // Plough on....
+        }
+      }      
+    }
+    
+    public void processWeirdResource() throws XMLStreamException, IOException
+    {
+      
     }
   }
   
+  class ProcessResourceFile implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException, IOException
+    {
+      getContext().getReaderNodeContext().setWritePlan( null );
+      
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String href = node.getAttributeValue( Names.HREFATTRIBUTE );
+
+      getWriter().writeStartElement( "bbcarv", "file", Names.BCARVNAMESPACE );
+      getWriter().writeAttribute( Names.HREFATTRIBUTE.getNamespaceURI(), Names.HREFATTRIBUTE.getLocalPart(), href );
+      getWriter().writeEndElement();
+    }
+  }
   class ProcessOther implements StartElementHandler
   {
     @Override
@@ -155,15 +206,4 @@ public class MainFilter extends StaxFilter<BubbleCombinerContext,ReaderNodeConte
     }
   }
 
-  @Override
-  public ReaderNodeContext createReaderNode()
-  {
-    return new ReaderNodeContext();
-  }
-
-  @Override
-  public WriterNodeContext createWriterNode()
-  {
-    return new WriterNodeContext();
-  }
 }

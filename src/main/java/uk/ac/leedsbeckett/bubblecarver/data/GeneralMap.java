@@ -74,7 +74,7 @@ public class GeneralMap
         {
           writer.append( "\"" );
           writer.append( key );
-          writer.append( "\" = \"" );
+          writer.append( "\" -> \"" );
           writer.append( map.get( key ) );
           writer.append( "\"\n" );
         }

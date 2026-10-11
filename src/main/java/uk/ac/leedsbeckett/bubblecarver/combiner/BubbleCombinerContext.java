@@ -29,6 +29,7 @@ public class BubbleCombinerContext extends FilterContext
 {
   final Path inputBasePath;
   final Path inputPath;
+  final Path middlePath;
   final Path outputPath;
   
   final XMLOutputFactory writeFactory = XMLOutputFactory.newInstance();
@@ -43,6 +44,7 @@ public class BubbleCombinerContext extends FilterContext
     this.inputBasePath = inputPath.getParent();
     this.inputPath     = inputPath;
     this.outputPath    = outputPath;
+    this.middlePath    = outputPath.getParent().resolve( "pass_one_" + outputPath.getFileName() );
   }
 
   public Path getInputBasePath() {

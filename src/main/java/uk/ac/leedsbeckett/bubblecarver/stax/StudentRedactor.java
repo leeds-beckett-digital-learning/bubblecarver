@@ -31,7 +31,6 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.Namespace;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
-import org.apache.commons.lang3.StringUtils;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 
 /**
