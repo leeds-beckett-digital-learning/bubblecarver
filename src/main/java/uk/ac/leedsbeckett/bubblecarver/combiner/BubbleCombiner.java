@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import javax.xml.stream.*;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
@@ -33,6 +34,7 @@ public class BubbleCombiner
 {
   final BubbleCombinerContext context;
   GeneralMap generalMap;
+  List<String> interestingStudentIds;
   
   public BubbleCombiner( Path inputPath, Path outputPath)
   {
@@ -95,10 +97,18 @@ public class BubbleCombiner
     filter.process();
     writer.writeEndDocument();
     generalMap = filter.getContext().getFilterContext().getGeneralMap();
+    interestingStudentIds = filter.getContext().getFilterContext().getInterestingStudentIds();
   }
   
   public GeneralMap getGeneralMap()
   {
     return generalMap;
   }
+
+  public List<String> getInterestingStudentIds()
+  {
+    return interestingStudentIds;
+  }
+  
+  
 }

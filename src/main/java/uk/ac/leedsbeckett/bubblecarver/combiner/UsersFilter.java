@@ -59,6 +59,7 @@ public class UsersFilter extends CombinerFilter
       ReaderNodeContext node = getContext().getReaderNodeContext();
       ReaderNodeContext parentnode = getContext().getReaderNodeContext( 1 );
       String studentid = node.getAttributeValue( Names.VALUEATTRIBUTE );
+      addStudentIfInteresting( studentid );
       String userid = parentnode.getAttributeValue( Names.IDATTRIBUTE );
       
       // Record the one to one relationship both ways
@@ -96,5 +97,17 @@ public class UsersFilter extends CombinerFilter
       ReaderNodeContext node = getContext().getReaderNodeContext();
       node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
     }
+  }
+
+  public void addStudentIfInteresting( String sid )
+  {
+    if ( sid == null ) return;
+    if ( sid.length() != 8 ) return;
+    for ( char c : sid.toCharArray() )
+      if ( c < '0' || c > '9' )
+        return;
+    
+    if ( sid.charAt( 0 ) == '3' || sid.charAt( 0 ) == '7' )
+      getContext().getFilterContext().getInterestingStudentIds().add( sid );
   }
 }

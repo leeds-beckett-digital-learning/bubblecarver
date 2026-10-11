@@ -54,6 +54,7 @@ import org.w3c.dom.Document;
 import uk.ac.leedsbeckett.bubblecarver.combiner.BubbleCombiner;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 import uk.ac.leedsbeckett.bubblecarver.data.ProcessorSession;
+import uk.ac.leedsbeckett.bubblecarver.splitter.BubbleSplitter;
 import uk.ac.leedsbeckett.bubblecarver.stax.DocCombiner;
 import uk.ac.leedsbeckett.bubblecarver.stax.StudentRedactor;
 import uk.ac.leedsbeckett.bubblecarver.staxexample.ExampleProcessor;
@@ -170,16 +171,21 @@ public class BatchProcessor implements Runnable
   
   private Path getStudentPath( String courseid, ModuleUserInfo mui )
   {
-    String part1 = mui.getSid().substring( 0, 2 ) + "______";
-    String part2 = mui.getSid().substring( 0, 4 ) + "____";
-    String part3 = mui.getSid().substring( 0, 6 ) + "__";
+    return getStudentPath( courseid, mui.getSid() );
+  }
+  
+  private Path getStudentPath( String courseid, String sid )
+  {
+    String part1 = sid.substring( 0, 2 ) + "______";
+    String part2 = sid.substring( 0, 4 ) + "____";
+    String part3 = sid.substring( 0, 6 ) + "__";
     return outputPath
             .resolve( "data" )
             .resolve( "students" )
             .resolve( part1 )
             .resolve( part2 )
             .resolve( part3 )
-            .resolve( mui.getSid() )
+            .resolve( sid )
             .resolve( "bblarchives" )
             .resolve( courseid );
   }
@@ -358,6 +364,15 @@ public class BatchProcessor implements Runnable
       bc.process();
       GeneralMap genmap = bc.getGeneralMap();
       genmap.dump( session.processingdir.resolve( "generalmap.txt" ) );
+      for ( String sid : bc.getInterestingStudentIds() )
+        System.out.println( sid );
+      
+      BubbleSplitter bs = new BubbleSplitter(
+          session.processingdir.resolve( "allinone.xml" ),
+          session.processingdir,
+          bc.getInterestingStudentIds()
+        );
+      bs.process();
       if ( true ) return;
       
       DocCombiner combiner = new DocCombiner( 

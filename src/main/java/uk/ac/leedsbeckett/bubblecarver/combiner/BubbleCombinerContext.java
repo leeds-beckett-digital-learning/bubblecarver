@@ -16,6 +16,8 @@
 package uk.ac.leedsbeckett.bubblecarver.combiner;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
@@ -36,6 +38,8 @@ public class BubbleCombinerContext extends FilterContext
   final XMLInputFactory readerFactory = XMLInputFactory.newInstance();
   
   private final GeneralMap generalMap = new GeneralMap();
+  
+  private final ArrayList<String> interestingStudentIds = new ArrayList<>();
   
   long nextBcarvId = 1;
 
@@ -72,6 +76,11 @@ public class BubbleCombinerContext extends FilterContext
   public GeneralMap getGeneralMap()
   {
     return generalMap;
+  }
+
+  public List<String> getInterestingStudentIds()
+  {
+    return interestingStudentIds;
   }
   
   public String getNextBackreferenceId()
