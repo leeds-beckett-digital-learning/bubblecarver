@@ -56,7 +56,7 @@ public class BubbleSplitter
   {    
     for ( String sid : interestingStudentIds )
     {
-      Path sPath = this.studentBasePath.resolve( sid + "_redacted.xml" );
+      Path sPath = this.studentBasePath.resolve( "student_" + sid + "_redacted.xml" );
       try ( InputStream in = Files.newInputStream( sourcePath );
             FileWriter fileWriter = new FileWriter( sPath.toFile() );
               )
@@ -80,12 +80,12 @@ public class BubbleSplitter
     
     writer.writeStartDocument("UTF-8", "1.0");
     writer.writeCharacters( "\n" );
-    writer.writeStartElement( "bbcarv", "archive", Names.BCARVNAMESPACE );
-    writer.writeNamespace( "bbcarv", Names.BCARVNAMESPACE );
-    writer.writeCharacters( "\n" );
+//    writer.writeStartElement( "bbcarv", "archive", Names.BCARVNAMESPACE );
+//    writer.writeNamespace( "bbcarv", Names.BCARVNAMESPACE );
+//    writer.writeCharacters( "\n" );
     filter.process();
-    writer.writeEndElement();
-    writer.writeCharacters( "\n" );
+//    writer.writeEndElement();
+//    writer.writeCharacters( "\n" );
     writer.writeEndDocument();
     writer.writeCharacters( "\n" );
   }

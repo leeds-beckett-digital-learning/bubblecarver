@@ -300,7 +300,8 @@ public class BatchProcessor implements Runnable
       ProcessorSession session = new ProcessorSession();
       try
       {
-        session.processingdir    = t.getParent().resolve( t.getFileName() + ".processing" );
+        //session.processingdir    = t.getParent().resolve( t.getFileName() + ".processing" );
+        session.processingdir    = outputPath;
         Files.createDirectories( session.processingdir );
         session.root             = getRootOfArchive( t );          
         session.mapper           = new ModuleUserInfoMapper();
@@ -357,24 +358,23 @@ public class BatchProcessor implements Runnable
 //        return;
 
 
-      BubbleCombiner bc = new BubbleCombiner(
-              session.root.resolve( "imsmanifest.xml" ),
-              session.processingdir.resolve( "allinone.xml" )
-      );
+      BubbleCombiner bc = new BubbleCombiner( session.root, session.processingdir );
       bc.process();
+      Path cp = bc.getCourseBasePath();
       GeneralMap genmap = bc.getGeneralMap();
-      genmap.dump( session.processingdir.resolve( "generalmap.txt" ) );
+      genmap.dump( cp.resolve( "generalmap.txt" ) );
       for ( String sid : bc.getInterestingStudentIds() )
         System.out.println( sid );
       
       BubbleSplitter bs = new BubbleSplitter(
-          session.processingdir.resolve( "allinone.xml" ),
-          session.processingdir,
+          cp.resolve( "pass_two_archive.xml" ),
+          cp,
           bc.getInterestingStudentIds()
         );
       bs.process();
+
       if ( true ) return;
-      
+
       DocCombiner combiner = new DocCombiner( 
               session.root.resolve( "imsmanifest.xml" ),
               session.processingdir.resolve( "allinone.xml" )

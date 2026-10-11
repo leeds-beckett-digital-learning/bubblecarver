@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Properties;
 import javax.xml.stream.*;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
@@ -32,17 +33,42 @@ import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
  */
 public class BubbleCombiner
 {
-  final BubbleCombinerContext context;
+  BubbleCombinerContext context;
   GeneralMap generalMap;
   List<String> interestingStudentIds;
+  final Properties packageInfo = new Properties();
   
-  public BubbleCombiner( Path inputPath, Path outputPath)
+  final Path archiveBasePath;
+  final Path outputBasePath;
+  Path courseBasePath;
+  
+  String courseId;
+  String packageTime;
+  String archiveDirectoryName;
+  
+  public BubbleCombiner( Path archiveBasePath, Path outputBasePath )
   {
-    this.context = new BubbleCombinerContext( inputPath, outputPath );
+    this.archiveBasePath = archiveBasePath;
+    this.outputBasePath = outputBasePath;
   }
   
   public void process() throws IOException, XMLStreamException
   {    
+    Path packageInfoPath = archiveBasePath.resolve( ".bb-package-info" );
+    try ( InputStream infoIn = Files.newInputStream( packageInfoPath ) )
+    {
+      packageInfo.load( infoIn );
+    }
+    
+    courseId = packageInfo.getProperty( "cx.config.course.id" );
+    packageTime = Files.getLastModifiedTime( packageInfoPath ).toInstant().toString().replace( ':', '-' );
+    packageInfo.setProperty( "bbcarv.time", packageTime );
+    archiveDirectoryName = courseId + "__" + packageTime;
+
+    courseBasePath = outputBasePath.resolve( "courses" ).resolve( archiveDirectoryName );
+    Files.createDirectories( courseBasePath );
+    context = new BubbleCombinerContext( archiveBasePath, courseBasePath, packageInfo );
+    
     try ( InputStream in = Files.newInputStream( context.inputPath );
           FileWriter fileWriter = new FileWriter( context.middlePath.toFile() );
             )
@@ -72,6 +98,14 @@ public class BubbleCombiner
     writer.writeCharacters( "\n" );
     writer.writeStartElement( "bbcarv", "archive", Names.BCARVNAMESPACE );
     writer.writeNamespace( "bbcarv", Names.BCARVNAMESPACE );
+    writer.writeAttribute( 
+            Names.BCARVCOURSEIDATTRIBUTE.getNamespaceURI(), 
+            Names.BCARVCOURSEIDATTRIBUTE.getLocalPart(), 
+            courseId );
+    writer.writeAttribute( 
+            Names.BCARVARCHIVETIMEATTRIBUTE.getNamespaceURI(), 
+            Names.BCARVARCHIVETIMEATTRIBUTE.getLocalPart(), 
+            packageTime );
     writer.writeCharacters( "\n" );
     filter.process();
     writer.writeEndElement();
@@ -99,7 +133,24 @@ public class BubbleCombiner
     generalMap = filter.getContext().getFilterContext().getGeneralMap();
     interestingStudentIds = filter.getContext().getFilterContext().getInterestingStudentIds();
   }
+
+  public Path getCourseBasePath()
+  {
+    return courseBasePath;
+  }
   
+  public String getCourseId() {
+    return courseId;
+  }
+
+  public String getPackageTime() {
+    return packageTime;
+  }
+
+  public String getArchiveDirectoryName() {
+    return archiveDirectoryName;
+  }
+
   public GeneralMap getGeneralMap()
   {
     return generalMap;

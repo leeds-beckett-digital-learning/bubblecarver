@@ -28,6 +28,8 @@ public class SecondPassFilter extends CombinerFilter
 {
   FilterMatcherImpl[] matchers = 
   {
+    new FilterMatcherImpl( "USERS/USER",                                       new ProcessUser() ),
+    new FilterMatcherImpl( "COURSEMEMBERSHIPS/COURSEMEMBERSHIP",               new ProcessMembership() ),
     new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION",   new ProcessOutcomeDefinition() ),
     new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME",
             new ProcessOutcome() ),
@@ -46,6 +48,29 @@ public class SecondPassFilter extends CombinerFilter
     setMatchers( matchers );
   }
     
+  class ProcessUser implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String userid = node.getAttributeValue( Names.IDATTRIBUTE );
+      String memberid = getGeneralMap().get( "user->member", userid );
+      node.setWritePlan( addUserToPlan( node, memberid ) );
+    }
+  }
+  
+  class ProcessMembership implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String memberid = node.getAttributeValue( Names.IDATTRIBUTE );
+      node.setWritePlan( addUserToPlan( node, memberid ) );
+    }
+  }
+  
   class ProcessOutcomeDefinition implements StartElementHandler
   {
     @Override

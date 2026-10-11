@@ -40,4 +40,6 @@ public class Names
   public final static QName BCARVSTUDENTIDATTRIBUTE = new QName( BCARVNAMESPACE, "sid" );
   public final static QName BCARVUUIDATTRIBUTE = new QName( BCARVNAMESPACE, "uuid" );
   public final static QName BCARVOUTCOMEATTRIBUTE = new QName( BCARVNAMESPACE, "outcome" );
+  public final static QName BCARVCOURSEIDATTRIBUTE = new QName( BCARVNAMESPACE, "courseid" );
+  public final static QName BCARVARCHIVETIMEATTRIBUTE = new QName( BCARVNAMESPACE, "archivetime" );
 }

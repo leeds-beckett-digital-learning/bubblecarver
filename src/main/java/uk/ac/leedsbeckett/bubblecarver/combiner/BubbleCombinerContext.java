@@ -18,6 +18,7 @@ package uk.ac.leedsbeckett.bubblecarver.combiner;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
@@ -31,11 +32,14 @@ public class BubbleCombinerContext extends FilterContext
 {
   final Path inputBasePath;
   final Path inputPath;
+  final Path courseBasePath;
   final Path middlePath;
   final Path outputPath;
   
   final XMLOutputFactory writeFactory = XMLOutputFactory.newInstance();
   final XMLInputFactory readerFactory = XMLInputFactory.newInstance();
+  
+  final Properties packageInfo;
   
   private final GeneralMap generalMap = new GeneralMap();
   
@@ -43,12 +47,14 @@ public class BubbleCombinerContext extends FilterContext
   
   long nextBcarvId = 1;
 
-  public BubbleCombinerContext( Path inputPath, Path outputPath )
+  public BubbleCombinerContext( Path inputBasePath, Path courseBasePath, Properties packageInfo )
   {
-    this.inputBasePath = inputPath.getParent();
-    this.inputPath     = inputPath;
-    this.outputPath    = outputPath;
-    this.middlePath    = outputPath.getParent().resolve( "pass_one_" + outputPath.getFileName() );
+    this.inputBasePath   = inputBasePath;
+    this.inputPath       = inputBasePath.resolve( "imsmanifest.xml" );
+    this.courseBasePath  = courseBasePath;
+    this.middlePath      = courseBasePath.resolve( "pass_one_archive.xml" );
+    this.outputPath      = courseBasePath.resolve( "pass_two_archive.xml" );
+    this.packageInfo     = packageInfo;
   }
 
   public Path getInputBasePath() {
@@ -63,6 +69,10 @@ public class BubbleCombinerContext extends FilterContext
   public Path getOutputPath()
   {
     return outputPath;
+  }
+
+  public Properties getPackageInfo() {
+    return packageInfo;
   }
 
   public XMLOutputFactory getWriteFactory() {
