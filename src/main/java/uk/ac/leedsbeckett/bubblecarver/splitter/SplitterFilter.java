@@ -15,9 +15,16 @@
  */
 package uk.ac.leedsbeckett.bubblecarver.splitter;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import org.apache.commons.io.IOUtils;
 import uk.ac.leedsbeckett.bubblecarver.combiner.Names;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 
@@ -31,6 +38,7 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
   {
     new FilterMatcherImpl( Mode.WRONGSTUDENT,              new ProcessWrongStudent() ),
     new FilterMatcherImpl( Mode.RIGHTSTUDENT,              new ProcessRightStudent() ),
+    new FilterMatcherImpl( "/archive/catalogue/file",      new ProcessFile()         ),
     new FilterMatcherImpl(                                 new ProcessOther()        )          
   };
 
@@ -63,6 +71,32 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
     }
   }
 
+  class ProcessFile implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException, IOException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String wantedsid = getContext().getFilterContext().studentId;
+      String sid = node.getAttributeValue( Names.BCARVSTUDENTIDATTRIBUTE );
+      String path = node.getAttributeValue( Names.PATHATTRIBUTE );
+      
+      if ( sid != null && sid.length() > 0 && wantedsid.equals( sid ) )
+      {
+        node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
+        // And copy the actual file from the archive to the student directory...
+        Path source = getContext().getFilterContext().archivePath.resolve( path );
+        Path target = getContext().getFilterContext().studentPath.resolve( path );
+        System.out.println( "Archive source : " + source.toString() );
+        System.out.println( "Student target : " + target.toString() );
+        copyFileIfNecessary( source, target );
+      }
+      else
+        node.setWritePlan( null );
+      // no point setting mode because this node doesn't have any children
+    }
+  }
+  
   class ProcessOther implements StartElementHandler
   {
     @Override
@@ -110,5 +144,30 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
     return new WriterNodeContext();
   }
   
-  
+  void copyFileIfNecessary( Path source, Path target ) throws IOException
+  {
+    boolean necessary = true;
+    if ( Files.exists( target ) )
+    {
+      FileTime sourcetime = Files.getLastModifiedTime( source );
+      FileTime targettime = Files.getLastModifiedTime( target );
+      necessary = sourcetime.compareTo( targettime ) > 0;
+    }
+    if ( necessary )
+    {
+      if ( !Files.exists( target.getParent() ) )
+        Files.createDirectories( target.getParent() );
+      long size = Files.size( source );
+      try ( InputStream in = Files.newInputStream( source );
+            OutputStream out = Files.newOutputStream( target )  )
+      {
+        if ( size < (2L*1024L*1024L*1024L) )
+          IOUtils.copy( in, out );
+        else
+          IOUtils.copyLarge( in, out );
+      }
+    }
+    else
+      System.out.println( "Skipping file copy!" );
+  }
 }

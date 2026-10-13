@@ -15,6 +15,7 @@
  */
 package uk.ac.leedsbeckett.bubblecarver.splitter;
 
+import java.nio.file.Path;
 import java.util.List;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.FilterContext;
 
@@ -25,9 +26,13 @@ import uk.ac.leedsbeckett.bubblecarver.staxfilter.FilterContext;
 public class BubbleSplitterContext extends FilterContext
 {
   final String studentId;
+  final Path archivePath;
+  final Path studentPath;
 
-  public BubbleSplitterContext(String studentId)
+  public BubbleSplitterContext( String studentId, Path archivePath, Path studentPath )
   {
+    this.archivePath = archivePath;
+    this.studentPath = studentPath;
     this.studentId = studentId;
   }
   

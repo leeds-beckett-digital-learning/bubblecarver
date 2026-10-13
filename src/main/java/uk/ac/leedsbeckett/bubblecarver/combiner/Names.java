@@ -26,13 +26,19 @@ public class Names
   public final static String XMLNAMESPACE = "http://www.w3.org/XML/1998/namespace";
   public final static String BBNAMESPACE = "http://www.blackboard.com/content-packaging/";
   public final static String BCARVNAMESPACE = "http://www.leedsbeckett.ac.uk/bubblecarver";
+  public final static String CATALOGUENAMESPACE = "http://www.leedsbeckett.ac.uk/bubblecarver/catalogue";
+  
   public final static QName XMLBASEATTRIBUTE = new QName( XMLNAMESPACE, "base" );
   public final static QName IDATTRIBUTE = new QName( "id" );
   public final static QName VALUEATTRIBUTE = new QName( "value" );
   public final static QName TYPEATTRIBUTE = new QName( "type" );
   public final static QName IDENTIFIERATTRIBUTE = new QName( "identifier" );
   public final static QName HREFATTRIBUTE = new QName( "href" );
+  
+  public final static QName PATHATTRIBUTE = new QName( "path" );
+  
   public final static QName BBFILEATTRIBUTE = new QName( BBNAMESPACE, "file" );
+  
   public final static QName BCARVIDATTRIBUTE = new QName( BCARVNAMESPACE, "id" );
   public final static QName BCARVCONTENTIDATTRIBUTE = new QName( BCARVNAMESPACE, "contentid" );
   public final static QName BCARVMEMBERIDATTRIBUTE = new QName( BCARVNAMESPACE, "mid" );

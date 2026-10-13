@@ -28,7 +28,7 @@ public class WantedManifestResourceTypes
 //    "assessment/x-bb-qti-attempt",
 //    "assessment/x-bb-qti-test",
 //    "course/x-bb-attemptembeddedfiles",
-//    "course/x-bb-attemptfiles",
+    "course/x-bb-attemptfiles",
 //    "course/x-bb-availability-rule",
 //    "course/x-bb-contenthandler",
 //    "course/x-bb-courseassessment",

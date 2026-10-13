@@ -22,7 +22,6 @@ import java.nio.file.Path;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-import javax.xml.stream.events.XMLEvent;
 import uk.ac.leedsbeckett.bubblecarver.data.WantedManifestResourceTypes;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 
@@ -103,8 +102,10 @@ public class MainFilter extends CombinerFilter
     public void handleStartElement() throws XMLStreamException, IOException
     {
       node = getContext().getReaderNodeContext();
+      String base = node.getAttributeValue( Names.XMLBASEATTRIBUTE );
       resourceType = node.getStartElement().getAttributeByName( Names.TYPEATTRIBUTE ).getValue();
       if ( resourceType == null ) resourceType = "";
+      getGeneralMap().put( "base->resourcetype", base, resourceType );
       
       if ( !WantedManifestResourceTypes.isWanted( resourceType ) )
       {
@@ -156,6 +157,8 @@ public class MainFilter extends CombinerFilter
             subfilter = new MembershipFilter( reader, getWriter(), ffc, getConfig() );
           case "course/x-bb-gradebook" ->
             subfilter = new GradebookFilter( reader, getWriter(), ffc, getConfig() );
+          case "course/x-bb-attemptfiles" ->
+            subfilter = new AttemptFilesFilter( reader, getWriter(), ffc, getConfig() );
           default -> 
             subfilter = new DefaultResourceFilter( reader, getWriter(), ffc, getConfig() );
         }

@@ -113,7 +113,7 @@ public class GradebookFilter extends CombinerFilter
       ReaderNodeContext outcome = getContext().getReaderNodeContext( 2 );
       
       getGeneralMap().put( 
-              "attempt->outome", 
+              "attempt->outcome", 
               attempt.getAttributeValue(Names.IDATTRIBUTE), 
               outcome.getAttributeValue(Names.IDATTRIBUTE) );
               

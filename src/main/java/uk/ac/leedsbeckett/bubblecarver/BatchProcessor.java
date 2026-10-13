@@ -152,7 +152,7 @@ public class BatchProcessor implements Runnable
       Templates templates = tFactory.newTemplates( new StreamSource( in ) );
       transformRedactForStudent = templates.newTransformer();
     }
-    try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/studentreport.xsl" ) )
+    try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/studentreportnew.xsl" ) )
     {
       Templates templates = tFactory.newTemplates( new StreamSource( in ) );
       transformStudentReport = templates.newTransformer();
@@ -368,6 +368,7 @@ public class BatchProcessor implements Runnable
       
       BubbleSplitter bs = new BubbleSplitter(
           cp.resolve( "pass_two_archive.xml" ),
+          session.root,
           cp,
           bc.getInterestingStudentIds()
         );
@@ -550,8 +551,6 @@ public class BatchProcessor implements Runnable
       
       System.out.println( "Processing " + t.toUri() );
 
-      Resolver resolver = new Resolver( t, null );
-
       Path report = t.getParent().resolve( "report.html" );
       try ( InputStream in = Files.newInputStream( t );
             OutputStream out = Files.newOutputStream( report ) )
@@ -559,7 +558,6 @@ public class BatchProcessor implements Runnable
         StreamSource source = new StreamSource( in );
         StreamResult result = new StreamResult( out );
         transformStudentReport.reset();
-        transformStudentReport.setURIResolver( resolver );
         transformStudentReport.transform( source, result );
       }
       catch ( IOException | TransformerException ex )
@@ -589,6 +587,33 @@ public class BatchProcessor implements Runnable
   {
     @Override
     public boolean test( Path t, BasicFileAttributes u )
+    {
+      if ( !u.isRegularFile() )
+        return false;
+      if ( !t.getFileName().toString().equals( "redacted_archive_data.xml") )
+        return false;
+      
+      if ( forcereport ) return true;
+      
+      Path reppath = t.getParent().resolve( "index.html" );
+      if ( !Files.exists( reppath ) ) return true;  // No output so process
+      try
+      {
+        BasicFileAttributes repatt = Files.readAttributes( reppath, BasicFileAttributes.class );
+        if ( repatt.lastModifiedTime().compareTo( u.lastModifiedTime() ) < 0 )
+          return true;
+      }
+      catch ( IOException ex )
+      {
+        // Can' work out dates? Update anyway.
+        return true;
+      }
+      
+      // Report is up to date so don't refresh.
+      return false;
+    }
+
+    public boolean testold( Path t, BasicFileAttributes u )
     {
       if ( !u.isRegularFile() )
         return false;

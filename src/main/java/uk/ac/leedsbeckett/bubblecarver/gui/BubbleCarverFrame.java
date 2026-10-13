@@ -72,7 +72,8 @@ public class BubbleCarverFrame
     this.setTitle( "Bubble Carver");
     clear();
     this.manifestTree.addTreeSelectionListener( this );
-    baseDir = Path.of( "Z:\\transfers\\short" ).toFile();
+    baseDir = Path.of( "Z:\\transfers\\testdata\\short" ).toFile();
+    scanDirTextField.setText( "Z:\\transfers\\testdata\\short" );
     reportDir = Path.of( "C:\\Users\\maber01\\test\\studentarchive" ).toFile();
   }
 

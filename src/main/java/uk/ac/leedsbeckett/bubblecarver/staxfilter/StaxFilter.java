@@ -80,10 +80,11 @@ public abstract class StaxFilter<F extends FilterContext, R extends ReaderNodeCo
   {
     if ( !config.outputFragment )
       writeProlog();
-
+    
     while( reader.hasNext() )
     {
       XMLEvent event = reader.nextEvent();
+
       switch ( event.getEventType() )
       {
         case XMLEvent.ATTRIBUTE      -> handleAttribute( event );  // atts handled by start element event
@@ -165,7 +166,18 @@ public abstract class StaxFilter<F extends FilterContext, R extends ReaderNodeCo
     }
     
     // Otherwise
-    m.getHandler().handleStartElement();
+    try
+    {
+      m.getHandler().handleStartElement();
+    }
+    catch ( Exception e )
+    {
+      Location l = node.getStartElement().getLocation();
+      System.out.println( 
+              "Location of exception, Line: " + l.getLineNumber() + 
+                                  " Column: " + l.getColumnNumber() );
+      throw e;
+    }
   }
   
   public void postStartElement( ReaderNodeContext node ) throws XMLStreamException

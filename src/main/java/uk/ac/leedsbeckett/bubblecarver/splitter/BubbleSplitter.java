@@ -39,15 +39,17 @@ import uk.ac.leedsbeckett.bubblecarver.staxfilter.WriterNodeContext;
 public class BubbleSplitter
 {
   final Path sourcePath;
+  final Path archivePath;
   final Path studentBasePath;
   final List<String> interestingStudentIds;
 
   final XMLOutputFactory writeFactory = XMLOutputFactory.newInstance();
   final XMLInputFactory readerFactory = XMLInputFactory.newInstance();
 
-  public BubbleSplitter( Path sourcePath, Path studentBasePath, List<String> interestingStudentIds )
+  public BubbleSplitter( Path sourcePath, Path archivePath, Path studentBasePath, List<String> interestingStudentIds )
   {
     this.sourcePath = sourcePath;
+    this.archivePath = archivePath;
     this.studentBasePath = studentBasePath;
     this.interestingStudentIds = interestingStudentIds;
   }
@@ -56,22 +58,24 @@ public class BubbleSplitter
   {    
     for ( String sid : interestingStudentIds )
     {
-      Path sPath = this.studentBasePath.resolve( "student_" + sid + "_redacted.xml" );
+      Path studentPath = this.studentBasePath.resolve( sid );
+      Files.createDirectories( studentPath );
+      Path sPath = studentPath.resolve( "redacted_archive_data.xml" );
       try ( InputStream in = Files.newInputStream( sourcePath );
             FileWriter fileWriter = new FileWriter( sPath.toFile() );
               )
       {
-        processOneStudent( sid, in, fileWriter );
+        processOneStudent( sid, in, fileWriter, studentPath );
       }
     }
   }
   
-  void processOneStudent( String sid, InputStream in, FileWriter fileWriter ) throws XMLStreamException, IOException
+  void processOneStudent( String sid, InputStream in, FileWriter fileWriter, Path studentPath ) throws XMLStreamException, IOException
   {
     XMLEventReader reader = readerFactory.createXMLEventReader( in );
     XMLStreamWriter writer = writeFactory.createXMLStreamWriter( fileWriter );
     StaxFilterConfiguration config = new StaxFilterConfiguration();
-    BubbleSplitterContext context = new BubbleSplitterContext( sid );
+    BubbleSplitterContext context = new BubbleSplitterContext( sid, archivePath, studentPath );
     config.outputFragment = true;
     FullFilterContext<BubbleSplitterContext,ReaderNodeContext,WriterNodeContext> ffc 
             = new FullFilterContext<>( context );
@@ -80,12 +84,7 @@ public class BubbleSplitter
     
     writer.writeStartDocument("UTF-8", "1.0");
     writer.writeCharacters( "\n" );
-//    writer.writeStartElement( "bbcarv", "archive", Names.BCARVNAMESPACE );
-//    writer.writeNamespace( "bbcarv", Names.BCARVNAMESPACE );
-//    writer.writeCharacters( "\n" );
     filter.process();
-//    writer.writeEndElement();
-//    writer.writeCharacters( "\n" );
     writer.writeEndDocument();
     writer.writeCharacters( "\n" );
   }

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Properties;
 import javax.xml.stream.*;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
+import uk.ac.leedsbeckett.bubblecarver.stax.StaxFileCataloguer;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 
 /**
@@ -86,7 +87,8 @@ public class BubbleCombiner
   public void passOne( InputStream in, FileWriter fileWriter ) throws XMLStreamException, IOException
   {
     XMLEventReader reader = context.getReaderFactory().createXMLEventReader( in );
-    XMLStreamWriter writer = context.getWriteFactory().createXMLStreamWriter( fileWriter );
+    XMLStreamWriter wrappedwriter = context.getWriteFactory().createXMLStreamWriter( fileWriter );
+    IndentingXMLStreamWriter writer = new IndentingXMLStreamWriter( wrappedwriter );
     StaxFilterConfiguration config = new StaxFilterConfiguration();
     config.outputFragment = true;
     FullFilterContext<BubbleCombinerContext,ReaderNodeContext,WriterNodeContext> ffc 
@@ -98,6 +100,7 @@ public class BubbleCombiner
     writer.writeCharacters( "\n" );
     writer.writeStartElement( "bbcarv", "archive", Names.BCARVNAMESPACE );
     writer.writeNamespace( "bbcarv", Names.BCARVNAMESPACE );
+    writer.writeNamespace( "cat", Names.CATALOGUENAMESPACE );
     writer.writeAttribute( 
             Names.BCARVCOURSEIDATTRIBUTE.getNamespaceURI(), 
             Names.BCARVCOURSEIDATTRIBUTE.getLocalPart(), 
@@ -108,6 +111,11 @@ public class BubbleCombiner
             packageTime );
     writer.writeCharacters( "\n" );
     filter.process();
+    
+    // Put a list of files from the archive at the end of the output
+    StaxFileCataloguer fcat = new StaxFileCataloguer( archiveBasePath );
+    fcat.writeCatalogue( writer, true );
+    
     writer.writeEndElement();
     writer.writeCharacters( "\n" );
     writer.writeEndDocument();
