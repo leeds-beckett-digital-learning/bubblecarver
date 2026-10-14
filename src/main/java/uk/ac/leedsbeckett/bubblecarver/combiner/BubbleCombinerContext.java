@@ -33,7 +33,8 @@ public class BubbleCombinerContext extends FilterContext
   final Path inputBasePath;
   final Path inputPath;
   final Path courseBasePath;
-  final Path middlePath;
+  final Path pass1aPath;
+  final Path pass1bPath;
   final Path outputPath;
   
   final XMLOutputFactory writeFactory = XMLOutputFactory.newInstance();
@@ -52,7 +53,8 @@ public class BubbleCombinerContext extends FilterContext
     this.inputBasePath   = inputBasePath;
     this.inputPath       = inputBasePath.resolve( "imsmanifest.xml" );
     this.courseBasePath  = courseBasePath;
-    this.middlePath      = courseBasePath.resolve( "pass_one_archive.xml" );
+    this.pass1aPath      = courseBasePath.resolve( "pass_onea_archive.xml" );
+    this.pass1bPath      = courseBasePath.resolve( "pass_oneb_archive.xml" );
     this.outputPath      = courseBasePath.resolve( "pass_two_archive.xml" );
     this.packageInfo     = packageInfo;
   }

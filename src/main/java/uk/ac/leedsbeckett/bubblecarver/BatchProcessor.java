@@ -82,7 +82,14 @@ public class BatchProcessor implements Runnable
     {
       // To do - need to add configuration loading.
       BubbleCarverConfig config = new BubbleCarverConfig();
-      BatchProcessor bp = new BatchProcessor( null, null, in, out, true, true, false );
+      try {
+        config.load();
+      } catch ( IOException ex ) {
+        System.err.println( "Unable to load/create configuration file.");
+        System.exit( 1 );
+      }
+      ZipProcessor.setZipExecPath( config.get7ZaExecutableFileName() );
+      BatchProcessor bp = new BatchProcessor( config, null, in, out, true, true, false );
       bp.setForceReport( true );
       bp.processForReal();
     }
@@ -222,6 +229,7 @@ public class BatchProcessor implements Runnable
     catch ( Throwable th )
     {
       caught = th;
+      th.printStackTrace();
     }
     finally
     {
@@ -313,10 +321,15 @@ public class BatchProcessor implements Runnable
       ProcessorSession session = new ProcessorSession();
       try
       {
-        //session.processingdir    = t.getParent().resolve( t.getFileName() + ".processing" );
+        Path extractPath = outputPath.resolve( "ziptemp" ).resolve( Long.toHexString( System.currentTimeMillis() ) );
+        Files.createDirectories( extractPath );
+        
+        session.zipper = new ZipProcessor( t, extractPath );
+        session.zipper.extract( BubbleCombiner.standardFiles );
+    
         session.processingdir    = outputPath;
         Files.createDirectories( session.processingdir );
-        session.root             = getRootOfArchive( t );          
+        session.root             = extractPath;          
         session.mapper           = new ModuleUserInfoMapper();
         session.datalookuphelper = new DataLookupHelper( new DataLookups() );
         session.fp               = new FileProcessor( session.root );
@@ -335,9 +348,11 @@ public class BatchProcessor implements Runnable
         session.release();
         if ( session.root != null )
         {
+          // To do - erase the temporarily extracted files
+          
           // Needed if the file system is a zip file
-          try {session.root.getFileSystem().close();}
-          catch ( IOException ex ) {Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );}
+//          try {session.root.getFileSystem().close();}
+//          catch ( IOException ex ) {Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );}
         }
       }
     }
@@ -345,11 +360,11 @@ public class BatchProcessor implements Runnable
     private void process( ProcessorSession session )
             throws ParserConfigurationException, IOException, TransformerException, XPathExpressionException, XMLStreamException
     {      
-      FileCataloguer fc = new FileCataloguer( session.root );
-      Document catalogue = fc.getCatalogue();
+//      FileCataloguer fc = new FileCataloguer( session.root );
+//      Document catalogue = fc.getCatalogue();
       
-      Resolver resolver = new Resolver( session.root, catalogue );
-      HashMap<String,ModuleUserInfo> usermap;
+//      Resolver resolver = new Resolver( session.root, catalogue );
+//      HashMap<String,ModuleUserInfo> usermap;
       
 //      try ( InputStream in = Files.newInputStream( session.root.resolve( "imsmanifest.xml" ) ) )
 //      {
@@ -371,12 +386,13 @@ public class BatchProcessor implements Runnable
 //        return;
 
 
-      BubbleCombiner bc = new BubbleCombiner( session.root, session.processingdir );
+      BubbleCombiner bc = new BubbleCombiner( session.root, session.processingdir, session.zipper );
       bc.process();
+
       Path cp = bc.getCourseBasePath();
       GeneralMap genmap = bc.getGeneralMap();
       genmap.dump( cp.resolve( "generalmap.txt" ) );
-      
+
       BubbleSplitter bs = new BubbleSplitter(
           cp.resolve( "pass_two_archive.xml" ),
           session.root,
@@ -412,26 +428,26 @@ public class BatchProcessor implements Runnable
       
       if ( true ) return;
       
-      //DOMResult domresult = new DOMResult();
-      StreamResult combineresult = new StreamResult( session.processingdir.resolve( "allinone.xml" ).toFile() );
-
-      try ( InputStream in = Files.newInputStream( session.root.resolve( "imsmanifest.xml" ) ) )
-      {
-        StreamSource source = new StreamSource( in );
-        transformCombineModule.reset();
-        transformCombineModule.setParameter( "course-data-id", session.generalmapper.getId() );
-        transformCombineModule.setURIResolver( resolver );
-        transformCombineModule.transform( source, combineresult );
-      }
-      transformCombineModule.reset();
-
-      session.generalmapper.dump( session.processingdir.resolve( "coursemapper.txt" ) );
-      
-      String courseid = session.generalmapper.get(  "course", "courseid" );
-      
-      if ( courseid == null || courseid.length() == 0 )
-        throw new IOException( "Course ID not found in archive." );        
-      System.out.println( "Course ID = " + courseid );
+//      //DOMResult domresult = new DOMResult();
+//      StreamResult combineresult = new StreamResult( session.processingdir.resolve( "allinone.xml" ).toFile() );
+//
+//      try ( InputStream in = Files.newInputStream( session.root.resolve( "imsmanifest.xml" ) ) )
+//      {
+//        StreamSource source = new StreamSource( in );
+//        transformCombineModule.reset();
+//        transformCombineModule.setParameter( "course-data-id", session.generalmapper.getId() );
+//        transformCombineModule.setURIResolver( resolver );
+//        transformCombineModule.transform( source, combineresult );
+//      }
+//      transformCombineModule.reset();
+//
+//      session.generalmapper.dump( session.processingdir.resolve( "coursemapper.txt" ) );
+//      
+//      String courseid = session.generalmapper.get(  "course", "courseid" );
+//      
+//      if ( courseid == null || courseid.length() == 0 )
+//        throw new IOException( "Course ID not found in archive." );        
+//      System.out.println( "Course ID = " + courseid );
 
       
 //      for ( ModuleUserInfo mui : usermap.values() )

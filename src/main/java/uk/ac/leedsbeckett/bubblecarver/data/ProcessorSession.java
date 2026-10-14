@@ -20,6 +20,7 @@ import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper;
 import uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor;
 import uk.ac.leedsbeckett.bubblecarver.xsl.GeneralMappingHelper;
 import uk.ac.leedsbeckett.bubblecarver.xsl.ModuleUserInfoMapper;
+import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
 
 /**
  *
@@ -27,7 +28,9 @@ import uk.ac.leedsbeckett.bubblecarver.xsl.ModuleUserInfoMapper;
  */
 public class ProcessorSession
 {
+  public ZipProcessor zipper;
   public Path processingdir = null;
+  public Path archive = null;
   public Path root = null;
   public DataLookupHelper datalookuphelper = null;
   public ModuleUserInfoMapper mapper = null;

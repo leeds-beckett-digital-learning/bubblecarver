@@ -33,19 +33,29 @@ import org.apache.commons.compress.archivers.zip.ZipFile;
  */
 public class ZipProcessor
 {
-  final private String zipExecPath;
+  static String zipExecPath = null;
+          
+  public static void setZipExecPath( String zipExecPath )
+  {
+    ZipProcessor.zipExecPath = zipExecPath;
+  }
+  
   final private Path zipPath;
   final private Path targetPath;
 
   final private LinkedList<String> relativePaths = new LinkedList<>();
   
-  public ZipProcessor( String zipExecPath, Path zipPath, Path targetPath )
+  public ZipProcessor( Path zipPath, Path targetPath )
   {
-    this.zipExecPath = zipExecPath;
     this.zipPath = zipPath;
     this.targetPath = targetPath;
   }
 
+  public Path getTargetPath()
+  {
+    return targetPath;
+  }
+  
   public void list() throws IOException
   {
     String[] commandandargs = { zipExecPath, "l", "-slt", "-x!csfiles\\home_dir\\*", zipPath.toString() };

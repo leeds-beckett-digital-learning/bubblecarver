@@ -19,17 +19,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import uk.ac.leedsbeckett.bubblecarver.data.WantedManifestResourceTypes;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
+import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
 
 /**
  *
  * @author maber01
  */
-public class MainFilter extends CombinerFilter
+public class ManifestFilter extends CombinerFilter
 {
   
   FilterMatcherImpl[] matchers = 
@@ -44,14 +46,25 @@ public class MainFilter extends CombinerFilter
 
   CombinerFilter subfilter;
   
-  public MainFilter(
+  final boolean dummyRun;
+  final ArrayList<Path> wantedFiles;
+  
+  public ManifestFilter(
           XMLEventReader reader, 
           XMLStreamWriter writer, 
           FullFilterContext<BubbleCombinerContext, ReaderNodeContext, WriterNodeContext> context, 
-          StaxFilterConfiguration config )
+          StaxFilterConfiguration config,
+          boolean dummyRun )
   {
     super( reader, writer, context, config );
+    this.dummyRun = dummyRun;
+    wantedFiles = dummyRun ? new ArrayList<>() : null;
     setMatchers( matchers );
+  }
+
+  public ArrayList<Path> getWantedFiles()
+  {
+    return wantedFiles;
   }
   
   class ProcessOmitted implements StartElementHandler
@@ -112,7 +125,6 @@ public class MainFilter extends CombinerFilter
         node.setMode( Mode.OMIT );
         return;
       }
-
       
       String fileref = node.getStartElement().getAttributeByName( Names.BBFILEATTRIBUTE ).getValue();
 
@@ -128,8 +140,17 @@ public class MainFilter extends CombinerFilter
       if ( WantedManifestResourceTypes.isWeird( resourceType ) )
         processWeirdResource();
       else
-        processNormalResource( sourcePath );
-      
+      {
+        if ( dummyRun )
+        {
+          // The resource file itself
+          wantedFiles.add( sourcePath );
+          // Any files referenced by the resource file
+          wantedFiles.add( getContext().getFilterContext().inputBasePath.resolve( base ).resolve( "wildcard" ) );
+        }
+        else
+          processNormalResource( sourcePath );
+      }
       
       getWriter().writeEndElement();
     }

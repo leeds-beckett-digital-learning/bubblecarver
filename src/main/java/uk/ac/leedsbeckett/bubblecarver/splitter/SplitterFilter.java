@@ -81,6 +81,7 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
       String wantedsid = getContext().getFilterContext().studentId;
       ElementWritePlan plan = new ElementWritePlan( node.getStartElement() );
       plan.getAttributeList().add( new AttributeImpl( Names.BCARVSTUDENTIDATTRIBUTE, wantedsid ) );
+      node.setWritePlan( plan );
     }
   }
   

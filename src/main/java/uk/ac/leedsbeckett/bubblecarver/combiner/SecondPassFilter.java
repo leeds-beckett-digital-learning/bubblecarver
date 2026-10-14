@@ -123,7 +123,7 @@ public class SecondPassFilter extends CombinerFilter
     {
       ReaderNodeContext node = getContext().getReaderNodeContext();
       String relativePath = node.getAttributeValue( Names.PATHATTRIBUTE );
-      String[] parts = relativePath.split( "/" );
+      String[] parts = relativePath.split( "[/\\\\]" );
 
       // By default output file element as given
       node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );

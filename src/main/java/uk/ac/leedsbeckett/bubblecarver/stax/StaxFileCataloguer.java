@@ -37,13 +37,11 @@ import uk.ac.leedsbeckett.bubblecarver.combiner.Names;
 public class StaxFileCataloguer
 {
   private final Path base;
-  private final String basepath;
   private XMLStreamWriter writer;
   
   public StaxFileCataloguer( Path base )
   {
     this.base = base;
-    this.basepath = base.toString();
   }
   
   public void writeCatalogue( XMLStreamWriter writer ) throws XMLStreamException, IOException
@@ -93,10 +91,9 @@ public class StaxFileCataloguer
       
       try
       {
-        String path = t.toString();
-        String relpath = path.substring( basepath.length() );
+        Path relpath = base.relativize( t );
         writer.writeEmptyElement( Names.CATALOGUENAMESPACE, "file" );
-        writer.writeAttribute( Names.PATHATTRIBUTE.getLocalPart(), relpath );
+        writer.writeAttribute( Names.PATHATTRIBUTE.getLocalPart(), relpath.toString() );
       }
       catch (XMLStreamException ex)
       {

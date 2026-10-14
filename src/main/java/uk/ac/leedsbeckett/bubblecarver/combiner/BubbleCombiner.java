@@ -21,12 +21,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import javax.xml.stream.*;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 import uk.ac.leedsbeckett.bubblecarver.stax.StaxFileCataloguer;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
+import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
 
 /**
  *
@@ -34,27 +37,40 @@ import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
  */
 public class BubbleCombiner
 {
+  public static ArrayList<String> standardFiles = new ArrayList<>( Arrays.asList( new String[]
+        {
+          "imsmanifest.xml",
+          ".bb-package-info",
+          "csfiles/privatedoc/gradebook/*"
+        }
+  ));
+  
+  
   BubbleCombinerContext context;
   GeneralMap generalMap;
+  List<Path> wantedFiles = null;
   List<String> interestingStudentIds;
   final Properties packageInfo = new Properties();
   
   final Path archiveBasePath;
   final Path outputBasePath;
+  final ZipProcessor zipper;
+  
   Path courseBasePath;
   
   String courseId;
   String packageTime;
   String archiveDirectoryName;
   
-  public BubbleCombiner( Path archiveBasePath, Path outputBasePath )
+  public BubbleCombiner( Path archiveBasePath, Path outputBasePath, ZipProcessor zipper )
   {
     this.archiveBasePath = archiveBasePath;
     this.outputBasePath = outputBasePath;
+    this.zipper = zipper;
   }
   
   public void process() throws IOException, XMLStreamException
-  {    
+  {
     Path packageInfoPath = archiveBasePath.resolve( ".bb-package-info" );
     try ( InputStream infoIn = Files.newInputStream( packageInfoPath ) )
     {
@@ -71,12 +87,28 @@ public class BubbleCombiner
     context = new BubbleCombinerContext( archiveBasePath, courseBasePath, packageInfo );
     
     try ( InputStream in = Files.newInputStream( context.inputPath );
-          FileWriter fileWriter = new FileWriter( context.middlePath.toFile() );
+          FileWriter fileWriter = new FileWriter( context.pass1aPath.toFile() );
             )
     {
-      passOne( in, fileWriter );
+      passOne( in, fileWriter, true );
+    }      
+
+    ArrayList<String> list = new ArrayList<>();
+    for ( Path f : wantedFiles )
+    {
+      String s = archiveBasePath.relativize( f ).toString();
+      list.add( s.replaceAll( "wildcard", "*" ) );
     }
-    try ( InputStream in = Files.newInputStream( context.middlePath );
+    zipper.extract( list );
+      
+    try ( InputStream in = Files.newInputStream( context.inputPath );
+          FileWriter fileWriter = new FileWriter( context.pass1bPath.toFile() );
+            )
+    {
+      passOne( in, fileWriter, false );      
+    }
+    
+    try ( InputStream in = Files.newInputStream( context.pass1bPath );
           FileWriter fileWriter = new FileWriter( context.outputPath.toFile() );
             )
     {
@@ -84,7 +116,7 @@ public class BubbleCombiner
     }
   }
   
-  public void passOne( InputStream in, FileWriter fileWriter ) throws XMLStreamException, IOException
+  public void passOne( InputStream in, FileWriter fileWriter, boolean dummyRun ) throws XMLStreamException, IOException
   {
     XMLEventReader reader = context.getReaderFactory().createXMLEventReader( in );
     XMLStreamWriter wrappedwriter = context.getWriteFactory().createXMLStreamWriter( fileWriter );
@@ -94,7 +126,7 @@ public class BubbleCombiner
     FullFilterContext<BubbleCombinerContext,ReaderNodeContext,WriterNodeContext> ffc 
             = new FullFilterContext<>( context );
     
-    MainFilter filter = new MainFilter( reader, writer, ffc, config );
+    ManifestFilter filter = new ManifestFilter( reader, writer, ffc, config, dummyRun );
     
     writer.writeStartDocument("UTF-8", "1.0");
     writer.writeCharacters( "\n" );
@@ -113,14 +145,19 @@ public class BubbleCombiner
     filter.process();
     
     // Put a list of files from the archive at the end of the output
-    StaxFileCataloguer fcat = new StaxFileCataloguer( archiveBasePath );
-    fcat.writeCatalogue( writer, true );
+    if ( !dummyRun )
+    {
+      StaxFileCataloguer fcat = new StaxFileCataloguer( archiveBasePath );
+      fcat.writeCatalogue( writer, true );
+    }
     
     writer.writeEndElement();
     writer.writeCharacters( "\n" );
     writer.writeEndDocument();
     writer.writeCharacters( "\n" );
     generalMap = filter.getContext().getFilterContext().getGeneralMap();
+    if ( dummyRun )
+      wantedFiles = filter.getWantedFiles();
   }
   
   public void passTwo( InputStream in, FileWriter fileWriter ) throws XMLStreamException, IOException
@@ -164,6 +201,7 @@ public class BubbleCombiner
     return generalMap;
   }
 
+  
   public List<String> getInterestingStudentIds()
   {
     return interestingStudentIds;

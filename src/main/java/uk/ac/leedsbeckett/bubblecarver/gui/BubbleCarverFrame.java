@@ -44,6 +44,7 @@ import uk.ac.leedsbeckett.bubblecarver.BatchProcessorListener;
 import uk.ac.leedsbeckett.bubblecarver.BubbleCarverConfig;
 import uk.ac.leedsbeckett.bubblecarver.data.ArchiveDirectoryTreeNode;
 import uk.ac.leedsbeckett.bubblecarver.data.ElementTreeData;
+import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
 
 /**
  *
@@ -550,7 +551,8 @@ public class BubbleCarverFrame
     } catch ( IOException ex ) {
       System.err.println( "Unable to load/create configuration file.");
     }
-
+    ZipProcessor.setZipExecPath( config.get7ZaExecutableFileName() );
+    
     /* Create and display the form */
     java.awt.EventQueue.invokeLater( new Runnable()
     {
