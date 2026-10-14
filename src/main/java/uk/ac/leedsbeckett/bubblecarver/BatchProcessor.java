@@ -26,8 +26,10 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -97,6 +99,8 @@ public class BatchProcessor implements Runnable
   private final boolean digest;
   private boolean forcereport = false;
 
+  Path tempZipExtractPath;
+  
   private Transformer transformCombineModule;
   private Transformer transformListStudents;
   private Transformer transformRedactForStudent;
@@ -139,6 +143,9 @@ public class BatchProcessor implements Runnable
 
   private void init() throws IOException, TransformerConfigurationException
   {
+    tempZipExtractPath = outputPath.resolve( "temp" ).resolve( "zip" );
+    Files.createDirectories( tempZipExtractPath );
+            
     xPath = XPathFactory.newInstance().newXPath();
     xPath.setNamespaceContext( new NamespaceContextImpl() );
 
@@ -301,17 +308,6 @@ public class BatchProcessor implements Runnable
       System.out.println( "Processing " + t.toUri() );
       if ( listener != null )
         listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
-      
-      ZipProcessor zipper = new ZipProcessor( config.get7ZaExecutableFileName(), t, null );
-      try
-      {
-        zipper.list();
-      }
-      catch ( IOException ioe )
-      {
-        ioe.printStackTrace();
-      }
-      if ( true ) return;
       
       // Set up coordinating data objects...
       ProcessorSession session = new ProcessorSession();

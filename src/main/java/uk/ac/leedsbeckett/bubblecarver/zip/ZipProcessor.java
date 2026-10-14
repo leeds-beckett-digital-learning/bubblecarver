@@ -16,11 +16,14 @@
 package uk.ac.leedsbeckett.bubblecarver.zip;
 
 import java.io.BufferedReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
 
@@ -48,25 +51,41 @@ public class ZipProcessor
     String[] commandandargs = { zipExecPath, "l", "-slt", "-x!csfiles\\home_dir\\*", zipPath.toString() };
     execute7Zip( commandandargs );
   }
-   
-  public void execute7Zip( String[] commandandargs )
+  
+  public void extract( List<String> files ) throws IOException
   {
-    try
+    Path flp = targetPath.resolve( "filelist.txt" );
+    try ( FileWriter writer = new FileWriter( flp.toFile(), StandardCharsets.UTF_8 ) )
     {
-      Runtime run  = Runtime.getRuntime();
-      Process process = run.exec( commandandargs );
-      try ( BufferedReader reader = new BufferedReader(new InputStreamReader( process.getInputStream() ) ) )
+      for ( String line : files )
       {
-        String line;
-        while ( (line = reader.readLine()) != null )
-        {
-          System.out.println( line );
-        }          
+        writer.write( line );
+        writer.write( "\r\n" );
       }
     }
-    catch (IOException e)
+    // always answer yes to overwrite question
+    // only extract files listed in filelist.txt
+    // extract to current directory
+    String[] commandandargs = { zipExecPath, "x", "-y", "-i@filelist.txt", zipPath.toString() };
+    execute7Zip( commandandargs );    
+  }
+   
+  public void execute7Zip( String[] commandandargs ) throws IOException
+  {
+    Runtime run  = Runtime.getRuntime();
+    String[] env = {};
+    // ensure current directory is at target path
+    Process process = run.exec( commandandargs, env, targetPath.toFile() );
+    try ( BufferedReader reader = new BufferedReader(new InputStreamReader( process.getInputStream() ) ) )
     {
-        e.printStackTrace();
-    }      
+      String line;
+      while ( (line = reader.readLine()) != null )
+      {
+        System.out.println( line );
+      }          
+    }
+    System.out.println( "Exit code from 7za process = " + process.exitValue() );
+    if ( process.exitValue() != 0 )
+      throw new IOException( "7za returned error after attempting file extraction." );
   }
 }
