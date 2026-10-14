@@ -58,6 +58,7 @@ public class BubbleSplitter
   {    
     for ( String sid : interestingStudentIds )
     {
+      System.out.println( "Creating redacted archive file for student " + sid );
       Path studentPath = this.studentBasePath.resolve( sid );
       Files.createDirectories( studentPath );
       Path sPath = studentPath.resolve( "redacted_archive_data.xml" );

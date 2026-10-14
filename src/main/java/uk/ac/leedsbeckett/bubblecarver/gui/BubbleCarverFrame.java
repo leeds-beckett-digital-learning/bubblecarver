@@ -41,6 +41,7 @@ import uk.ac.leedsbeckett.bubblecarver.Archive.Resource;
 import uk.ac.leedsbeckett.bubblecarver.ArchiveException;
 import uk.ac.leedsbeckett.bubblecarver.BatchProcessor;
 import uk.ac.leedsbeckett.bubblecarver.BatchProcessorListener;
+import uk.ac.leedsbeckett.bubblecarver.BubbleCarverConfig;
 import uk.ac.leedsbeckett.bubblecarver.data.ArchiveDirectoryTreeNode;
 import uk.ac.leedsbeckett.bubblecarver.data.ElementTreeData;
 
@@ -62,12 +63,14 @@ public class BubbleCarverFrame
   FileSystem zipfs=null;
   Archive archive=null;
   Element selectedElement = null;
-        
+  final BubbleCarverConfig config;
   /**
    * Creates new form BubbleCarverFrame
+   * @param config
    */
-  public BubbleCarverFrame()
+  public BubbleCarverFrame( BubbleCarverConfig config )
   {
+    this.config = config;
     initComponents();
     this.setTitle( "Bubble Carver");
     clear();
@@ -460,6 +463,7 @@ public class BubbleCarverFrame
     }
 
     batchProcessor = new BatchProcessor(
+      config,
       this,
       baseDir.toPath(),
       reportDir.toPath(),
@@ -540,13 +544,19 @@ public class BubbleCarverFrame
       java.util.logging.Logger.getLogger( BubbleCarverFrame.class.getName() ).log( java.util.logging.Level.SEVERE, null, ex );
     }
     //</editor-fold>
+    BubbleCarverConfig config = new BubbleCarverConfig();
+    try {
+      config.load();
+    } catch ( IOException ex ) {
+      System.err.println( "Unable to load/create configuration file.");
+    }
 
     /* Create and display the form */
     java.awt.EventQueue.invokeLater( new Runnable()
     {
       public void run()
       {
-        new BubbleCarverFrame().setVisible( true );
+        new BubbleCarverFrame( config ).setVisible( true );
       }
     } );
   }

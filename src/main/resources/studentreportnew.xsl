@@ -16,17 +16,18 @@
   version="1.0">
   <xsl:output method="html"/>
 
-  
+  <xsl:variable name="sid" select="/bbcarv:archive/@sid"/>
   <xsl:variable name="gradebook" select="/bbcarv:archive/manifest/resources/resource[@type='course/x-bb-gradebook']/bbcarv:data/GRADEBOOK"/>
+  
   
   <xsl:template match="/">
     <html>
       <head>
-        <title>Student Course Report <!-- <xsl:value-of select="$sid"/> --></title>
+        <title>Student Course Report <xsl:value-of select="$sid"/></title>
         <link rel="stylesheet" href="../../../../../../../../css/report.css" />
       </head>
       <body>
-        <h1><!-- <xsl:value-of select="bbcarv:student/@sid"/> -->Student ID Here</h1>
+        <h1><xsl:value-of select="bbcarv:student/@sid"/>Student ID Here</h1>
         <h2>
           <xsl:value-of select=".//USERS/USER/NAMES/FAMILY/@value"/>,
           <xsl:value-of select=".//USERS/USER/NAMES/GIVEN/@value"/> 

@@ -26,9 +26,9 @@ dependencies {
   implementation 'org.apache.commons:commons-compress:1.28.0'
   implementation 'commons-io:commons-io:2.22.0'
 
-  // Added this massive package with all its dependencies
-  // just to get indenting sax writer!
-  implementation 'com.sun.xml.bind:jaxb-ri:4.0.9'
+  // This library is support for jaxb projects but
+  // has handy indenting trax writer.
+  implementation 'org.glassfish.jaxb:txw2:4.0.9'
 }
 
 application {

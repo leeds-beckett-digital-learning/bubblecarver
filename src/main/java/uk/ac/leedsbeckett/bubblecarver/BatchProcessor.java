@@ -63,6 +63,7 @@ import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookups;
 import uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor;
 import uk.ac.leedsbeckett.bubblecarver.xsl.GeneralMappingHelper;
 import uk.ac.leedsbeckett.bubblecarver.xsl.ModuleUserInfoMapper;
+import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
 
 /**
  *
@@ -77,7 +78,9 @@ public class BatchProcessor implements Runnable
     Path out    = Path.of( "c:\\temp\\students" );
     try
     {
-      BatchProcessor bp = new BatchProcessor( null, in, out, true, true, false );
+      // To do - need to add configuration loading.
+      BubbleCarverConfig config = new BubbleCarverConfig();
+      BatchProcessor bp = new BatchProcessor( null, null, in, out, true, true, false );
       bp.setForceReport( true );
       bp.processForReal();
     }
@@ -104,8 +107,10 @@ public class BatchProcessor implements Runnable
         
   ProcessProgress progress;
   private final BatchProcessorListener listener;
+  private final BubbleCarverConfig config;
   
   public BatchProcessor( 
+          BubbleCarverConfig config,
           BatchProcessorListener listener, 
           Path searchPath, 
           Path outputPath,
@@ -113,6 +118,7 @@ public class BatchProcessor implements Runnable
           boolean report,
           boolean digest )
   {
+    this.config = config;
     this.listener = listener;
     this.searchPath = searchPath;
     this.outputPath = outputPath;
@@ -296,6 +302,17 @@ public class BatchProcessor implements Runnable
       if ( listener != null )
         listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
       
+      ZipProcessor zipper = new ZipProcessor( config.get7ZaExecutableFileName(), t, null );
+      try
+      {
+        zipper.list();
+      }
+      catch ( IOException ioe )
+      {
+        ioe.printStackTrace();
+      }
+      if ( true ) return;
+      
       // Set up coordinating data objects...
       ProcessorSession session = new ProcessorSession();
       try
@@ -363,8 +380,6 @@ public class BatchProcessor implements Runnable
       Path cp = bc.getCourseBasePath();
       GeneralMap genmap = bc.getGeneralMap();
       genmap.dump( cp.resolve( "generalmap.txt" ) );
-      for ( String sid : bc.getInterestingStudentIds() )
-        System.out.println( sid );
       
       BubbleSplitter bs = new BubbleSplitter(
           cp.resolve( "pass_two_archive.xml" ),

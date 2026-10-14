@@ -36,6 +36,7 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
 {
   FilterMatcherImpl[] matchers = 
   {
+    new FilterMatcherImpl( "/archive",                     new ProcessArchive()      ),
     new FilterMatcherImpl( Mode.WRONGSTUDENT,              new ProcessWrongStudent() ),
     new FilterMatcherImpl( Mode.RIGHTSTUDENT,              new ProcessRightStudent() ),
     new FilterMatcherImpl( "/archive/catalogue/file",      new ProcessFile()         ),
@@ -71,6 +72,18 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
     }
   }
 
+  class ProcessArchive implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException, IOException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String wantedsid = getContext().getFilterContext().studentId;
+      ElementWritePlan plan = new ElementWritePlan( node.getStartElement() );
+      plan.getAttributeList().add( new AttributeImpl( Names.BCARVSTUDENTIDATTRIBUTE, wantedsid ) );
+    }
+  }
+  
   class ProcessFile implements StartElementHandler
   {
     @Override
