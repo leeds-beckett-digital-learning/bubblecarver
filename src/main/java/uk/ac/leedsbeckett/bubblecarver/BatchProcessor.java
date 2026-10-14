@@ -52,6 +52,7 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
+import org.apache.commons.io.FileUtils;
 import org.w3c.dom.Document;
 import uk.ac.leedsbeckett.bubblecarver.combiner.BubbleCombiner;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
@@ -310,6 +311,8 @@ public class BatchProcessor implements Runnable
     @Override
     public void accept( Path t )
     {
+      Path extractPath = null;
+      
       if ( progress.firstException != null )
         return;
       
@@ -321,7 +324,7 @@ public class BatchProcessor implements Runnable
       ProcessorSession session = new ProcessorSession();
       try
       {
-        Path extractPath = outputPath.resolve( "ziptemp" ).resolve( Long.toHexString( System.currentTimeMillis() ) );
+        extractPath = outputPath.resolve( "ziptemp" ).resolve( Long.toHexString( System.currentTimeMillis() ) );
         Files.createDirectories( extractPath );
         
         session.zipper = new ZipProcessor( t, extractPath );
@@ -346,13 +349,16 @@ public class BatchProcessor implements Runnable
       finally
       {
         session.release();
-        if ( session.root != null )
+        if ( extractPath != null && Files.exists( extractPath ) )
         {
-          // To do - erase the temporarily extracted files
-          
-          // Needed if the file system is a zip file
-//          try {session.root.getFileSystem().close();}
-//          catch ( IOException ex ) {Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );}
+          try
+          {
+            FileUtils.deleteDirectory( extractPath.toFile() );
+          }
+          catch (IOException ex)
+          {
+            throw new RuntimeException( ex );
+          }
         }
       }
     }
