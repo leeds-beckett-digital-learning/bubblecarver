@@ -163,8 +163,8 @@ public class BubbleCombiner
   public void passTwo( InputStream in, FileWriter fileWriter ) throws XMLStreamException, IOException
   {
     XMLEventReader reader = context.getReaderFactory().createXMLEventReader( in );
-    XMLStreamWriter wrappedwriter = context.getWriteFactory().createXMLStreamWriter( fileWriter );
-    IndentingXMLStreamWriter writer = new IndentingXMLStreamWriter( wrappedwriter );
+    XMLStreamWriter writer = context.getWriteFactory().createXMLStreamWriter( fileWriter );
+    //IndentingXMLStreamWriter writer = new IndentingXMLStreamWriter( wrappedwriter );
     StaxFilterConfiguration config = new StaxFilterConfiguration();
     config.outputFragment = true;
     FullFilterContext<BubbleCombinerContext,ReaderNodeContext,WriterNodeContext> ffc 

@@ -24,7 +24,7 @@
     <html>
       <head>
         <title>Student Course Report <xsl:value-of select="$sid"/></title>
-        <link rel="stylesheet" href="../../../../../../../../css/report.css" />
+        <link rel="stylesheet" href="../../../css/report.css" />
       </head>
       <body>
         <h1><xsl:value-of select="bbcarv:student/@sid"/>Student ID Here</h1>
@@ -52,7 +52,7 @@
         </table>
         <h1>Grade Centre History</h1>
         <xsl:apply-templates select="$gradebook/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY"/>
-        <script src="../../../../../../script/report.js"></script>
+        <script src="../../../script/report.js"></script>
       </body>
     </html>
   </xsl:template>
@@ -201,7 +201,7 @@
           <xsl:apply-templates select="STUDENTSUBMISSION"/>
         </div>
       </xsl:if>
-      <xsl:variable name="attachedfiles" select="/bbcarv:student/bbcarv:resources/bbcarv:resource[@type = 'course/x-bb-attemptfiles']/bbcarv:data/ATTEMPTFILES/ATTEMPTFILE[ATTEMPTID/@value = $attemptid]"/>
+      <xsl:variable name="attachedfiles" select="/bbcarv:archive/manifest/resources/resource[@type = 'course/x-bb-attemptfiles']/bbcarv:data/ATTEMPTFILES/ATTEMPTFILE[ATTEMPTID/@value = $attemptid]"/>
       <xsl:if test="count( $attachedfiles ) &gt; 0">
         <h3>Attached Files</h3>
         <ul>
@@ -210,7 +210,7 @@
       </xsl:if>
       <xsl:if test="ancestor::OUTCOMEDEFINITION/SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-wiki'">
         <xsl:variable name="gattemptid" select="GROUP_ATTEMPT_ID/@value"/>
-        <xsl:variable name="wiki" select="ancestor::bbcarv:resources/bbcarv:resource[@type = 'resource/x-bb-wiki']/bbcarv:data/wiki[groupAttemptID/text() = $gattemptid]"/>
+        <xsl:variable name="wiki" select="ancestor::resources/resource[@type = 'resource/x-bb-wiki']/bbcarv:data/wiki[groupAttemptID/text() = $gattemptid]"/>
         <xsl:apply-templates select="$wiki"/>
       </xsl:if>
     </div>
@@ -256,7 +256,7 @@
       
   <xsl:template match="STUDENTSUBMISSION">
     <xsl:variable name="attemptid" select="../@id"/>
-    <xsl:variable name="embeddedresources" select="/bbcarv:student/bbcarv:resources/bbcarv:resource[@type = 'course/x-bb-attemptembeddedfiles' and count(//ATTEMPTID[@value = $attemptid]) &gt; 0]"/>
+    <xsl:variable name="embeddedresources" select="/bbcarv:archive/manifest/resources/resource[@type = 'course/x-bb-attemptembeddedfiles' and count(//ATTEMPTID[@value = $attemptid]) &gt; 0]"/>
     <xsl:variable name="embeddedbase">
       <xsl:choose>
         <xsl:when test="count($embeddedresources) = 1">
@@ -277,7 +277,7 @@
   </xsl:template>
 
   <xsl:template match="wiki">
-    <xsl:variable name="wikibase" select="concat( ancestor::bbcarv:resource/@xml:base, '/wikis/group/', uniqueID/text(), '/' )"/>
+    <xsl:variable name="wikibase" select="concat( ancestor::resource/@xml:base, '/wikis/group/', uniqueID/text(), '/' )"/>
     <p>Wiki content here.</p>
     <xsl:for-each select="pages/page">
       <h3>Page <xsl:value-of select="position()"/></h3>

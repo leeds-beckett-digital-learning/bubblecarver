@@ -30,6 +30,9 @@ public class ReaderNodeContext
   ElementWritePlan writePlan;
   ElementWritePlan writtenPlan;
   
+  XMLEvent previousEvent;
+  XMLEvent nextEvent;
+  
   public StartElement getStartElement()
   {
     return startElement;
@@ -91,5 +94,21 @@ public class ReaderNodeContext
     Attribute a = startElement.getAttributeByName( name );
     if ( a == null ) return null;
     return a.getValue();
+  }
+
+  public XMLEvent getPreviousEvent() {
+    return previousEvent;
+  }
+
+  public void setPreviousEvent(XMLEvent previousEvent) {
+    this.previousEvent = previousEvent;
+  }
+
+  public XMLEvent getNextEvent() {
+    return nextEvent;
+  }
+
+  public void setNextEvent(XMLEvent nextEvent) {
+    this.nextEvent = nextEvent;
   }
 }

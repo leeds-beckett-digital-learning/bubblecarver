@@ -19,6 +19,7 @@ import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import javax.xml.stream.events.Attribute;
+import javax.xml.stream.events.XMLEvent;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 
 /**
@@ -30,18 +31,23 @@ public class GradebookFilter extends CombinerFilter
   
   FilterMatcherImpl[] matchers = 
   {
+    new FilterMatcherImpl( Mode.OMIT,                                                    new ProcessOmitted() ),
     new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION",            new ProcessOutcomeDefinition() ),
     new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/CONTENTID",  new ProcessContentId() ),
     new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME/COURSEMEMBERSHIPID",
             new ProcessMembershipId() ),
     new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT",
             new ProcessAttempt() ),
+    new FilterMatcherImpl( "/GRADEBOOK/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY",
+            new ProcessHistoryEntry() ),
     new FilterMatcherImpl( "/GRADEBOOK/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY/USERID",
             new ProcessHistoryUserId() ),
 
     new FilterMatcherImpl( new ProcessOther() )          
   };
 
+  int gradeHistoryEntryCount = 0;
+  
   public GradebookFilter(
           XMLEventReader reader, 
           XMLStreamWriter writer, 
@@ -52,6 +58,15 @@ public class GradebookFilter extends CombinerFilter
     setMatchers( matchers );
   }
 
+  @Override
+  public void handleEndDocument(XMLEvent event) throws XMLStreamException
+  {
+    super.handleEndDocument(event);
+    System.out.println( "Number of GRADEHISTORYENTRY elements was " + gradeHistoryEntryCount );
+  }
+
+  
+  
   class ProcessOutcomeDefinition implements StartElementHandler
   {
     @Override
@@ -122,6 +137,29 @@ public class GradebookFilter extends CombinerFilter
     }
   }
   
+  class ProcessHistoryEntry implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext entry   = getContext().getReaderNodeContext();
+      gradeHistoryEntryCount++;
+      if ( gradeHistoryEntryCount < 10001 )
+      {
+        entry.setWritePlan( new ElementWritePlan( entry.getStartElement() ) );
+        return;
+      }
+      if ( gradeHistoryEntryCount == 10001 )
+      {
+        getWriter().writeStartElement( Names.BCARVNAMESPACE, "error" );
+        getWriter().writeCharacters( "Too many grade history entries in this course archive. Only the first 10,000 were kept." );
+        getWriter().writeEndElement();
+      }
+      entry.setMode( Mode.OMIT );
+      entry.setWritePlan( null );
+    }
+  }
+  
   class ProcessHistoryUserId implements StartElementHandler
   {
     @Override
@@ -149,5 +187,16 @@ public class GradebookFilter extends CombinerFilter
       node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
     }
   }
+
+  class ProcessOmitted implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      node.setWritePlan( null );
+    }
+  }
+
 
 }

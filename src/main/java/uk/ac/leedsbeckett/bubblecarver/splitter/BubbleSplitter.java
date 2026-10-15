@@ -27,6 +27,7 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import uk.ac.leedsbeckett.bubblecarver.combiner.Names;
+import uk.ac.leedsbeckett.bubblecarver.stax.BetterIndentingXMLStreamWriter;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.FullFilterContext;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.ReaderNodeContext;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.StaxFilterConfiguration;
@@ -74,7 +75,8 @@ public class BubbleSplitter
   void processOneStudent( String sid, InputStream in, FileWriter fileWriter, Path studentPath ) throws XMLStreamException, IOException
   {
     XMLEventReader reader = readerFactory.createXMLEventReader( in );
-    XMLStreamWriter writer = writeFactory.createXMLStreamWriter( fileWriter );
+    XMLStreamWriter wrappedWriter = writeFactory.createXMLStreamWriter( fileWriter );
+    BetterIndentingXMLStreamWriter writer = new BetterIndentingXMLStreamWriter( wrappedWriter );
     StaxFilterConfiguration config = new StaxFilterConfiguration();
     BubbleSplitterContext context = new BubbleSplitterContext( sid, archivePath, studentPath );
     config.outputFragment = true;

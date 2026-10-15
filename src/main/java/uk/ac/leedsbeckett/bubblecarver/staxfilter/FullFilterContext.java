@@ -77,6 +77,8 @@ public class FullFilterContext< F extends FilterContext, R extends ReaderNodeCon
 
   public R getReaderNodeContext( int generation )
   {
+    if ( readerNodeAxis.size() <= generation )
+      return null;
     return readerNodeAxis.get( generation );
   }
 

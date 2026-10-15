@@ -81,29 +81,50 @@ public abstract class StaxFilter<F extends FilterContext, R extends ReaderNodeCo
     if ( !config.outputFragment )
       writeProlog();
     
+    XMLEvent current = null;
+    XMLEvent previous = null;
     while( reader.hasNext() )
     {
-      XMLEvent event = reader.nextEvent();
+      previous = current;
+      current = reader.nextEvent();
 
-      switch ( event.getEventType() )
+      switch ( current.getEventType() )
       {
-        case XMLEvent.ATTRIBUTE      -> handleAttribute( event );  // atts handled by start element event
-        case XMLEvent.COMMENT        -> handleComment( event );
-        case XMLEvent.DTD            -> handleDTD( event );
-        case XMLEvent.START_DOCUMENT -> handleStartDocument( event );
-        case XMLEvent.END_DOCUMENT   -> handleEndDocument( event );
-        
-        case XMLEvent.START_ELEMENT  -> 
-        {
-          preStartElement( event.asStartElement() );
-          handleStartElement( context.getReaderNodeContext() );
-          postStartElement( context.getReaderNodeContext() );
-        }
+        case XMLEvent.ATTRIBUTE      -> {}  // Here to prevent exception on default clause
+        case XMLEvent.COMMENT        -> {}  // ditto
+        case XMLEvent.DTD            -> {}
+        case XMLEvent.START_DOCUMENT -> {}
+        case XMLEvent.END_DOCUMENT   -> {}
+        case XMLEvent.START_ELEMENT  -> preStartElement( current.asStartElement() );
+        case XMLEvent.END_ELEMENT    -> {}
+        case XMLEvent.CHARACTERS     -> {}
+        case XMLEvent.CDATA          -> {}
+        default -> throw new IllegalArgumentException( "Cannot handle STAX event type " + current.getEventType() );
+      }
+
+      R node = context.getReaderNodeContext();
+      if ( node != null )
+      {
+        node.setPreviousEvent( previous );
+        node.setNextEvent( reader.peek() );
+      }
+
+      switch ( current.getEventType() )
+      {
+        case XMLEvent.ATTRIBUTE      -> handleAttribute( current );  // atts handled by start element event
+        case XMLEvent.COMMENT        -> handleComment( current );
+        case XMLEvent.DTD            -> handleDTD( current );
+        case XMLEvent.START_DOCUMENT -> handleStartDocument( current );
+        case XMLEvent.END_DOCUMENT   -> handleEndDocument( current );        
+        case XMLEvent.START_ELEMENT  -> handleStartElement( context.getReaderNodeContext() );
         case XMLEvent.END_ELEMENT    -> handleEndElement( context.getReaderNodeContext() );
-        case XMLEvent.CHARACTERS     -> handleCharacters( context.getReaderNodeContext(), event.asCharacters()   );
-        case XMLEvent.CDATA          -> handleCharacters( context.getReaderNodeContext(), event.asCharacters()   );
-        
-        default -> throw new IllegalArgumentException( "Cannot handle STAX event type " + event.getEventType() );
+        case XMLEvent.CHARACTERS     -> handleCharacters( context.getReaderNodeContext(), current.asCharacters()   );
+        case XMLEvent.CDATA          -> handleCharacters( context.getReaderNodeContext(), current.asCharacters()   );
+      }
+      
+      switch ( current.getEventType() )
+      {
+        case XMLEvent.START_ELEMENT  -> postStartElement( context.getReaderNodeContext() );
       }
     }
     reader.close();
@@ -134,7 +155,7 @@ public abstract class StaxFilter<F extends FilterContext, R extends ReaderNodeCo
   {
     R parent = ( context.getReaderNodeDepth() > 0 ) ? context.getReaderNodeContext() : null;
     R node = createReaderNode();
-    
+
     node.setStartElement( event );
     
     // build local part name path
