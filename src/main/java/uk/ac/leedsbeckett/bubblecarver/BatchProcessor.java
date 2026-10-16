@@ -26,13 +26,14 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
+import java.util.logging.FileHandler;
+import java.util.logging.Formatter;
+import java.util.logging.Handler;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 import javax.xml.namespace.NamespaceContext;
@@ -45,7 +46,6 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.URIResolver;
-import javax.xml.transform.dom.DOMResult;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
@@ -53,6 +53,7 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.w3c.dom.Document;
 import uk.ac.leedsbeckett.bubblecarver.combiner.BubbleCombiner;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
@@ -60,7 +61,7 @@ import uk.ac.leedsbeckett.bubblecarver.data.ProcessorSession;
 import uk.ac.leedsbeckett.bubblecarver.splitter.BubbleSplitter;
 import uk.ac.leedsbeckett.bubblecarver.stax.DocCombiner;
 import uk.ac.leedsbeckett.bubblecarver.stax.StudentRedactor;
-import uk.ac.leedsbeckett.bubblecarver.staxexample.ExampleProcessor;
+import uk.ac.leedsbeckett.bubblecarver.util.Utils;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookups;
 import uk.ac.leedsbeckett.bubblecarver.xsl.FileProcessor;
@@ -108,6 +109,7 @@ public class BatchProcessor implements Runnable
   private boolean forcereport = false;
 
   Path tempZipExtractPath;
+  Path telemetryPath;
   
   private Transformer transformCombineModule;
   private Transformer transformListStudents;
@@ -120,6 +122,9 @@ public class BatchProcessor implements Runnable
   ProcessProgress progress;
   private final BatchProcessorListener listener;
   private final BubbleCarverConfig config;
+  
+  Logger telemetryLog;
+  Handler telemetrySessionHandler;
   
   public BatchProcessor( 
           BubbleCarverConfig config,
@@ -151,6 +156,13 @@ public class BatchProcessor implements Runnable
 
   private void init() throws IOException, TransformerConfigurationException
   {
+    telemetryPath = outputPath.resolve( "logs" ).resolve( "telemetry" );
+    Files.createDirectories( telemetryPath );
+    telemetryLog = Logger.getLogger( "BatchProcessor" + Utils.getNowString() );
+    telemetryLog.setUseParentHandlers( false );
+    // Will reset log and apply handler for each archive file.
+    telemetrySessionHandler = getSessionHandler();
+            
     tempZipExtractPath = outputPath.resolve( "temp" ).resolve( "zip" );
     Files.createDirectories( tempZipExtractPath );
             
@@ -225,6 +237,7 @@ public class BatchProcessor implements Runnable
       listener.batchProcessorStarted( this );
     try
     {
+      init();
       caught = processForReal();
     }
     catch ( Throwable th )
@@ -234,15 +247,15 @@ public class BatchProcessor implements Runnable
     }
     finally
     {
+      if ( telemetrySessionHandler != null )
+        telemetrySessionHandler.close();
       if ( listener != null )
         listener.batchProcessorCompleted( this, caught );
     }
   }  
   
   private Throwable processForReal() throws IOException, TransformerConfigurationException
-  {
-    init();
-    
+  {    
     if ( digest )
     {
       ArchiveDigestProcessor adp = new ArchiveDigestProcessor();
@@ -308,6 +321,8 @@ public class BatchProcessor implements Runnable
   
   public class ArchiveCombinerProcessor implements Consumer<Path>
   {
+    Telemetry telemetry;
+    
     @Override
     public void accept( Path t )
     {
@@ -319,6 +334,9 @@ public class BatchProcessor implements Runnable
       System.out.println( "Processing " + t.toUri() );
       if ( listener != null )
         listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
+      
+      telemetry = new Telemetry( t, telemetrySessionHandler );
+      telemetry.startArchive();
       
       // Set up coordinating data objects...
       ProcessorSession session = new ProcessorSession();
@@ -348,6 +366,7 @@ public class BatchProcessor implements Runnable
       }
       finally
       {
+        telemetry.completeArchive();
         session.release();
         if ( extractPath != null && Files.exists( extractPath ) )
         {
@@ -357,9 +376,11 @@ public class BatchProcessor implements Runnable
           }
           catch (IOException ex)
           {
-            throw new RuntimeException( ex );
+            ex.printStackTrace();
+            // carry on anyway - get on with next archive
           }
         }
+
       }
     }
     
@@ -747,5 +768,152 @@ public class BatchProcessor implements Runnable
       throw new UnsupportedOperationException( "Not supported yet." ); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
     
+  }
+  
+  public class TelemetryFormatter extends Formatter
+  {
+    final boolean withTimestamp;
+    final boolean withArchivePath;
+    StringBuilder sb = new StringBuilder();
+
+    public TelemetryFormatter(boolean withTimestamp,boolean withArchivePath)
+    {
+      this.withTimestamp   = withTimestamp;
+      this.withArchivePath = withArchivePath;
+    }
+
+    @Override
+    public String format( LogRecord record )
+    {
+      Object[] params = record.getParameters();
+      TelemetryData data = null;
+      
+      if ( params != null && params.length > 0 && params[0] instanceof TelemetryData )
+        data = (TelemetryData)params[0];
+      
+      sb.setLength( 0 );
+      if ( withTimestamp )
+      {
+        sb.append( Utils.getNowString() );
+        sb.append( ",    " );
+      }
+      if ( withArchivePath )
+      {
+        if ( data != null )
+          sb.append( data.archivePath.toString() );
+        sb.append( ",    " );        
+      }
+      sb.append( record.getMessage() );
+      if ( data != null )
+      {
+        if ( data.milliSecondDuration >= 0 )
+        {
+          sb.append( ",    " );
+          sb.append( data.milliSecondDuration );
+          sb.append( ",    " );
+          sb.append( DurationFormatUtils.formatDurationHMS( data.milliSecondDuration ) );
+        }
+      }
+      sb.append( "\n" );
+      return sb.toString();
+    }
+  }
+
+  Handler getSessionHandler()
+  {
+    try {
+      TelemetryFormatter formatter = new TelemetryFormatter( true, true );
+      String nowString = Utils.getNowString();
+      Path telemetryFilePath = telemetryPath.resolve( "session_" + nowString + ".csv" );
+      FileHandler sessionHandler = new FileHandler(
+              telemetryFilePath.toString(),
+              true );
+      sessionHandler.setFormatter( formatter );
+      return sessionHandler;
+    } catch (IOException | SecurityException ex) {
+      System.getLogger(BatchProcessor.class.getName()).log(System.Logger.Level.ERROR, (String) null, ex);
+    }
+    return null;
+  }
+
+  public class TelemetryData
+  {
+    final Path archivePath;
+    final long milliSecondDuration;
+
+    public TelemetryData(Path archivePath)
+    {
+      this.archivePath = archivePath;
+      this.milliSecondDuration = -1;
+    }
+
+    public TelemetryData(Path archivePath, long milliSecondDuration)
+    {
+      this.archivePath = archivePath;
+      this.milliSecondDuration = milliSecondDuration;
+    }
+
+    public Path getArchivePath()
+    {
+      return archivePath;
+    }
+
+    public long getMilliSecondDuration()
+    {
+      return milliSecondDuration;
+    }
+  }
+  
+  public class Telemetry
+  {    
+    TelemetryFormatter formatter = new TelemetryFormatter( false, false );
+
+    FileHandler detailHandler;
+
+    Path archivePath;
+    long startArchive;
+    
+    public Telemetry( Path archivePath, Handler sessionHandler )
+    {
+      this.archivePath = archivePath;
+      try
+      {
+        for ( Handler h : telemetryLog.getHandlers() )
+          telemetryLog.removeHandler( h );
+        String nowString = Utils.getNowString();
+        String telemetryName = archivePath.getFileName().toString() + "_" + nowString + "_telemetry.txt";
+        Path telemetryFilePath = telemetryPath.resolve( telemetryName );
+        detailHandler = new FileHandler(
+                telemetryFilePath.toString(),
+                true );
+        detailHandler.setFormatter( formatter );
+        telemetryLog.addHandler( sessionHandler );
+        telemetryLog.addHandler( detailHandler );
+        
+        telemetryLog.fine( "Telemetry log opened." );
+      }
+      catch (IOException | SecurityException ex)
+      {
+        System.getLogger(BatchProcessor.class.getName()).log(System.Logger.Level.ERROR, (String) null, ex);
+      }
+    }
+    
+    public void startArchive()
+    {
+      telemetryLog.fine( "Started processing archive." );
+      startArchive = System.currentTimeMillis();
+    }
+
+    public void completeArchive()
+    {
+      if ( telemetryLog == null ) return;
+      long duration = System.currentTimeMillis() - startArchive;
+      String message = "Completed archive";
+      TelemetryData data = new TelemetryData( archivePath, duration );
+      telemetryLog.log( Level.INFO, message, new Object[] { data } );
+      
+      telemetryLog.removeHandler(detailHandler );
+      detailHandler.close();
+    }
   }
 }
