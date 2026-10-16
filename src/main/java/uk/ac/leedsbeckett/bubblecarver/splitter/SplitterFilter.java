@@ -18,8 +18,11 @@ package uk.ac.leedsbeckett.bubblecarver.splitter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
@@ -103,7 +106,7 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
         Path target = getContext().getFilterContext().studentPath.resolve( path );
         System.out.println( "Archive source : " + source.toString() );
         System.out.println( "Student target : " + target.toString() );
-        copyFileIfNecessary( source, target );
+        storeStudentFile( source, target );
       }
       else
         node.setWritePlan( null );
@@ -158,30 +161,91 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
     return new WriterNodeContext();
   }
   
-  void copyFileIfNecessary( Path source, Path target ) throws IOException
+  void storeStudentFile( Path source, Path target ) throws IOException
   {
-    boolean necessary = true;
+    storeStudentFile( source, target, true );
+  }
+  
+  void storeStudentFile( Path source, Path target, boolean discardSource ) throws IOException
+  {
     if ( Files.exists( target ) )
     {
-      FileTime sourcetime = Files.getLastModifiedTime( source );
-      FileTime targettime = Files.getLastModifiedTime( target );
-      necessary = sourcetime.compareTo( targettime ) > 0;
-    }
-    if ( necessary )
-    {
-      if ( !Files.exists( target.getParent() ) )
-        Files.createDirectories( target.getParent() );
-      long size = Files.size( source );
-      try ( InputStream in = Files.newInputStream( source );
-            OutputStream out = Files.newOutputStream( target )  )
+      boolean skip = source.toFile().length() == target.toFile().length();      
+      if ( !skip )
+        // This assumes that unzipped copy has been given correct last modified data
+        // by 7za.exe and that the existing copy in the student dir has preserved
+        // the attributes.
+        skip = source.toFile().lastModified() == target.toFile().lastModified();
+      if ( skip )
       {
-        if ( size < (2L*1024L*1024L*1024L) )
-          IOUtils.copy( in, out );
-        else
-          IOUtils.copyLarge( in, out );
+        System.out.println( "Skipping file copy!" );
+        return;        
       }
     }
-    else
-      System.out.println( "Skipping file copy!" );
+      
+    if ( !Files.exists( target.getParent() ) )
+      Files.createDirectories( target.getParent() );
+
+    Path moveaside=null;
+    if ( Files.exists( target ) )
+    {
+      moveaside = target.resolveSibling( target.getFileName().toString() + ".saved" );
+      Files.move( target, moveaside, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.COPY_ATTRIBUTES );
+    }
+    
+    boolean success = true;
+    try
+    {
+      boolean moved = false;
+      if ( discardSource )
+      {
+        // Don't want to keep source so try moving which will be
+        // much faster.
+        try
+        {
+          Files.move( source, target, StandardCopyOption.ATOMIC_MOVE );
+          moved = true;
+        }
+        catch ( AtomicMoveNotSupportedException moveex )
+        {
+          // If destination dir is on different file system
+          moved = false;
+        }
+      }
+
+      // move failed or not attempted so try copying
+      if ( !moved )
+      {
+        long size = Files.size( source );
+        try ( InputStream in = Files.newInputStream( source );
+              OutputStream out = Files.newOutputStream( target )  )
+        {
+          if ( size < (2L*1024L*1024L*1024L) )
+            IOUtils.copy( in, out );
+          else
+            IOUtils.copyLarge( in, out );
+        }
+        target.toFile().setLastModified( source.toFile().lastModified() ); 
+      }
+        
+    }
+    catch ( Exception e )
+    {
+      success = false;
+      throw e;
+    }
+    finally
+    {
+      if ( !success )
+      {
+        Files.deleteIfExists( target );
+        if ( moveaside != null )
+          Files.move( moveaside, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.COPY_ATTRIBUTES );      
+      }
+    }
+    
+    if ( success && discardSource )
+      // won't need to delete if it was moved
+      Files.deleteIfExists( source );
   }
 }
