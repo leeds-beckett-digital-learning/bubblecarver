@@ -180,6 +180,12 @@ public class ManifestFilter extends CombinerFilter
             subfilter = new GradebookFilter( reader, getWriter(), ffc, getConfig() );
           case "course/x-bb-attemptfiles" ->
             subfilter = new AttemptFilesFilter( reader, getWriter(), ffc, getConfig() );
+          case "course/x-bb-attemptembeddedfiles" ->
+            // This is probably not needed? because there is no attempt file ID in the resource to record.
+            subfilter = new AttemptEmbedFilesFilter( reader, getWriter(), ffc, getConfig() );
+          case "course/x-bb-coursesetting" ->
+            // Currently not handled in a special way - maybe dates are of interest.
+            subfilter = new CourseSettingFilter( reader, getWriter(), ffc, getConfig() );
           default -> 
             subfilter = new DefaultResourceFilter( reader, getWriter(), ffc, getConfig() );
         }
