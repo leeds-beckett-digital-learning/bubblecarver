@@ -15,6 +15,8 @@
  */
 package uk.ac.leedsbeckett.bubblecarver;
 
+import com.sun.xml.txw2.output.IndentingXMLStreamWriter;
+import java.io.FileWriter;
 import uk.ac.leedsbeckett.bubblecarver.data.ModuleUserInfo;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,7 +40,9 @@ import java.util.logging.Logger;
 import java.util.stream.Stream;
 import javax.xml.namespace.NamespaceContext;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 import javax.xml.transform.Source;
 import javax.xml.transform.Templates;
 import javax.xml.transform.Transformer;
@@ -55,8 +59,11 @@ import javax.xml.xpath.XPathFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.w3c.dom.Document;
+import uk.ac.leedsbeckett.bubblecarver.analysis.BubbleAnalyser;
 import uk.ac.leedsbeckett.bubblecarver.combiner.BubbleCombiner;
+import uk.ac.leedsbeckett.bubblecarver.combiner.Names;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
+import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
 import uk.ac.leedsbeckett.bubblecarver.data.ProcessorSession;
 import uk.ac.leedsbeckett.bubblecarver.splitter.BubbleSplitter;
 import uk.ac.leedsbeckett.bubblecarver.stax.DocCombiner;
@@ -254,21 +261,32 @@ public class BatchProcessor implements Runnable
     }
   }  
   
-  private Throwable processForReal() throws IOException, TransformerConfigurationException
+  private Throwable processForReal() throws IOException, TransformerConfigurationException, XMLStreamException
   {    
     if ( digest )
     {
-      ArchiveDigestProcessor adp = new ArchiveDigestProcessor();
       progress = new ProcessProgress();
-      ArchiveSearcher searcher = new ArchiveSearcher();
-      Stream<Path> streamSearch = Files.find( searchPath, Integer.MAX_VALUE, searcher );
-      streamSearch.forEach( adp );
-      adp.close();
-      if ( progress.firstException != null )
+      Path reportPath = outputPath.resolve( "report_" + Utils.getNowString() + ".xml" );
+      Files.createDirectories( outputPath );
+      try ( FileWriter fileWriter = new FileWriter( reportPath.toFile() ) )
       {
-        System.out.println( "Exception while processing stream of archives..." );
-        progress.firstException.printStackTrace();
-        return progress.firstException;
+        XMLOutputFactory writeFactory = XMLOutputFactory.newInstance();
+        XMLStreamWriter wrappedwriter = writeFactory.createXMLStreamWriter( fileWriter );
+        IndentingXMLStreamWriter writer = new IndentingXMLStreamWriter( wrappedwriter );
+        writer.writeStartDocument("UTF-8", "1.0");
+        writer.writeStartElement( "bbcarv", "archives", Names.BCARVNAMESPACE );
+        writer.writeNamespace( "bbcarv", Names.BCARVNAMESPACE );
+        ArchiveSearcher searcher = new ArchiveSearcher();
+        Stream<Path> streamSearch = Files.find( searchPath, Integer.MAX_VALUE, searcher );
+        streamSearch.forEach( new ArchiveAnalysisProcessor( writer ) );
+        if ( progress.firstException != null )
+        {
+          System.out.println( "Exception while processing stream of archives..." );
+          progress.firstException.printStackTrace();
+          return progress.firstException;
+        }
+        writer.writeEndElement();
+        writer.writeEndDocument();
       }
     }
     
@@ -419,12 +437,15 @@ public class BatchProcessor implements Runnable
       Path cp = bc.getCourseBasePath();
       GeneralMap genmap = bc.getGeneralMap();
       genmap.dump( cp.resolve( "generalmap.txt" ) );
+      GroupMap groupmap = bc.getGroupMap();
+      groupmap.rebuild( genmap );
 
       BubbleSplitter bs = new BubbleSplitter(
           cp.resolve( "pass_two_archive.xml" ),
           session.root,
           cp,
-          bc.getInterestingStudentIds()
+          bc.getInterestingStudentIds(),
+          groupmap
         );
       bs.process();
 
@@ -498,6 +519,71 @@ public class BatchProcessor implements Runnable
 //      }      
     }
     
+  }
+
+  public class ArchiveAnalysisProcessor implements Consumer<Path>
+  {
+    final XMLStreamWriter writer;
+
+    public ArchiveAnalysisProcessor( XMLStreamWriter writer )
+    {
+      this.writer = writer;
+    }
+    
+    @Override
+    public void accept( Path t )
+    {
+      Path extractPath = null;
+      if ( progress.firstException != null )
+        return;
+      System.out.println( "Processing " + t.toUri() );
+      if ( listener != null )
+        listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
+      
+      ProcessorSession session = new ProcessorSession();
+      try
+      {
+        extractPath = outputPath.resolve( "ziptemp" ).resolve( Long.toHexString( System.currentTimeMillis() ) );
+        Files.createDirectories( extractPath );
+        session.zipper = new ZipProcessor( t, extractPath );
+        session.zipper.extract( BubbleCombiner.standardFiles );
+    
+        session.processingdir    = outputPath;
+        Files.createDirectories( session.processingdir );
+        session.root             = extractPath;          
+        process( session );
+        progress.completedCount++;
+      }
+      catch ( Exception ex )
+      {
+        Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );
+        progress.firstException = ex;
+        throw new RuntimeException( ex );
+      }
+      finally
+      {
+        session.release();
+        if ( extractPath != null && Files.exists( extractPath ) )
+        {
+          try
+          {
+            FileUtils.deleteDirectory( extractPath.toFile() );
+          }
+          catch (IOException ex)
+          {
+            ex.printStackTrace();
+            // carry on anyway - get on with next archive
+          }
+        }
+      }
+    }
+    
+    private void process( ProcessorSession session )
+            throws ParserConfigurationException, IOException, TransformerException, XPathExpressionException, XMLStreamException
+    {      
+      BubbleAnalyser bc = new BubbleAnalyser( session.root, writer, session.zipper );
+      bc.process();
+    }
   }
 
   public class ArchiveDigestProcessor implements Consumer<Path>

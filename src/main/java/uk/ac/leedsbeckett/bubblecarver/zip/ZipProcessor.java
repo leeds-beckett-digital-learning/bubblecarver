@@ -64,6 +64,8 @@ public class ZipProcessor
   
   public void extract( List<String> files ) throws IOException
   {
+    if ( files == null || files.isEmpty() )
+      return;
     Path flp = targetPath.resolve( "filelist.txt" );
     try ( FileWriter writer = new FileWriter( flp.toFile(), StandardCharsets.UTF_8 ) )
     {

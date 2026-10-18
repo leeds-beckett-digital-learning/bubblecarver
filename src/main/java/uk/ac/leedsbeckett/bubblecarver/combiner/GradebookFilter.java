@@ -35,9 +35,11 @@ public class GradebookFilter extends CombinerFilter
     new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION",            new ProcessOutcomeDefinition() ),
     new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/CONTENTID",  new ProcessContentId() ),
     new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME/COURSEMEMBERSHIPID",
-            new ProcessMembershipId() ),
+            new ProcessOutcomeMembershipId() ),
     new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT",
             new ProcessAttempt() ),
+    new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/GROUPATTEMPTS/GROUPATTEMPT/GROUPID",
+            new ProcessGroupAttemptGroupId() ),
     new FilterMatcherImpl( "/GRADEBOOK/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY",
             new ProcessHistoryEntry() ),
     new FilterMatcherImpl( "/GRADEBOOK/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY/USERID",
@@ -99,7 +101,7 @@ public class GradebookFilter extends CombinerFilter
     }
   }
   
-  class ProcessMembershipId implements StartElementHandler
+  class ProcessOutcomeMembershipId implements StartElementHandler
   {
     @Override
     public void handleStartElement() throws XMLStreamException
@@ -134,6 +136,24 @@ public class GradebookFilter extends CombinerFilter
               
       // Clone the incoming element
       attempt.setWritePlan( new ElementWritePlan( attempt.getStartElement() ) );
+    }
+  }
+  
+  class ProcessGroupAttemptGroupId implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext groupid   = getContext().getReaderNodeContext();
+      ReaderNodeContext groupattempt = getContext().getReaderNodeContext( 1 );
+      
+      getGeneralMap().put( 
+              "groupattempt->group", 
+              groupattempt.getAttributeValue(Names.IDATTRIBUTE), 
+              groupid.getAttributeValue(Names.VALUEATTRIBUTE) );
+              
+      // Clone the incoming element
+      groupid.setWritePlan( new ElementWritePlan( groupid.getStartElement() ) );
     }
   }
   

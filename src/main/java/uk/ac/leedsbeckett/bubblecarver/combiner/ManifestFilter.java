@@ -176,6 +176,8 @@ public class ManifestFilter extends CombinerFilter
             subfilter = new UsersFilter( reader, getWriter(), ffc, getConfig() );
           case "membership/x-bb-coursemembership" ->
             subfilter = new MembershipFilter( reader, getWriter(), ffc, getConfig() );
+          case "membership/x-bb-groupmembership" ->
+            subfilter = new GroupMembershipFilter( reader, getWriter(), ffc, getConfig() );
           case "course/x-bb-gradebook" ->
             subfilter = new GradebookFilter( reader, getWriter(), ffc, getConfig() );
           case "course/x-bb-attemptfiles" ->

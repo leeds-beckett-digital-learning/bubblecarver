@@ -27,6 +27,7 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import uk.ac.leedsbeckett.bubblecarver.combiner.Names;
+import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
 import uk.ac.leedsbeckett.bubblecarver.stax.BetterIndentingXMLStreamWriter;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.FullFilterContext;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.ReaderNodeContext;
@@ -43,16 +44,23 @@ public class BubbleSplitter
   final Path archivePath;
   final Path studentBasePath;
   final List<String> interestingStudentIds;
+  final GroupMap groupMap;
 
   final XMLOutputFactory writeFactory = XMLOutputFactory.newInstance();
   final XMLInputFactory readerFactory = XMLInputFactory.newInstance();
 
-  public BubbleSplitter( Path sourcePath, Path archivePath, Path studentBasePath, List<String> interestingStudentIds )
+  public BubbleSplitter( 
+          Path sourcePath, 
+          Path archivePath, 
+          Path studentBasePath, 
+          List<String> interestingStudentIds,
+          GroupMap groupMap )
   {
     this.sourcePath = sourcePath;
     this.archivePath = archivePath;
     this.studentBasePath = studentBasePath;
     this.interestingStudentIds = interestingStudentIds;
+    this.groupMap = groupMap;
   }
   
   public void process() throws IOException, XMLStreamException
@@ -78,7 +86,7 @@ public class BubbleSplitter
     XMLStreamWriter wrappedWriter = writeFactory.createXMLStreamWriter( fileWriter );
     BetterIndentingXMLStreamWriter writer = new BetterIndentingXMLStreamWriter( wrappedWriter );
     StaxFilterConfiguration config = new StaxFilterConfiguration();
-    BubbleSplitterContext context = new BubbleSplitterContext( sid, archivePath, studentPath );
+    BubbleSplitterContext context = new BubbleSplitterContext( sid, archivePath, studentPath, groupMap );
     config.outputFragment = true;
     FullFilterContext<BubbleSplitterContext,ReaderNodeContext,WriterNodeContext> ffc 
             = new FullFilterContext<>( context );

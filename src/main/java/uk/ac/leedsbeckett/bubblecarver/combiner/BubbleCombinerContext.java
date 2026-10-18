@@ -22,6 +22,7 @@ import java.util.Properties;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
+import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.FilterContext;
 
 /**
@@ -43,6 +44,7 @@ public class BubbleCombinerContext extends FilterContext
   final Properties packageInfo;
   
   private final GeneralMap generalMap = new GeneralMap();
+  private final GroupMap groupMap = new GroupMap();
   
   private final ArrayList<String> interestingStudentIds = new ArrayList<>();
   
@@ -88,6 +90,10 @@ public class BubbleCombinerContext extends FilterContext
   public GeneralMap getGeneralMap()
   {
     return generalMap;
+  }
+
+  public GroupMap getGroupMap() {
+    return groupMap;
   }
 
   public List<String> getInterestingStudentIds()

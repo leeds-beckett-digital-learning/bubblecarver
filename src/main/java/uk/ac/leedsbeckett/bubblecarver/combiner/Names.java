@@ -44,8 +44,11 @@ public class Names
   public final static QName BCARVMEMBERIDATTRIBUTE = new QName( BCARVNAMESPACE, "mid" );
   public final static QName BCARVUSERIDATTRIBUTE = new QName( BCARVNAMESPACE, "uid" );
   public final static QName BCARVSTUDENTIDATTRIBUTE = new QName( BCARVNAMESPACE, "sid" );
+  public final static QName BCARVGROUPIDATTRIBUTE = new QName( BCARVNAMESPACE, "gid" );
   public final static QName BCARVUUIDATTRIBUTE = new QName( BCARVNAMESPACE, "uuid" );
   public final static QName BCARVOUTCOMEATTRIBUTE = new QName( BCARVNAMESPACE, "outcome" );
   public final static QName BCARVCOURSEIDATTRIBUTE = new QName( BCARVNAMESPACE, "courseid" );
   public final static QName BCARVARCHIVETIMEATTRIBUTE = new QName( BCARVNAMESPACE, "archivetime" );
+  public final static QName HANDLERATTRIBUTE = new QName( "handler" );
+  public final static QName IMSURLATTRIBUTE = new QName( "imsurl" );
 }

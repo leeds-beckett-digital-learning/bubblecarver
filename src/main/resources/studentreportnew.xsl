@@ -16,7 +16,7 @@
   version="1.0">
   <xsl:output method="html"/>
 
-  <xsl:variable name="sid" select="/bbcarv:archive/@sid"/>
+  <xsl:variable name="sid" select="/bbcarv:archive/@bbcarv:sid"/>
   <xsl:variable name="gradebook" select="/bbcarv:archive/manifest/resources/resource[@type='course/x-bb-gradebook']/bbcarv:data/GRADEBOOK"/>
   
   
@@ -27,7 +27,7 @@
         <link rel="stylesheet" href="../../../css/report.css" />
       </head>
       <body>
-        <h1><xsl:value-of select="bbcarv:student/@sid"/>Student ID Here</h1>
+        <h1><xsl:value-of select="$sid"/></h1>
         <h2>
           <xsl:value-of select=".//USERS/USER/NAMES/FAMILY/@value"/>,
           <xsl:value-of select=".//USERS/USER/NAMES/GIVEN/@value"/> 

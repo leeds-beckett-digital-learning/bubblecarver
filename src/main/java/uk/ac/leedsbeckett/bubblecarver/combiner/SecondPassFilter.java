@@ -33,6 +33,8 @@ public class SecondPassFilter extends CombinerFilter
     new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION",   new ProcessOutcomeDefinition() ),
     new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME",
             new ProcessOutcome() ),
+    new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/GROUPATTEMPTS/GROUPATTEMPT",
+            new ProcessGroupAttempt() ),
     new FilterMatcherImpl( "GRADEBOOK/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY",
             new ProcessHistoryEntry() ),
     new FilterMatcherImpl( "/archive/catalogue/file",
@@ -100,6 +102,18 @@ public class SecondPassFilter extends CombinerFilter
       String outcomeid = node.getAttributeValue( Names.IDATTRIBUTE );
       String memberid = getGeneralMap().get( "outcome->member", outcomeid );
       addUserToPlan( node, memberid );
+    }
+  }
+
+  class ProcessGroupAttempt implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String groupattemptid = node.getAttributeValue( Names.IDATTRIBUTE );
+      String groupid = getGeneralMap().get( "groupattempt->group", groupattemptid );
+      addGroupToPlan( node, groupid );
     }
   }
 
@@ -254,4 +268,17 @@ public class SecondPassFilter extends CombinerFilter
     if ( sid != null )
       plan.getAttributeList().add( new AttributeImpl( Names.BCARVSTUDENTIDATTRIBUTE, sid ) );
   }
+
+  void addGroupToPlan( ReaderNodeContext node, String groupid )
+  {
+    if ( groupid == null ) return;
+    ElementWritePlan plan = node.getWritePlan();
+    if ( plan == null )
+    {
+      plan = new ElementWritePlan( node.getStartElement() );
+      node.setWritePlan( plan );
+    }
+    plan.getAttributeList().add( new AttributeImpl( Names.BCARVGROUPIDATTRIBUTE, groupid ) );
+  }
+
 }

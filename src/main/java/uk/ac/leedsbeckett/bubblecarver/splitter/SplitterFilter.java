@@ -122,7 +122,26 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
       ReaderNodeContext node = getContext().getReaderNodeContext();
       String wantedsid = getContext().getFilterContext().studentId;
       String sid = node.getAttributeValue( Names.BCARVSTUDENTIDATTRIBUTE );
-      if ( sid != null && sid.length() > 0 )
+      String gid = node.getAttributeValue( Names.BCARVGROUPIDATTRIBUTE );
+
+      if ( gid != null )
+      {
+        if ( getContext().getFilterContext().groupMap.isMemberOfGroup( gid, wantedsid ) )
+        {
+          // Clone wanted element
+          node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
+          // Don't check contained nodes
+          node.setMode( Mode.RIGHTSTUDENT );          
+        }
+        else
+        {
+          // Don't write this node
+          node.setWritePlan( null );
+          // Don't check contained nodes
+          node.setMode( Mode.WRONGSTUDENT );           
+        }
+      }
+      else if ( sid != null && sid.length() > 0 )
       {
         if ( wantedsid.equals( sid ) )
         {

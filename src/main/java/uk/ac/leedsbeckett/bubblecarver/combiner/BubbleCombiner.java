@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Properties;
 import javax.xml.stream.*;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
+import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
 import uk.ac.leedsbeckett.bubblecarver.stax.StaxFileCataloguer;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
@@ -48,6 +49,7 @@ public class BubbleCombiner
   
   BubbleCombinerContext context;
   GeneralMap generalMap;
+  GroupMap groupMap;
   List<Path> wantedFiles = null;
   List<String> interestingStudentIds;
   final Properties packageInfo = new Properties();
@@ -156,6 +158,7 @@ public class BubbleCombiner
     writer.writeEndDocument();
     writer.writeCharacters( "\n" );
     generalMap = filter.getContext().getFilterContext().getGeneralMap();
+    groupMap = filter.getContext().getFilterContext().getGroupMap();
     if ( dummyRun )
       wantedFiles = filter.getWantedFiles();
   }
@@ -201,6 +204,10 @@ public class BubbleCombiner
     return generalMap;
   }
 
+  public GroupMap getGroupMap()
+  {
+    return groupMap;
+  }
   
   public List<String> getInterestingStudentIds()
   {
