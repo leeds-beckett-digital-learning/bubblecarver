@@ -96,9 +96,17 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
       ReaderNodeContext node = getContext().getReaderNodeContext();
       String wantedsid = getContext().getFilterContext().studentId;
       String sid = node.getAttributeValue( Names.BCARVSTUDENTIDATTRIBUTE );
+      String gid = node.getAttributeValue( Names.BCARVGROUPIDATTRIBUTE );
       String path = node.getAttributeValue( Names.PATHATTRIBUTE );
       
-      if ( sid != null && sid.length() > 0 && wantedsid.equals( sid ) )
+      if ( 
+              ( sid != null && sid.length() > 0 && 
+                wantedsid.equals( sid ) )
+           ||
+              ( gid != null && 
+                gid.length() > 0 && 
+                getContext().getFilterContext().groupMap.isMemberOfGroup( gid, wantedsid ) )
+         )
       {
         node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
         // And copy the actual file from the archive to the student directory...
@@ -106,7 +114,9 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
         Path target = getContext().getFilterContext().studentPath.resolve( path );
         System.out.println( "Archive source : " + source.toString() );
         System.out.println( "Student target : " + target.toString() );
-        storeStudentFile( source, target );
+        // Only discard the source if this is not a group related file.
+        // because it will be needed for another student.
+        storeStudentFile( source, target, gid == null );
       }
       else
         node.setWritePlan( null );
@@ -187,6 +197,13 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
   
   void storeStudentFile( Path source, Path target, boolean discardSource ) throws IOException
   {
+    if ( !Files.exists( source ) )
+    {
+      System.out.println( "=========================================" );
+      System.out.println( "Supressing error for missing source file." );
+      System.out.println( "=========================================" );
+      return;
+    }
     if ( Files.exists( target ) )
     {
       boolean skip = source.toFile().length() == target.toFile().length();      
@@ -209,7 +226,7 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
     if ( Files.exists( target ) )
     {
       moveaside = target.resolveSibling( target.getFileName().toString() + ".saved" );
-      Files.move( target, moveaside, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.COPY_ATTRIBUTES );
+      Files.move( target, moveaside, StandardCopyOption.ATOMIC_MOVE );
     }
     
     boolean success = true;
@@ -259,7 +276,7 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
       {
         Files.deleteIfExists( target );
         if ( moveaside != null )
-          Files.move( moveaside, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.COPY_ATTRIBUTES );      
+          Files.move( moveaside, target, StandardCopyOption.ATOMIC_MOVE );      
       }
     }
     

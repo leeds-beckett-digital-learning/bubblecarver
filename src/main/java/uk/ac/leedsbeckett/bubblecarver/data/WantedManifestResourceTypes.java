@@ -39,6 +39,7 @@ public class WantedManifestResourceTypes
 //    "course/x-bb-crsrubriceval",
     "course/x-bb-gradebook",
     "course/x-bb-group",
+    "course/x-bb-groupattemptembeddedfiles",
     "course/x-bb-groupattemptfiles",
     "course/x-bb-groupupload",
 //    "course/x-bb-review-status",

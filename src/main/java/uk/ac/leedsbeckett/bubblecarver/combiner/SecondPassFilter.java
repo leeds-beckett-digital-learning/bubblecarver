@@ -28,18 +28,20 @@ public class SecondPassFilter extends CombinerFilter
 {
   FilterMatcherImpl[] matchers = 
   {
-    new FilterMatcherImpl( "USERS/USER",                                       new ProcessUser() ),
-    new FilterMatcherImpl( "COURSEMEMBERSHIPS/COURSEMEMBERSHIP",               new ProcessMembership() ),
-    new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION",   new ProcessOutcomeDefinition() ),
-    new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME",
-            new ProcessOutcome() ),
-    new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/GROUPATTEMPTS/GROUPATTEMPT",
-            new ProcessGroupAttempt() ),
-    new FilterMatcherImpl( "GRADEBOOK/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY",
-            new ProcessHistoryEntry() ),
-    new FilterMatcherImpl( "/archive/catalogue/file",
-            new ProcessCatalogueFile() ),
-    new FilterMatcherImpl(                                                      new ProcessOther() )          
+    new FilterMatcherImpl( "USERS/USER",                                                      new ProcessUser() ),
+    new FilterMatcherImpl( "COURSEMEMBERSHIPS/COURSEMEMBERSHIP",                              new ProcessMembership() ),
+    new FilterMatcherImpl( "GROUPS/GROUP",                                                    new ProcessGroup() ),
+    new FilterMatcherImpl( "GROUPMEMBERSHIPS/GROUPMEMBERSHIP",                                new ProcessGroupMembership() ),
+    new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION",                  new ProcessOutcomeDefinition() ),
+    new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME", new ProcessOutcome() ),
+    new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/GROUPATTEMPTS/GROUPATTEMPT", new ProcessGroupAttempt() ),
+    new FilterMatcherImpl( "GRADEBOOK/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY",             new ProcessHistoryEntry() ),
+    new FilterMatcherImpl( "GROUPUPLOADS/UPLOAD",                                             new ProcessGroupUpload() ),
+    new FilterMatcherImpl( "GROUPATTEMPTFILES/GROUPATTEMPTFILE",                              new ProcessGroupAttemptFile() ),
+    new FilterMatcherImpl( "GROUPATTEMPTEMBEDDEDFILES/GROUPATTEMPTEMBEDDEDFILE",              new ProcessGroupAttemptEmbeddedFile() ),
+    new FilterMatcherImpl( "/archive/manifest/resources/resource/file",                       new ProcessResourceFile() ),
+    new FilterMatcherImpl( "/archive/catalogue/file",                                         new ProcessCatalogueFile() ),
+    new FilterMatcherImpl(                                                                    new ProcessOther() )          
   };
   
   public SecondPassFilter(
@@ -72,6 +74,29 @@ public class SecondPassFilter extends CombinerFilter
       ReaderNodeContext node = getContext().getReaderNodeContext();
       String memberid = node.getAttributeValue( Names.IDATTRIBUTE );
       addUserToPlan( node, memberid );
+    }
+  }
+  
+  class ProcessGroup implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String groupid = node.getAttributeValue( Names.IDATTRIBUTE );
+      addGroupToPlan( node, groupid );
+    }
+  }
+  
+  class ProcessGroupMembership implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String groupmemberid = node.getAttributeValue( Names.IDATTRIBUTE );
+      String gid = getContext().getFilterContext().getGroupMap().getGroupOfMember( groupmemberid );
+      addGroupToPlan( node, gid );
     }
   }
   
@@ -130,6 +155,62 @@ public class SecondPassFilter extends CombinerFilter
     }
   }
 
+  class ProcessGroupUpload implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String uploadid = node.getAttributeValue( Names.IDATTRIBUTE );
+      String groupid = getGeneralMap().get( "groupupload->group", uploadid );
+      addGroupToPlan( node, groupid );
+    }
+  }
+
+  class ProcessGroupAttemptFile implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String groupattemptfileid = node.getAttributeValue( Names.IDATTRIBUTE );
+      String groupattemptid = getGeneralMap().get( "groupattemptfile->groupattempt", groupattemptfileid );
+      String gid = getGeneralMap().get( "groupattempt->group", groupattemptid );
+      addGroupToPlan( node, gid );
+    }
+  }
+  
+  class ProcessGroupAttemptEmbeddedFile implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String bbcarvid = node.getAttributeValue( Names.BCARVIDATTRIBUTE );
+      // Although the element is "ATTEMPTID" this is really a reference to a group attempt
+      String groupattemptid = getGeneralMap().get( "bcarvid->groupattempt", bbcarvid );
+      String gid = getGeneralMap().get( "groupattempt->group", groupattemptid );
+      addGroupToPlan( node, gid );
+    }
+  }
+  
+  class ProcessResourceFile implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext parent = getContext().getReaderNodeContext( 1 );
+      String base = parent.getAttributeValue( Names.XMLBASEATTRIBUTE );
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String href = node.getAttributeValue( Names.HREFATTRIBUTE );
+      String fullhref = base + "/" + href;
+      String[] parts = fullhref.split( "/" );
+
+      processResourceFile( node, parts );
+    }
+  }  
+  
+  
   class ProcessCatalogueFile implements StartElementHandler
   {
     @Override
@@ -149,6 +230,11 @@ public class SecondPassFilter extends CombinerFilter
         processResourceFile( node, parts );
     }
     
+  }
+
+  
+  
+  
     void processCsFile( ReaderNodeContext node, String[] parts )
     {
       if ( parts.length >= 4 &&
@@ -169,6 +255,17 @@ public class SecondPassFilter extends CombinerFilter
           String memberid  = getGeneralMap().get( "outcome->member", outcomeid );
           // annotate the file node with student's IDs
           addUserToPlan( node, memberid );
+        }
+        else if ( parts.length >= 6 && 
+                ( "groupattempt".equals( parts[4] ) ||
+                  "groupattemptNotes".equals( parts[4] )
+                )
+           )
+        {
+          String gattemptid = parts[5];
+          String groupid = getGeneralMap().get( "groupattempt->group", gattemptid );
+          // annotate the file node with student's IDs
+          addGroupToPlan( node, groupid );
         }
         else if ( parts.length >= 6 && 
                     ( "gradeHistory".equals( parts[4] ) ||
@@ -198,8 +295,11 @@ public class SecondPassFilter extends CombinerFilter
       
       switch ( type )
       {
-        case "course/x-bb-attemptfiles" ->         processAttemptFile( node, parts );
-        case "course/x-bb-attemptembeddedfiles" -> processAttemptEmbeddedFile( node, parts );
+        case "course/x-bb-attemptfiles"              -> processAttemptFile( node, parts );
+        case "course/x-bb-attemptembeddedfiles"      -> processAttemptEmbeddedFile( node, parts );
+        case "course/x-bb-groupattemptfiles"         -> processGroupAttemptFile( node, parts );
+        case "course/x-bb-groupattemptembeddedfiles" -> processGroupAttemptEmbeddedFile( node, parts );
+        case "course/x-bb-groupupload"               -> processGroupUploadFile( node, parts );
         case "resource/x-bb-wiki" ->               processWikiFile( node, parts );
         default -> node.setWritePlan( null );
       }
@@ -227,13 +327,49 @@ public class SecondPassFilter extends CombinerFilter
       addUserToPlan( node, memberid );
     }
     
+    void processGroupAttemptFile( ReaderNodeContext node, String[] parts  )
+    {
+      if ( parts.length < 2 )
+        return;
+      
+      String groupattemptfileid = parts[1];
+      String groupattemptid = getGeneralMap().get( "groupattemptfile->groupattempt", groupattemptfileid );
+      String gid = getGeneralMap().get( "groupattempt->group", groupattemptid );
+      // annotate the file node with student's IDs
+      addGroupToPlan( node, gid );
+    }
+
+    void processGroupAttemptEmbeddedFile( ReaderNodeContext node, String[] parts  )
+    {
+      String groupattemptid = parts[1];
+      String gid = getGeneralMap().get( "groupattempt->group", groupattemptid );
+      // annotate the file node with student's IDs
+      addGroupToPlan( node, gid );
+    }
+    
+    void processGroupUploadFile( ReaderNodeContext node, String[] parts  )
+    {
+      if ( parts.length < 2 )
+        return;
+      String uploadid = parts[1];
+      String groupid = getGeneralMap().get( "groupupload->group", uploadid );
+      addGroupToPlan( node, groupid );
+    }
+
     void processWikiFile( ReaderNodeContext node, String[] parts  )
     {
       // Not handled yet so leave out in case student data in there
       node.setWritePlan( null );
     }
-  }
-
+  
+  
+  
+  
+  
+  
+  
+  
+  
   class ProcessOther implements StartElementHandler
   {
     @Override

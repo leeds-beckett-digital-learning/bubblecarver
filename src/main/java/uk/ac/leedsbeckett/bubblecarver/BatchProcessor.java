@@ -337,6 +337,13 @@ public class BatchProcessor implements Runnable
     public Exception firstException = null;
   }
   
+  /**
+   * Takes archive zip files one at a time and processes them.
+   * Two phases - combining many XML files from zip into one XML
+   * file and then splitting that into redacted copies, one for each
+   * student. As part of the splitting process relevant binary files
+   * are copied into the student directories.
+   */
   public class ArchiveCombinerProcessor implements Consumer<Path>
   {
     Telemetry telemetry;

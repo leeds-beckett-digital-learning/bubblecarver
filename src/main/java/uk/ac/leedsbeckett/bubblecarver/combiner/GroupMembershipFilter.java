@@ -55,7 +55,7 @@ public class GroupMembershipFilter extends CombinerFilter
       String groupid = node.getAttributeValue( Names.VALUEATTRIBUTE );
       String groupmemberid = parentnode.getAttributeValue( Names.IDATTRIBUTE );
       getContext().getFilterContext().getGroupMap().setGroupId( groupmemberid, groupid );
-      node.setWritePlan( null );
+      node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
     }
   }
 
@@ -69,7 +69,7 @@ public class GroupMembershipFilter extends CombinerFilter
       String memberid = node.getAttributeValue( Names.VALUEATTRIBUTE );
       String groupmemberid = parentnode.getAttributeValue( Names.IDATTRIBUTE );
       getContext().getFilterContext().getGroupMap().setCourseMembershipId( groupmemberid, memberid );      
-      node.setWritePlan( null );
+      node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
     }
   }
 
@@ -79,7 +79,7 @@ public class GroupMembershipFilter extends CombinerFilter
     public void handleStartElement() throws XMLStreamException
     {
       ReaderNodeContext node = getContext().getReaderNodeContext();
-      node.setWritePlan( null );
+      node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
     }
   }
 }

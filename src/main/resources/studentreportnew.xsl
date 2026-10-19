@@ -162,8 +162,29 @@
   </xsl:template>
   
   <xsl:template match="ATTEMPT">
-    <xsl:variable name="attemptid" select="@id"/>
+    <xsl:variable name="groupattemptid" select="string(GROUP_ATTEMPT_ID/@value)"/>
+    
     <h4>Attempt <xsl:value-of select="@id"/></h4>
+    <xsl:if test="string-length($groupattemptid) != 0">
+      <p>Individual assessment based on group assessment 
+        (gai = <xsl:value-of select="$groupattemptid"/>)
+        (odef = <xsl:value-of select="name( ../../../.. )"/>)
+      </p>
+      <div style="border: 1px solid black; padding 1em;">
+      <xsl:apply-templates select="../../../../GROUPATTEMPTS/GROUPATTEMPT[@id = $groupattemptid]" mode="attemptcontent"/>
+      </div>
+    </xsl:if>
+    
+    <xsl:apply-templates select="." mode="attemptcontent"/>
+    
+    <h5>Staged Grading</h5>
+    <xsl:apply-templates select="STAGED_GRADING_GROUP_ATTEMPT" mode="stagedattempt"/>
+    <xsl:apply-templates select="STAGED_GRADING_ATTEMPT" mode="stagedattempt"/>
+    
+  </xsl:template>
+  
+  
+  <xsl:template match="*" mode="attemptcontent">  
     <table>
       <tbody>
         <tr>
@@ -201,18 +222,14 @@
           <xsl:apply-templates select="STUDENTSUBMISSION"/>
         </div>
       </xsl:if>
-      <xsl:variable name="attachedfiles" select="/bbcarv:archive/manifest/resources/resource[@type = 'course/x-bb-attemptfiles']/bbcarv:data/ATTEMPTFILES/ATTEMPTFILE[ATTEMPTID/@value = $attemptid]"/>
-      <xsl:if test="count( $attachedfiles ) &gt; 0">
-        <h3>Attached Files</h3>
-        <ul>
-          <xsl:apply-templates select="$attachedfiles"/>
-        </ul>
-      </xsl:if>
+      <xsl:apply-templates select="." mode="attemptattachments"/>
+      
       <xsl:if test="ancestor::OUTCOMEDEFINITION/SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-wiki'">
         <xsl:variable name="gattemptid" select="GROUP_ATTEMPT_ID/@value"/>
         <xsl:variable name="wiki" select="ancestor::resources/resource[@type = 'resource/x-bb-wiki']/bbcarv:data/wiki[groupAttemptID/text() = $gattemptid]"/>
         <xsl:apply-templates select="$wiki"/>
       </xsl:if>
+      
     </div>
     <div class="attempt-comments">
       <h3>Feedback</h3>
@@ -224,8 +241,54 @@
     </div>
   </xsl:template>
 
+
+  <xsl:template match="ATTEMPT" mode="attemptattachments">
+    <xsl:variable name="aid" select="@id"/>
+    <xsl:variable name="restype" select="'course/x-bb-attemptfiles'"/>
+    <xsl:variable name="attachedfiles" 
+ select="/bbcarv:archive/manifest/resources/resource[@type=$restype]/bbcarv:data/ATTEMPTFILES/ATTEMPTFILE[ATTEMPTID/@value = $aid]"/>                
+    <h3>Attached Files - <xsl:value-of select="count( $attachedfiles )"/></h3>
+    <xsl:if test="count( $attachedfiles ) &gt; 0">
+      <ul>
+        <xsl:apply-templates select="$attachedfiles"/>
+      </ul>
+    </xsl:if>
+  </xsl:template>
+
+  <xsl:template match="GROUPATTEMPT" mode="attemptattachments">
+    <xsl:variable name="aid" select="@id"/>
+    <xsl:variable name="restype" select="'course/x-bb-groupattemptfiles'"/>
+    <xsl:variable name="attachedfiles" 
+ select="/bbcarv:archive/manifest/resources/resource[@type=$restype]/bbcarv:data/GROUPATTEMPTFILES/GROUPATTEMPTFILE[GROUPATTEMPTID/@value = $aid]"/>                
+    <xsl:if test="count( $attachedfiles ) &gt; 0">
+      <h3>Attached Files - <xsl:value-of select="count( $attachedfiles )"/></h3>
+      <ul>
+        <xsl:apply-templates select="$attachedfiles"/>
+      </ul>
+    </xsl:if>
+  </xsl:template>
+
+  <xsl:template match="*" mode="stagedattempt">
+    <div style="background: rgb(250,255,250)">
+      <table>
+        <tr>
+          <th>Date</th>
+          <td><xsl:value-of select="STAGED_GRADING_DATE_ADDED"/></td>
+        </tr>
+      </table>
+    </div>  
+  </xsl:template>
+    
   <xsl:template match="ATTEMPTFILE">
     <xsl:variable name="attemptid" select="ATTEMPTID/@value"/>
+    <xsl:variable name="relurl" select="concat( ../../../@xml:base, '/', @id, '/', FILE/NAME/text() )"/>
+    <li>
+      <a href="{$relurl}"><xsl:value-of select="FILE/NAME/text()"/></a>
+    </li>
+  </xsl:template>
+
+  <xsl:template match="GROUPATTEMPTFILE">
+    <xsl:variable name="attemptid" select="GROUPATTEMPTID/@value"/>
     <xsl:variable name="relurl" select="concat( ../../../@xml:base, '/', @id, '/', FILE/NAME/text() )"/>
     <li>
       <a href="{$relurl}"><xsl:value-of select="FILE/NAME/text()"/></a>

@@ -33,7 +33,19 @@ import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
 
 /**
- *
+ * Combines XML files into one big XML file with attributes added that will
+ * aid the process of redacting the XML for each student's view of it.
+ * 
+ * Pass 1a - find out which files in the archive are XML files that need
+ * to be included in the big XML file.
+ * Pass 1b - combine the XML files into one big one AND index on the fly.
+ * 
+ * Pass 2 - add attributes to the big XML to indicate which data belongs
+ * to which student or which group of students.
+ * 
+ * Some indexing data will be passed on to splitter to aid redaction and
+ * selection of binary files per student.
+ * 
  * @author maber01
  */
 public class BubbleCombiner
@@ -101,7 +113,7 @@ public class BubbleCombiner
       String s = archiveBasePath.relativize( f ).toString();
       list.add( s.replaceAll( "wildcard", "*" ) );
     }
-    zipper.extract( list );
+    zipper.extract( list ); //, courseBasePath.resolve( "filelist.txt" ) );
       
     try ( InputStream in = Files.newInputStream( context.inputPath );
           FileWriter fileWriter = new FileWriter( context.pass1bPath.toFile() );

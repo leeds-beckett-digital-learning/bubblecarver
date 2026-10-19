@@ -146,7 +146,7 @@ public class ManifestFilter extends CombinerFilter
           // The resource file itself
           wantedFiles.add( sourcePath );
           // Any files referenced by the resource file
-          wantedFiles.add( getContext().getFilterContext().inputBasePath.resolve( base ).resolve( "wildcard" ) );
+          // wantedFiles.add( getContext().getFilterContext().inputBasePath.resolve( base ).resolve( "wildcard" ) );
         }
         else
           processNormalResource( sourcePath );
@@ -180,11 +180,17 @@ public class ManifestFilter extends CombinerFilter
             subfilter = new GroupMembershipFilter( reader, getWriter(), ffc, getConfig() );
           case "course/x-bb-gradebook" ->
             subfilter = new GradebookFilter( reader, getWriter(), ffc, getConfig() );
+          case "course/x-bb-groupupload" ->
+            subfilter = new GroupUploadFilter( reader, getWriter(), ffc, getConfig() );
           case "course/x-bb-attemptfiles" ->
             subfilter = new AttemptFilesFilter( reader, getWriter(), ffc, getConfig() );
           case "course/x-bb-attemptembeddedfiles" ->
             // This is probably not needed? because there is no attempt file ID in the resource to record.
             subfilter = new AttemptEmbedFilesFilter( reader, getWriter(), ffc, getConfig() );
+          case "course/x-bb-groupattemptfiles" ->
+            subfilter = new GroupAttemptFilesFilter( reader, getWriter(), ffc, getConfig() );
+          case "course/x-bb-groupattemptembeddedfiles" ->
+            subfilter = new GroupAttemptEmbeddedFilesFilter( reader, getWriter(), ffc, getConfig() );
           case "course/x-bb-coursesetting" ->
             // Currently not handled in a special way - maybe dates are of interest.
             subfilter = new CourseSettingFilter( reader, getWriter(), ffc, getConfig() );
@@ -215,14 +221,19 @@ public class ManifestFilter extends CombinerFilter
     @Override
     public void handleStartElement() throws XMLStreamException, IOException
     {
-      getContext().getReaderNodeContext().setWritePlan( null );
-      
       ReaderNodeContext node = getContext().getReaderNodeContext();
-      String href = node.getAttributeValue( Names.HREFATTRIBUTE );
+      getContext().getReaderNodeContext().setWritePlan( new ElementWritePlan( node.getStartElement() ) );      
 
-      getWriter().writeStartElement( "bbcarv", "file", Names.BCARVNAMESPACE );
-      getWriter().writeAttribute( Names.HREFATTRIBUTE.getNamespaceURI(), Names.HREFATTRIBUTE.getLocalPart(), href );
-      getWriter().writeEndElement();
+      if ( dummyRun )
+      {
+        ReaderNodeContext parent = getContext().getReaderNodeContext( 1 );      
+        String base = parent.getStartElement().getAttributeByName( Names.XMLBASEATTRIBUTE ).getValue();
+        String href = node.getAttributeValue( Names.HREFATTRIBUTE );
+
+        Path sourcePath = getContext().getFilterContext().inputBasePath.resolve( base ).resolve( href );
+        System.out.println( "Processing resource FILE at " + sourcePath.toString() );
+        wantedFiles.add( sourcePath );
+      }      
     }
   }
   class ProcessOther implements StartElementHandler

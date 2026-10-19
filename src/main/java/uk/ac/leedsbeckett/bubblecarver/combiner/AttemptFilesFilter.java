@@ -53,7 +53,7 @@ public class AttemptFilesFilter extends CombinerFilter
       String attemptid = node.getAttributeValue( Names.VALUEATTRIBUTE );
       String attemptfileid = parent.getAttributeValue( Names.IDATTRIBUTE );
       
-      // Record the one to one relationship both ways
+      // Record the one to one relationship
       getGeneralMap().put( "attemptfile->attempt", attemptfileid, attemptid );
 
       node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );

@@ -61,6 +61,13 @@ public class GroupMap
     return group != null && group.contains( studentId );
   }
   
+  public String getGroupOfMember( String groupMembershipId )
+  {
+    Entry entry = map.get( groupMembershipId );
+    if ( entry == null ) return null;
+    return entry.getGroupId();
+  }
+  
   Entry getOrCreateEntry( String groupMembershipId )
   {
     Entry entry = map.get( groupMembershipId );
