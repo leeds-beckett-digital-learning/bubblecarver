@@ -31,19 +31,23 @@ public class WantedManifestResourceTypes
     "course/x-bb-attemptfiles",
 //    "course/x-bb-availability-rule",
 //    "course/x-bb-contenthandler",
-//    "course/x-bb-courseassessment",
+//    "course/x-bb-courseassessment",   // This is a BB test (aka quiz)
 //    "course/x-bb-coursemessage",
 //    "course/x-bb-coursemessagefolder",
     "course/x-bb-coursesetting",
-//    "course/x-bb-crsrubricassocation",
-//    "course/x-bb-crsrubriceval",
+    
+    "course/x-bb-crsrubricassocation",
+    "course/x-bb-crsrubriceval",
+    
     "course/x-bb-gradebook",
     "course/x-bb-group",
     "course/x-bb-groupattemptembeddedfiles",
     "course/x-bb-groupattemptfiles",
     "course/x-bb-groupupload",
 //    "course/x-bb-review-status",
-//    "course/x-bb-rubrics",
+    
+    "course/x-bb-rubrics",
+    
     "course/x-bb-user",
 //    "course/x-bb-usertestoption",
 //    "discussionboard/x-bb-usermsgstate",
@@ -52,7 +56,7 @@ public class WantedManifestResourceTypes
 //    "resource/x-bb-achievements",
 //    "resource/x-bb-attendance",
 //    "resource/x-bb-blog",
-//    "resource/x-bb-document",
+//    "resource/x-bb-document",  // perhaps should be "weird" because only certain types are of interest
 //    "resource/x-bb-retention",
 //    "resource/x-bb-task",
 //    "resource/x-bb-taskprogress",
@@ -72,6 +76,13 @@ public class WantedManifestResourceTypes
     return typeMap.contains( type );
   }
   
+  /**
+   * assessment/x-bb-qti-attempt resources are not XML 
+   * They are plain text files containing "This resource intentionally left blank"
+   * 
+   * @param type
+   * @return 
+   */
   public static boolean isWeird( String type )
   {
     return "course/x-bb-availability-rule".equals( type ) ||

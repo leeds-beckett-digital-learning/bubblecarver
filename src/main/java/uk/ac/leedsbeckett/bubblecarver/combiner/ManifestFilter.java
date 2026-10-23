@@ -137,17 +137,15 @@ public class ManifestFilter extends CombinerFilter
       System.out.println( "Processing resource at " + sourcePath.toString() );
       System.out.println( "Type = " + resourceType );
       
-      if ( WantedManifestResourceTypes.isWeird( resourceType ) )
-        processWeirdResource();
+      if ( dummyRun )
+      {
+        // The resource file itself
+        wantedFiles.add( sourcePath );
+      }
       else
       {
-        if ( dummyRun )
-        {
-          // The resource file itself
-          wantedFiles.add( sourcePath );
-          // Any files referenced by the resource file
-          // wantedFiles.add( getContext().getFilterContext().inputBasePath.resolve( base ).resolve( "wildcard" ) );
-        }
+        if ( WantedManifestResourceTypes.isWeird( resourceType ) )
+          processWeirdResource();
         else
           processNormalResource( sourcePath );
       }
@@ -212,10 +210,24 @@ public class ManifestFilter extends CombinerFilter
     
     public void processWeirdResource() throws XMLStreamException, IOException
     {
+      // do nothing with the resource itself - leave it empty
       
+      // qti-attempts have a plain text (not xml) nothing to see here
+      // resource - all relevent data is in the associated resource directory
+      // This will make it difficult for the second pass filter to
+      // mark up those files.
+      
+      // Most availability rule resources are NOT of interest. However,
+      // from time to time they refer to achievements and these contain
+      // important information about students.  The availability is the
+      // only way to work out which students own which acheivments.
     }
   }
   
+  
+  /**
+   * Will process files for 'weird' resources types too
+   */
   class ProcessResourceFile implements StartElementHandler
   {
     @Override
