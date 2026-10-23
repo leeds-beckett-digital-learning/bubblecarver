@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import uk.ac.leedsbeckett.bubblecarver.data.WantedFiles;
 import uk.ac.leedsbeckett.bubblecarver.data.WantedManifestResourceTypes;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
@@ -47,7 +48,7 @@ public class ManifestFilter extends CombinerFilter
   CombinerFilter subfilter;
   
   final boolean dummyRun;
-  final ArrayList<Path> wantedFiles;
+  final WantedFiles wantedFiles;
   
   public ManifestFilter(
           XMLEventReader reader, 
@@ -58,11 +59,11 @@ public class ManifestFilter extends CombinerFilter
   {
     super( reader, writer, context, config );
     this.dummyRun = dummyRun;
-    wantedFiles = dummyRun ? new ArrayList<>() : null;
+    wantedFiles = dummyRun ? new WantedFiles() : null;
     setMatchers( matchers );
   }
 
-  public ArrayList<Path> getWantedFiles()
+  public WantedFiles getWantedFiles()
   {
     return wantedFiles;
   }
@@ -140,7 +141,7 @@ public class ManifestFilter extends CombinerFilter
       if ( dummyRun )
       {
         // The resource file itself
-        wantedFiles.add( sourcePath );
+        wantedFiles.addForCombiner( sourcePath );
       }
       else
       {
@@ -192,6 +193,8 @@ public class ManifestFilter extends CombinerFilter
           case "course/x-bb-coursesetting" ->
             // Currently not handled in a special way - maybe dates are of interest.
             subfilter = new CourseSettingFilter( reader, getWriter(), ffc, getConfig() );
+          case "course/x-bb-crsrubriceval" ->
+            subfilter = new RubricEvalFilter( reader, getWriter(), ffc, getConfig() );
           default -> 
             subfilter = new DefaultResourceFilter( reader, getWriter(), ffc, getConfig() );
         }
@@ -244,7 +247,7 @@ public class ManifestFilter extends CombinerFilter
 
         Path sourcePath = getContext().getFilterContext().inputBasePath.resolve( base ).resolve( href );
         System.out.println( "Processing resource FILE at " + sourcePath.toString() );
-        wantedFiles.add( sourcePath );
+        wantedFiles.addForSplitter( sourcePath );
       }      
     }
   }

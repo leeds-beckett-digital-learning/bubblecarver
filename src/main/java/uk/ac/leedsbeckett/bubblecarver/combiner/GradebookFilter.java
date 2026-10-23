@@ -38,8 +38,14 @@ public class GradebookFilter extends CombinerFilter
             new ProcessOutcomeMembershipId() ),
     new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT",
             new ProcessAttempt() ),
+    new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/OUTCOMES/OUTCOME" + ""
+                         + "/ATTEMPTS/ATTEMPT/STAGED_GRADING_ATTEMPTS/STAGED_GRADING_ATTEMPT",
+                            new ProcessStagedAttempt() ),
     new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/GROUPATTEMPTS/GROUPATTEMPT/GROUPID",
             new ProcessGroupAttemptGroupId() ),
+    new FilterMatcherImpl( "/GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/GROUPATTEMPTS/GROUPATTEMPT" + 
+                           "/STAGED_GRADING_GROUP_ATTEMPTS/STAGED_GRADING_GROUP_ATTEMPT",
+                           new ProcessStagedGroupAttempt() ),
     new FilterMatcherImpl( "/GRADEBOOK/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY",
             new ProcessHistoryEntry() ),
     new FilterMatcherImpl( "/GRADEBOOK/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY/USERID",
@@ -138,6 +144,25 @@ public class GradebookFilter extends CombinerFilter
       attempt.setWritePlan( new ElementWritePlan( attempt.getStartElement() ) );
     }
   }
+
+  class ProcessStagedAttempt implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext stagedattempt   = getContext().getReaderNodeContext();
+      ReaderNodeContext outcome = getContext().getReaderNodeContext( 4 );
+      
+      getGeneralMap().put( 
+              "stagedattempt->outcome", 
+              stagedattempt.getAttributeValue(Names.IDATTRIBUTE), 
+              outcome.getAttributeValue(Names.IDATTRIBUTE) );
+              
+      // Clone the incoming element
+      stagedattempt.setWritePlan( new ElementWritePlan( stagedattempt.getStartElement() ) );
+    }
+  }
+  
   
   class ProcessGroupAttemptGroupId implements StartElementHandler
   {
@@ -156,6 +181,25 @@ public class GradebookFilter extends CombinerFilter
       groupid.setWritePlan( new ElementWritePlan( groupid.getStartElement() ) );
     }
   }
+
+  class ProcessStagedGroupAttempt implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext stagedgattempt   = getContext().getReaderNodeContext();
+      ReaderNodeContext groupattempt = getContext().getReaderNodeContext( 2 );
+      
+      getGeneralMap().put( 
+              "stagedgroupattempt->groupattempt", 
+              stagedgattempt.getAttributeValue(Names.IDATTRIBUTE), 
+              groupattempt.getAttributeValue(Names.IDATTRIBUTE) );
+              
+      // Clone the incoming element
+      stagedgattempt.setWritePlan( new ElementWritePlan( stagedgattempt.getStartElement() ) );
+    }
+  }
+  
   
   class ProcessHistoryEntry implements StartElementHandler
   {

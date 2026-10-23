@@ -28,6 +28,7 @@ import java.util.Properties;
 import javax.xml.stream.*;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
+import uk.ac.leedsbeckett.bubblecarver.data.WantedFiles;
 import uk.ac.leedsbeckett.bubblecarver.stax.StaxFileCataloguer;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
@@ -62,7 +63,7 @@ public class BubbleCombiner
   BubbleCombinerContext context;
   GeneralMap generalMap;
   GroupMap groupMap;
-  List<Path> wantedFiles = null;
+  WantedFiles wantedFiles = null;
   List<String> interestingStudentIds;
   final Properties packageInfo = new Properties();
   
@@ -106,14 +107,13 @@ public class BubbleCombiner
     {
       passOne( in, fileWriter, true );
     }      
+    
+    generalMap.dump( courseBasePath.resolve( "generalmap1.txt" ) );    
 
     ArrayList<String> list = new ArrayList<>();
-    for ( Path f : wantedFiles )
-    {
-      String s = archiveBasePath.relativize( f ).toString();
-      list.add( s.replaceAll( "wildcard", "*" ) );
-    }
-    zipper.extract( list ); //, courseBasePath.resolve( "filelist.txt" ) );
+    for ( Path f : wantedFiles.getForCombiner() )
+      list.add( archiveBasePath.relativize( f ).toString() );
+    zipper.extract( list );
       
     try ( InputStream in = Files.newInputStream( context.inputPath );
           FileWriter fileWriter = new FileWriter( context.pass1bPath.toFile() );
@@ -121,6 +121,8 @@ public class BubbleCombiner
     {
       passOne( in, fileWriter, false );      
     }
+
+    generalMap.dump( courseBasePath.resolve( "generalmap2.txt" ) );    
     
     try ( InputStream in = Files.newInputStream( context.pass1bPath );
           FileWriter fileWriter = new FileWriter( context.outputPath.toFile() );
@@ -128,6 +130,11 @@ public class BubbleCombiner
     {
       passTwo( in, fileWriter );
     }
+
+    list = new ArrayList<>();
+    for ( Path f : wantedFiles.getForSplitter() )
+      list.add( archiveBasePath.relativize( f ).toString() );
+    zipper.extract( list );
   }
   
   public void passOne( InputStream in, FileWriter fileWriter, boolean dummyRun ) throws XMLStreamException, IOException

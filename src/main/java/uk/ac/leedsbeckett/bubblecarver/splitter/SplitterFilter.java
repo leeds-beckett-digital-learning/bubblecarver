@@ -24,10 +24,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
+import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import uk.ac.leedsbeckett.bubblecarver.combiner.Names;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 
@@ -37,6 +39,12 @@ import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
  */
 public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeContext,WriterNodeContext>
 {
+  String[] mustHaveStudentOrGroupElements = 
+  {
+    "GRADE_HISTORY_ENTRY",
+    "RUBRIC_EVALUATION"
+  };
+  
   FilterMatcherImpl[] matchers = 
   {
     new FilterMatcherImpl( "/archive",                     new ProcessArchive()      ),
@@ -170,7 +178,19 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
       }
       else
       {
-        // Non student node to clone out and continue
+        // Non student/group node
+        // but is it an element that should be?
+        QName n = node.getStartElement().getName();
+        String local = n.getLocalPart();
+        for ( String element : mustHaveStudentOrGroupElements )
+          if ( element.equals( local ) )
+          {
+            node.setWritePlan( null );
+            node.setMode( Mode.WRONGSTUDENT );          
+            return;
+          }
+        
+        //clone out and continue
         node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
       }
     }

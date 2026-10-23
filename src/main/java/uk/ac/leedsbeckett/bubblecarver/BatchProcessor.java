@@ -443,7 +443,6 @@ public class BatchProcessor implements Runnable
 
       Path cp = bc.getCourseBasePath();
       GeneralMap genmap = bc.getGeneralMap();
-      genmap.dump( cp.resolve( "generalmap.txt" ) );
       GroupMap groupmap = bc.getGroupMap();
       groupmap.rebuild( genmap );
 

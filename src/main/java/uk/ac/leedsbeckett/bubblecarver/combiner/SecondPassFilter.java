@@ -18,6 +18,7 @@ package uk.ac.leedsbeckett.bubblecarver.combiner;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import org.apache.commons.lang3.StringUtils;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 
 /**
@@ -28,6 +29,7 @@ public class SecondPassFilter extends CombinerFilter
 {
   FilterMatcherImpl[] matchers = 
   {
+    new FilterMatcherImpl( Mode.OMIT,                                                         new ProcessOmitted() ),
     new FilterMatcherImpl( "USERS/USER",                                                      new ProcessUser() ),
     new FilterMatcherImpl( "COURSEMEMBERSHIPS/COURSEMEMBERSHIP",                              new ProcessMembership() ),
     new FilterMatcherImpl( "GROUPS/GROUP",                                                    new ProcessGroup() ),
@@ -39,6 +41,7 @@ public class SecondPassFilter extends CombinerFilter
     new FilterMatcherImpl( "GROUPUPLOADS/UPLOAD",                                             new ProcessGroupUpload() ),
     new FilterMatcherImpl( "GROUPATTEMPTFILES/GROUPATTEMPTFILE",                              new ProcessGroupAttemptFile() ),
     new FilterMatcherImpl( "GROUPATTEMPTEMBEDDEDFILES/GROUPATTEMPTEMBEDDEDFILE",              new ProcessGroupAttemptEmbeddedFile() ),
+    new FilterMatcherImpl( "RUBRIC_EVALUATION_COLLECTION/RUBRIC_EVALUATION",                  new ProcessRubricEvaluation() ),
     new FilterMatcherImpl( "/archive/manifest/resources/resource/file",                       new ProcessResourceFile() ),
     new FilterMatcherImpl( "/archive/catalogue/file",                                         new ProcessCatalogueFile() ),
     new FilterMatcherImpl(                                                                    new ProcessOther() )          
@@ -191,6 +194,78 @@ public class SecondPassFilter extends CombinerFilter
       String groupattemptid = getGeneralMap().get( "bcarvid->groupattempt", bbcarvid );
       String gid = getGeneralMap().get( "groupattempt->group", groupattemptid );
       addGroupToPlan( node, gid );
+    }
+  }
+  
+  class ProcessRubricEvaluation implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      String userid = null;
+      String memberid = null;
+      String gid = null;
+      String outcomeid = null;
+      
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String rubevalid = node.getAttributeValue( Names.IDATTRIBUTE );
+
+      // One only of these will be non-empty
+      String gradeid          = getGeneralMap().get( "rubriceval->grade", rubevalid );
+      String attemptid        = getGeneralMap().get( "rubriceval->attempt", rubevalid );
+      String groupattemptid   = getGeneralMap().get( "rubriceval->groupattempt", rubevalid );
+      String qtidataid        = getGeneralMap().get( "rubriceval->qtidata", rubevalid );
+      String gradehistoryid   = getGeneralMap().get( "rubriceval->gradehistory", rubevalid );
+      String stagedattemptid  = getGeneralMap().get( "rubriceval->stagedattempt", rubevalid );
+      String stagedgrpattid   = getGeneralMap().get( "rubriceval->stagedgroupattempt", rubevalid );
+      
+      if ( !StringUtils.isBlank( gradehistoryid ) )
+      {
+        userid = getGeneralMap().get( "gradehistoryentry->user", gradehistoryid );
+        memberid = getGeneralMap().get( "user->member", userid );
+        if ( memberid == null )
+        {
+          // If there is a grade history entry for a user who has been
+          // removed from the course, redact the entry or leave it in?
+          // Leave in but remember to redact to student specific data.
+          node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
+          return;
+        }
+      }
+      else if ( !StringUtils.isBlank( attemptid ) )
+      {
+        outcomeid = getGeneralMap().get( "attempt->outcome", attemptid );
+        memberid  = getGeneralMap().get( "outcome->member", outcomeid );
+      }
+      else if ( !StringUtils.isBlank( stagedattemptid ) )
+      {
+        outcomeid = getGeneralMap().get( "stagedattempt->outcome", stagedattemptid );
+        memberid  = getGeneralMap().get( "outcome->member", outcomeid );
+      }
+      else if ( !StringUtils.isBlank( groupattemptid ) )
+      {
+        gid = getGeneralMap().get( "groupattempt->group", groupattemptid );
+      }
+      else if ( !StringUtils.isBlank( stagedgrpattid ) )
+      {
+        groupattemptid = getGeneralMap().get( "stagedgroupattempt->groupattempt", stagedgrpattid );
+        gid = getGeneralMap().get( "groupattempt->group", groupattemptid );
+      }
+      else if ( !StringUtils.isBlank( gradeid ) )
+        throw new IllegalArgumentException( "Cannot handle rubrics attached to a gradebook grade." );
+      else if ( !StringUtils.isBlank( qtidataid ) )
+        throw new IllegalArgumentException( "Cannot handle rubrics attached to QTI data." );
+      else
+        throw new IllegalArgumentException( "Rubric evaluation that doesn't seem to be attached to anything." );
+      
+//      if ( memberid == null && gid == null )
+//        throw new IllegalArgumentException( "Unable to attribute rubric evaluation to a student or a group." );
+        
+      if ( memberid != null )
+        addUserToPlan( node, memberid );
+      
+      if ( gid != null )
+        addGroupToPlan( node, gid );
     }
   }
   
@@ -361,14 +436,15 @@ public class SecondPassFilter extends CombinerFilter
       // Not handled yet so leave out in case student data in there
       node.setWritePlan( null );
     }
-  
-  
-  
-  
-  
-  
-  
-  
+    
+  class ProcessOmitted implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      getContext().getReaderNodeContext().setWritePlan( null );
+    }
+  }
   
   class ProcessOther implements StartElementHandler
   {
