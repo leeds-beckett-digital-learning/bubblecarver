@@ -25,6 +25,9 @@
       <head>
         <title>Student Course Report <xsl:value-of select="$sid"/></title>
         <link rel="stylesheet" href="../../../css/report.css" />
+        <style>
+          details { padding-left: 2em; }
+        </style>
       </head>
       <body>
         <h1><xsl:value-of select="$sid"/></h1>
@@ -35,6 +38,10 @@
         <h1><xsl:value-of select=".//COURSE/TITLE/@value"/></h1>
         <h2><xsl:value-of select=".//COURSE/COURSEID/@value"/></h2>
         <h1>Grade Centre Data</h1>
+        <p>
+          <strong>Caveat</strong>
+          Rubric information is not yet included in this report.
+        </p>
         <table>
           <thead>
             <tr>
@@ -52,7 +59,6 @@
         </table>
         <h1>Grade Centre History</h1>
         <xsl:apply-templates select="$gradebook/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY"/>
-        <script src="../../../script/report.js"></script>
       </body>
     </html>
   </xsl:template>
@@ -104,15 +110,9 @@
     <xsl:if test="count( OUTCOMES/OUTCOME ) = 1">
       <tr>
         <th>
-          <span style="display: none;" class="collapse-detail" id="{concat( 'collapser-', @id )}" data-id="{concat( @id )}">
-            <svg width="20px" height="20px" fill="#000000" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><title>box-minus</title><path d="M96 448Q82 448 73 439 64 430 64 416L64 96Q64 82 73 73 82 64 96 64L416 64Q430 64 439 73 448 82 448 96L448 416Q448 430 439 439 430 448 416 448L96 448ZM368 280L368 232 144 232 144 280 368 280Z"></path></g></svg>
-          </span>
-          <span class="expand-detail" id="{concat( 'expander-', @id )}" data-id="{concat( @id )}">
-            <svg width="20px" height="20px" fill="#000000" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><title>box-plus</title><path d="M96 448Q82 448 73 439 64 430 64 416L64 96Q64 82 73 73 82 64 96 64L416 64Q430 64 439 73 448 82 448 96L448 416Q448 430 439 439 430 448 416 448L96 448ZM280 368L280 280 368 280 368 232 280 232 280 144 232 144 232 232 144 232 144 280 232 280 232 368 280 368Z"></path></g></svg>
-          </span>
         </th>
         <td colspan="5">
-          <div class="detail" style="display: none" id="{concat( 'detail-', @id )}">
+          <div class="detail" id="{concat( 'detail-', @id )}">
           <xsl:apply-templates select="OUTCOMES/OUTCOME"/>
           </div>
         </td>
@@ -158,29 +158,32 @@
         <xsl:apply-templates select="INSTRUCTOR_COMMENTS" mode="override"/>
       </div>      
     </xsl:if>
-    <xsl:apply-templates select="ATTEMPTS/ATTEMPT"/>
+    <xsl:if test="count(ATTEMPTS/ATTEMPT) &gt; 1">
+      <p>In reverse date order</p>
+    </xsl:if>
+    <xsl:apply-templates select="ATTEMPTS/ATTEMPT">
+      <xsl:sort select="DATEATTEMPTED/@value" order="descending"/>
+    </xsl:apply-templates>
   </xsl:template>
   
   <xsl:template match="ATTEMPT">
     <xsl:variable name="groupattemptid" select="string(GROUP_ATTEMPT_ID/@value)"/>
     
-    <h4>Attempt <xsl:value-of select="@id"/></h4>
-    <xsl:if test="string-length($groupattemptid) != 0">
-      <p>Individual assessment based on group assessment 
-        (gai = <xsl:value-of select="$groupattemptid"/>)
-        (odef = <xsl:value-of select="name( ../../../.. )"/>)
-      </p>
-      <div style="border: 1px solid black; padding 1em;">
-      <xsl:apply-templates select="../../../../GROUPATTEMPTS/GROUPATTEMPT[@id = $groupattemptid]" mode="attemptcontent"/>
-      </div>
-    </xsl:if>
-    
-    <xsl:apply-templates select="." mode="attemptcontent"/>
-    
-    <h5>Staged Grading</h5>
-    <xsl:apply-templates select="STAGED_GRADING_GROUP_ATTEMPT" mode="stagedattempt"/>
-    <xsl:apply-templates select="STAGED_GRADING_ATTEMPT" mode="stagedattempt"/>
-    
+    <details>
+      <summary>Attempt <xsl:value-of select="DATEATTEMPTED/@value"/></summary>
+      <xsl:if test="string-length($groupattemptid) != 0">
+        <p>The individual assessment is based on a group assessment.</p>
+        <details>
+          <summary>Group assessment details</summary>
+          <xsl:apply-templates select="../../../../GROUPATTEMPTS/GROUPATTEMPT[@id = $groupattemptid]" mode="attemptcontent"/>
+        </details>
+      </xsl:if>
+
+      <details>
+        <summary>Individual assessment details</summary>
+        <xsl:apply-templates select="." mode="attemptcontent"/>
+      </details>
+    </details>
   </xsl:template>
   
   
@@ -213,6 +216,31 @@
         </tr>
       </tbody>
     </table>
+
+    <xsl:if test="count( STAGED_GRADING_GROUP_ATTEMPTS/STAGED_GRADING_GROUP_ATTEMPT ) &gt; 0">
+      <details>
+        <summary>Staged Group Grading</summary>
+        <xsl:if test="count( STAGED_GRADING_GROUP_ATTEMPTS/STAGED_GRADING_GROUP_ATTEMPT ) &gt; 1">
+          <p>In reverse date order</p>
+        </xsl:if>
+        <xsl:apply-templates select="STAGED_GRADING_GROUP_ATTEMPTS/STAGED_GRADING_GROUP_ATTEMPT" mode="stagedattempt">
+          <xsl:sort select="STAGED_GRADING_DATE_ADDED"  order="descending"/>
+        </xsl:apply-templates>
+      </details>
+    </xsl:if>
+    
+    <xsl:if test="count( STAGED_GRADING_ATTEMPTS/STAGED_GRADING_ATTEMPT ) &gt; 0">
+      <details>
+        <summary>Staged Grading</summary>
+        <xsl:if test="count( STAGED_GRADING_ATTEMPTS/STAGED_GRADING_ATTEMPT ) &gt; 1">
+          <p>In reverse date order</p>
+        </xsl:if>
+        <xsl:apply-templates select="STAGED_GRADING_ATTEMPTS/STAGED_GRADING_ATTEMPT" mode="stagedattempt">
+          <xsl:sort select="STAGED_GRADING_DATE_ADDED"  order="descending"/>
+        </xsl:apply-templates>
+      </details>
+    </xsl:if>
+        
     <div class="attempt-submission">
       <!-- may or may not have text directly in the attempt depending on
       the type of item. -->
@@ -268,13 +296,53 @@
     </xsl:if>
   </xsl:template>
 
+
   <xsl:template match="*" mode="stagedattempt">
-    <div style="background: rgb(250,255,250)">
+
+    <div style="background: rgb(250,255,250);">
       <table>
         <tr>
           <th>Date</th>
-          <td><xsl:value-of select="STAGED_GRADING_DATE_ADDED"/></td>
+          <td><xsl:value-of select="STAGED_GRADING_DATE_ADDED/@value"/></td>
         </tr>
+        <tr>
+          <th>Status</th>
+          <td><xsl:value-of select="STAGED_GRADING_STATUS/@value"/></td>
+        </tr>
+        <tr>
+          <th>Score</th>
+          <td><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( STAGED_GRADING_SCORE/@value )"/></td>
+        </tr>
+        <tr>
+          <th>Grade</th>
+          <td><xsl:value-of select="STAGED_GRADING_GRADE/@value"/></td>
+        </tr>
+        <tr>
+          <th>Marker Feedback</th>
+          <td>
+            <xsl:if test="count(STAGED_GRADING_INSTRUCTOR_COMMENT) = 1">
+              <xsl:variable name="dir">
+                <xsl:choose>
+                  <xsl:when test="name() = 'STAGED_GRADING_GROUP_ATTEMPT'">/groupattempt/</xsl:when>
+                  <xsl:otherwise>/attempt/</xsl:otherwise>
+                </xsl:choose>
+              </xsl:variable>
+              <xsl:variable name="stagedid" select="@id"/>
+              <xsl:variable name="aid" select="../STAGED_GRADING_RELATED_ATTEMPT_ID/@value"/>
+              <xsl:variable name="comment" select="STAGED_GRADING_INSTRUCTOR_COMMENT/@value"/>
+              <xsl:variable name="commenttype" select="STAGED_GRADING_FEEDBACK_FORMAT_TYPE/@value"/>
+              <xsl:variable name="embeddedbase" 
+                select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback', $dir, $aid, '/', $stagedid, '/' )"/>
+              <xsl:call-template name="textoutputgeneral">
+                <xsl:with-param name="original" select="$comment"/>
+                <xsl:with-param name="type" select="$commenttype"/>
+                <xsl:with-param name="base" select="$embeddedbase"/>
+                <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
+              </xsl:call-template>
+            </xsl:if>
+          </td>
+        </tr>
+        
       </table>
     </div>  
   </xsl:template>
@@ -392,7 +460,7 @@
       <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
     </xsl:call-template>
   </xsl:template>
-    
+
   <xsl:template match="INSTRUCTORNOTES">
     <xsl:variable name="attemptid" select="../@id"/>
     <xsl:variable name="embeddedbase" select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback/attemptNotes/', $attemptid, '/' )"/>
@@ -433,10 +501,23 @@
     <xsl:param name="base"/>
     <xsl:param name="v"/>
     <xsl:variable name="original" select="TEXT/text()"/>
+    <xsl:call-template name="textoutputgeneral">
+      <xsl:with-param name="original" select="$original"/>
+      <xsl:with-param name="type" select="$t/TYPE/@value"/>
+      <xsl:with-param name="base" select="$base"/>
+      <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
+    </xsl:call-template>
+  </xsl:template>
+
+  <xsl:template name="textoutputgeneral">
+    <xsl:param name="original"/>
+    <xsl:param name="type"/>
+    <xsl:param name="base"/>
+    <xsl:param name="v"/>
     <xsl:variable name="rebased" select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.replace( $original, $v, $base )"/>
     
     <xsl:choose>
-      <xsl:when test="$t/TYPE/@value = 'H'">
+      <xsl:when test="$type = 'H'">
         <div class="userhtml">
           <xsl:value-of select="$rebased" disable-output-escaping="yes"/>
         </div>
@@ -448,6 +529,7 @@
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
+
 
   <xsl:template name="textoutputwiki">
     <xsl:param name="t"/>
