@@ -38,15 +38,12 @@
         <h1><xsl:value-of select=".//COURSE/TITLE/@value"/></h1>
         <h2><xsl:value-of select=".//COURSE/COURSEID/@value"/></h2>
         <h1>Grade Centre Data</h1>
-        <p>
-          <strong>Caveat</strong>
-          Rubric information is not yet included in this report.
-        </p>
+
         <table>
           <thead>
             <tr>
               <th>Title</th>
-              <th>Type</th>
+              <th class="type-cell">Type</th>
               <th>Points Avail.</th>
               <th>Attempts</th>
               <th>Points</th>
@@ -74,7 +71,7 @@
     <xsl:variable name="url" select="bbcarv:document/bbcarv:URL/@value"/>
     <tr>
       <th><xsl:value-of select="$title"/></th>
-      <td>
+      <td class="type-cell">
         <xsl:if test="count( GROUPATTEMPTS/GROUPATTEMPT ) &gt; 0">Group </xsl:if>
         <xsl:choose>
           <xsl:when test="'true' = ISCALCULATED/@value">Calculated: <xsl:value-of select="CALCULATIONTYPE/@value"/></xsl:when>
@@ -109,9 +106,9 @@
     </tr>
     <xsl:if test="count( OUTCOMES/OUTCOME ) = 1">
       <tr>
-        <th>
-        </th>
-        <td colspan="5">
+        <td></td>
+        <td></td>
+        <td colspan="4">
           <div class="detail" id="{concat( 'detail-', @id )}">
           <xsl:apply-templates select="OUTCOMES/OUTCOME"/>
           </div>
@@ -224,19 +221,18 @@
           <p>In reverse date order</p>
         </xsl:if>
         <xsl:apply-templates select="STAGED_GRADING_GROUP_ATTEMPTS/STAGED_GRADING_GROUP_ATTEMPT" mode="stagedattempt">
-          <xsl:sort select="STAGED_GRADING_DATE_ADDED"  order="descending"/>
+          <xsl:sort select="@id"  order="descending"/>
         </xsl:apply-templates>
       </details>
     </xsl:if>
     
     <xsl:if test="count( STAGED_GRADING_ATTEMPTS/STAGED_GRADING_ATTEMPT ) &gt; 0">
       <details>
-        <summary>Staged Grading</summary>
         <xsl:if test="count( STAGED_GRADING_ATTEMPTS/STAGED_GRADING_ATTEMPT ) &gt; 1">
           <p>In reverse date order</p>
         </xsl:if>
         <xsl:apply-templates select="STAGED_GRADING_ATTEMPTS/STAGED_GRADING_ATTEMPT" mode="stagedattempt">
-          <xsl:sort select="STAGED_GRADING_DATE_ADDED"  order="descending"/>
+          <xsl:sort select="@id"  order="descending"/>
         </xsl:apply-templates>
       </details>
     </xsl:if>
@@ -298,7 +294,21 @@
 
 
   <xsl:template match="*" mode="stagedattempt">
-
+    <xsl:variable name="stagedid" select="@id"/>
+    <!-- -->
+    <xsl:variable name="rubricevalcount">
+      <xsl:choose>
+        <xsl:when test="name() = 'STAGED_GRADING_GROUP_ATTEMPT'">
+          <xsl:value-of select="count( //RUBRIC_EVALUATION_COLLECTION/RUBRIC_EVALUATION[STAGED_GROUP_ATTEMPT_ID/@value = $stagedid] )"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="count( //RUBRIC_EVALUATION_COLLECTION/RUBRIC_EVALUATION[STAGED_ATTEMPT_ID/@value = $stagedid] )"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:variable name="rubriceval" 
+      select="//RUBRIC_EVALUATION_COLLECTION/RUBRIC_EVALUATION[STAGED_GROUP_ATTEMPT_ID/@value = $stagedid] | //RUBRIC_EVALUATION_COLLECTION/RUBRIC_EVALUATION[STAGED_ATTEMPT_ID/@value = $stagedid]"/>
+    <!-- -->
     <div style="background: rgb(250,255,250);">
       <table>
         <tr>
@@ -327,7 +337,6 @@
                   <xsl:otherwise>/attempt/</xsl:otherwise>
                 </xsl:choose>
               </xsl:variable>
-              <xsl:variable name="stagedid" select="@id"/>
               <xsl:variable name="aid" select="../STAGED_GRADING_RELATED_ATTEMPT_ID/@value"/>
               <xsl:variable name="comment" select="STAGED_GRADING_INSTRUCTOR_COMMENT/@value"/>
               <xsl:variable name="commenttype" select="STAGED_GRADING_FEEDBACK_FORMAT_TYPE/@value"/>
@@ -342,7 +351,13 @@
             </xsl:if>
           </td>
         </tr>
-        
+        <xsl:if test="$rubricevalcount &gt; 0">
+          <tr>
+            <td colspan="2">
+              <xsl:apply-templates select="$rubriceval"/>
+            </td>
+          </tr>
+        </xsl:if>
       </table>
     </div>  
   </xsl:template>
@@ -494,6 +509,54 @@
       <xsl:with-param name="base" select="$embeddedbase"/>
       <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
     </xsl:call-template>
+  </xsl:template>
+
+
+  <xsl:template match="RUBRIC_EVALUATION">
+    <xsl:variable name="rubeval" select="."/>
+    <xsl:variable name="embeddedbase" select="./ancestor::resource/@xml:base"/>    
+    <xsl:variable name="rubricid" select="RUBRIC_ID/@value"/>
+    <xsl:variable name="rubric"   select="/bbcarv:archive/manifest/resources/resource/bbcarv:data/LEARNRUBRICS/Rubric[@id = $rubricid]"/>
+<!--    <xsl:variable name="columns"  select="count($rubric/RubricRows/Row[1]/RubricColumns/Column)"/> -->
+    <p>Rubric here. Rubric ID = <xsl:value-of select="$rubricid"/></p>
+    <p>Rubric count = <xsl:value-of select="count($rubric)"/></p>
+    <table>
+      <xsl:for-each select="$rubric/RubricRows/Row">
+        <xsl:sort select="Position/@value"/>
+        <xsl:variable name="rowid" select="@id"/>
+        <tr>
+          <th><xsl:value-of select="./Header/@value"/></th>
+          <xsl:for-each select="RubricColumns/Column">
+            <xsl:sort select="Position/@value"/>
+            <td>
+              <h4><xsl:value-of select="./Header/@value"/></h4>
+              <p><xsl:value-of select="./Cell/CellDescription/@value"/></p>
+            </td>
+          </xsl:for-each>
+        </tr>
+        <tr>
+          <th></th>
+          <xsl:for-each select="RubricColumns/Column">
+            <xsl:sort select="Position/@value"/>
+            <xsl:variable name="cellid" select="Cell/@id"/>
+            <xsl:variable name="evalcell" select="$rubeval/RUBRIC_EVAL/RUBRIC_CELL_EVAL[RUBRIC_CELL_ID/@value = $cellid]"/>            
+            <td>
+              <p><xsl:value-of select="$cellid"/> =
+              <xsl:if test="count($evalcell) = 1">
+                <xsl:value-of select="$evalcell/@id"/>
+                <xsl:call-template name="textoutputgeneral">
+                  <xsl:with-param name="original" select="$evalcell/FEEDBACK/FEEDBACK_TEXT/text()"/>
+                  <xsl:with-param name="type" select="$evalcell/FEEDBACK/FLAGS/FORMATTED_TYPE/@value"/>
+                  <xsl:with-param name="base" select="$embeddedbase"/>
+                  <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
+                </xsl:call-template>
+              </xsl:if>
+              </p>
+            </td>
+          </xsl:for-each>
+        </tr>
+      </xsl:for-each>
+    </table>
   </xsl:template>
 
   <xsl:template name="textoutput">

@@ -16,14 +16,23 @@
 package uk.ac.leedsbeckett.bubblecarver.combiner;
 
 import com.sun.xml.txw2.output.IndentingXMLStreamWriter;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import javax.xml.stream.*;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
@@ -31,6 +40,7 @@ import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
 import uk.ac.leedsbeckett.bubblecarver.data.WantedFiles;
 import uk.ac.leedsbeckett.bubblecarver.stax.StaxFileCataloguer;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
+import uk.ac.leedsbeckett.bubblecarver.util.Utils;
 import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
 
 /**
@@ -51,7 +61,10 @@ import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
  */
 public class BubbleCombiner
 {
-  public static ArrayList<String> standardFiles = new ArrayList<>( Arrays.asList( new String[]
+  // Properties hard codes date/time output in US English but local time zone
+  // GB formatter must be avoided because of silly four letter abbv for Sept
+  public final static DateTimeFormatter packageDTFormatter =  DateTimeFormatter.ofPattern( "yyyy_MM_dd_HH.mm.ss" );
+  public final static ArrayList<String> standardFiles = new ArrayList<>( Arrays.asList( new String[]
         {
           "imsmanifest.xml",
           ".bb-package-info",
@@ -87,19 +100,34 @@ public class BubbleCombiner
   public void process() throws IOException, XMLStreamException
   {
     Path packageInfoPath = archiveBasePath.resolve( ".bb-package-info" );
+    String dateline = null;
+    
+    try ( InputStream infoIn = Files.newInputStream( packageInfoPath );
+          InputStreamReader  reader = new InputStreamReader( infoIn, ISO_8859_1 );
+          BufferedReader linereader = new BufferedReader( reader ) )
+    {
+      // discard first comment line
+      linereader.readLine();
+      // second comment line should contain date/time stamp;
+      dateline = linereader.readLine();
+    }
+    LocalDateTime stamp = Utils.parsePropertiesDateTime( dateline );
+    
+    packageTime = stamp.format( packageDTFormatter );
     try ( InputStream infoIn = Files.newInputStream( packageInfoPath ) )
     {
       packageInfo.load( infoIn );
     }
     
     courseId = packageInfo.getProperty( "cx.config.course.id" );
-    packageTime = Files.getLastModifiedTime( packageInfoPath ).toInstant().toString().replace( ':', '-' );
-    packageInfo.setProperty( "bbcarv.time", packageTime );
+    //get package time from comments in properties file not time stamp
+    //because the time zone of that isn't clear.
+    //packageTime = Files.getLastModifiedTime( packageInfoPath ).toInstant().toString().replace( ':', '-' );
     archiveDirectoryName = courseId + "__" + packageTime;
 
     courseBasePath = outputBasePath.resolve( "courses" ).resolve( archiveDirectoryName );
     Files.createDirectories( courseBasePath );
-    context = new BubbleCombinerContext( archiveBasePath, courseBasePath, packageInfo );
+    context = new BubbleCombinerContext( archiveBasePath, courseBasePath );
     
     try ( InputStream in = Files.newInputStream( context.inputPath );
           FileWriter fileWriter = new FileWriter( context.pass1aPath.toFile() );

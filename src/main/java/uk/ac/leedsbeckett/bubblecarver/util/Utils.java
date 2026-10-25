@@ -16,8 +16,11 @@
 package uk.ac.leedsbeckett.bubblecarver.util;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 /**
  *
@@ -27,6 +30,7 @@ public class Utils
 {
   private static final DateTimeFormatter dateTimeFormatter 
           = DateTimeFormatter.ofPattern( "yyyy_MM_dd__HH_mm_ss" );
+
   
   /**
    * Date and time format suitable for file names
@@ -44,5 +48,23 @@ public class Utils
   {
     // Format the UTC zone version of the instant
     return toFileNameString( Instant.now() );
+  }
+  
+  private final static DateTimeFormatter propertiesDTFormatter = 
+          DateTimeFormatter.ofPattern( "LLL dd HH:mm:ss yyyy", Locale.US );
+  public static LocalDateTime parsePropertiesDateTime( String line )
+  {
+    // Split
+    String[] bits = line.substring( 5 ).split( " " );
+    // Join again without time zone:
+    StringBuilder sb = new StringBuilder();
+    sb.append( bits[0] ); // Month
+    sb.append( " " );
+    sb.append( bits[1] ); // Day of month
+    sb.append( " " );
+    sb.append( bits[2] ); // hh:mm:ss
+    sb.append( " " );
+    sb.append( bits[4] ); // years
+    return LocalDateTime.parse( sb.toString(), propertiesDTFormatter );
   }
 }

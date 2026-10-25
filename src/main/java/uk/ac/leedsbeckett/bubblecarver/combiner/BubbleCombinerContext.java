@@ -41,7 +41,6 @@ public class BubbleCombinerContext extends FilterContext
   final XMLOutputFactory writeFactory = XMLOutputFactory.newInstance();
   final XMLInputFactory readerFactory = XMLInputFactory.newInstance();
   
-  final Properties packageInfo;
   
   private final GeneralMap generalMap = new GeneralMap();
   private final GroupMap groupMap = new GroupMap();
@@ -50,7 +49,7 @@ public class BubbleCombinerContext extends FilterContext
   
   long nextBcarvId = 1;
 
-  public BubbleCombinerContext( Path inputBasePath, Path courseBasePath, Properties packageInfo )
+  public BubbleCombinerContext( Path inputBasePath, Path courseBasePath )
   {
     this.inputBasePath   = inputBasePath;
     this.inputPath       = inputBasePath.resolve( "imsmanifest.xml" );
@@ -58,7 +57,6 @@ public class BubbleCombinerContext extends FilterContext
     this.pass1aPath      = courseBasePath.resolve( "pass_onea_archive.xml" );
     this.pass1bPath      = courseBasePath.resolve( "pass_oneb_archive.xml" );
     this.outputPath      = courseBasePath.resolve( "pass_two_archive.xml" );
-    this.packageInfo     = packageInfo;
   }
 
   public Path getInputBasePath() {
@@ -73,10 +71,6 @@ public class BubbleCombinerContext extends FilterContext
   public Path getOutputPath()
   {
     return outputPath;
-  }
-
-  public Properties getPackageInfo() {
-    return packageInfo;
   }
 
   public XMLOutputFactory getWriteFactory() {
