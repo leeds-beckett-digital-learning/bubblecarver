@@ -20,9 +20,7 @@ import java.io.FileWriter;
 import uk.ac.leedsbeckett.bubblecarver.data.ModuleUserInfo;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.StringWriter;
-import java.io.Writer;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -43,14 +41,11 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-import javax.xml.transform.Source;
 import javax.xml.transform.Templates;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.URIResolver;
-import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.xpath.XPath;
@@ -58,7 +53,6 @@ import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
-import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 import uk.ac.leedsbeckett.bubblecarver.analysis.BubbleAnalyser;
 import uk.ac.leedsbeckett.bubblecarver.combiner.BubbleCombiner;
@@ -68,8 +62,6 @@ import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
 import uk.ac.leedsbeckett.bubblecarver.data.ProcessorSession;
 import uk.ac.leedsbeckett.bubblecarver.reporter.BubbleReporter;
 import uk.ac.leedsbeckett.bubblecarver.splitter.BubbleSplitter;
-import uk.ac.leedsbeckett.bubblecarver.stax.DocCombiner;
-import uk.ac.leedsbeckett.bubblecarver.stax.StudentRedactor;
 import uk.ac.leedsbeckett.bubblecarver.util.Utils;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookups;
@@ -120,9 +112,6 @@ public class BatchProcessor implements Runnable
   Path tempZipExtractPath;
   Path telemetryPath;
   
-  private Transformer transformCombineModule;
-  private Transformer transformListStudents;
-  private Transformer transformRedactForStudent;
   private Transformer transformDigestArchive;
   private Transformer transformSummariseDigest;
   private Transformer transformStudentReport;
@@ -181,21 +170,6 @@ public class BatchProcessor implements Runnable
     xPath.setNamespaceContext( new NamespaceContextImpl() );
 
     TransformerFactory tFactory = TransformerFactory.newInstance();
-    try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/combinemodule.xsl" ) )
-    {
-      Templates templates = tFactory.newTemplates( new StreamSource( in ) );
-      transformCombineModule = templates.newTransformer();
-    }
-    try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/liststudents.xsl" ) )
-    {
-      Templates templates = tFactory.newTemplates( new StreamSource( in ) );
-      transformListStudents = templates.newTransformer();
-    }
-    try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/redactforstudent.xsl" ) )
-    {
-      Templates templates = tFactory.newTemplates( new StreamSource( in ) );
-      transformRedactForStudent = templates.newTransformer();
-    }
     try ( InputStream in = BatchProcessor.class.getResourceAsStream( "/studentreportnew.xsl" ) )
     {
       Templates templates = tFactory.newTemplates( new StreamSource( in ) );
@@ -418,32 +392,6 @@ public class BatchProcessor implements Runnable
     private void process( ProcessorSession session )
             throws ParserConfigurationException, IOException, TransformerException, XPathExpressionException, XMLStreamException
     {      
-//      FileCataloguer fc = new FileCataloguer( session.root );
-//      Document catalogue = fc.getCatalogue();
-      
-//      Resolver resolver = new Resolver( session.root, catalogue );
-//      HashMap<String,ModuleUserInfo> usermap;
-      
-//      try ( InputStream in = Files.newInputStream( session.root.resolve( "imsmanifest.xml" ) ) )
-//      {
-//        StreamSource source = new StreamSource( in );
-//        StringBufferResult result = createStringBufferResult();
-//        transformListStudents.reset();
-//        transformListStudents.setParameter( "mapper-id", session.mapper.getId() );
-//        transformListStudents.setParameter( "data-lookups-id", session.datalookuphelper.getId() );
-//        transformListStudents.setURIResolver( resolver );
-//        transformListStudents.transform( source, result );
-//        //System.out.println( result.toString() );
-//      }
-//      transformListStudents.reset();
-
-//      session.datalookuphelper.dump( session.processingdir.resolve( "datalookup.txt" ) );
-//      session.mapper.dump( session.processingdir.resolve( "usermapper.txt" ) );
-//      usermap = session.mapper.getMap();
-//      if ( usermap.isEmpty() )
-//        return;
-
-
       BubbleCombiner bc = new BubbleCombiner( session.root, session.processingdir, session.zipper );
       bc.process();
 
@@ -460,77 +408,7 @@ public class BatchProcessor implements Runnable
           groupmap
         );
       bs.process();
-
-      if ( true ) return;
-
-      DocCombiner combiner = new DocCombiner( 
-              session.root.resolve( "imsmanifest.xml" ),
-              session.processingdir.resolve( "allinone.xml" )
-      );
-      combiner.process();
-
-      for ( String uid : combiner.getGeneralMap().keySet( "userid_studentid" ) )
-      {
-        String sid = genmap.get( "userid_studentid", uid );
-        if ( sid.length() != 8 )
-          continue;
-        if ( sid.charAt(0) != '3' && sid.charAt(0) != '7')
-          continue;
-        
-        String mid = genmap.get( "userid_membershipid", uid );
-        StudentRedactor redactor = new StudentRedactor( 
-                session.processingdir.resolve( "allinone.xml" ), 
-                combiner.getGeneralMap(),
-                uid, sid, mid,
-                session.processingdir.resolve( "redactiontest_" + sid + ".xml" ) );
-        redactor.process();
-      }
-      
-      if ( true ) return;
-      
-//      //DOMResult domresult = new DOMResult();
-//      StreamResult combineresult = new StreamResult( session.processingdir.resolve( "allinone.xml" ).toFile() );
-//
-//      try ( InputStream in = Files.newInputStream( session.root.resolve( "imsmanifest.xml" ) ) )
-//      {
-//        StreamSource source = new StreamSource( in );
-//        transformCombineModule.reset();
-//        transformCombineModule.setParameter( "course-data-id", session.generalmapper.getId() );
-//        transformCombineModule.setURIResolver( resolver );
-//        transformCombineModule.transform( source, combineresult );
-//      }
-//      transformCombineModule.reset();
-//
-//      session.generalmapper.dump( session.processingdir.resolve( "coursemapper.txt" ) );
-//      
-//      String courseid = session.generalmapper.get(  "course", "courseid" );
-//      
-//      if ( courseid == null || courseid.length() == 0 )
-//        throw new IOException( "Course ID not found in archive." );        
-//      System.out.println( "Course ID = " + courseid );
-
-      
-//      for ( ModuleUserInfo mui : usermap.values() )
-//      {
-//        System.out.println( "Working on " + mui.toString() );
-//        Path studentdir = getStudentPath( courseid, mui );
-//        Path studentdata = getStudentDataPath( courseid, mui );
-//        session.fp.setDestinationBase( studentdir );
-//        Files.createDirectories( studentdata.getParent() );
-//        StreamResult sresult = new StreamResult( studentdata.toFile() );
-//        DOMSource source = new DOMSource( domresult.getNode() );
-//        transformRedactForStudent.reset();
-//        transformRedactForStudent.setParameter( "data-lookups-id", session.datalookuphelper.getId() );
-//        transformRedactForStudent.setParameter( "file-processor-id", session.fp.getId() );
-//        transformRedactForStudent.setParameter( "uid", mui.getUid() );
-//        transformRedactForStudent.setParameter( "sid", mui.getSid() );
-//        transformRedactForStudent.setParameter( "mid", mui.getMid() );
-//        transformRedactForStudent.setURIResolver( resolver );
-//        transformRedactForStudent.transform( source, sresult );
-//        Runtime.getRuntime().gc();
-//      }      
     }
-    
   }
 
   public class ArchiveAnalysisProcessor implements Consumer<Path>
@@ -598,100 +476,6 @@ public class BatchProcessor implements Runnable
     }
   }
 
-  public class ArchiveDigestProcessor implements Consumer<Path>
-  {
-    Path f;
-    Writer writer;
-    Path s;
-    
-    public ArchiveDigestProcessor()
-    {
-      f = outputPath.resolve( "data" ).resolve( "digests" ).resolve( "digest_" + System.currentTimeMillis() + ".xml" );
-      s = outputPath.resolve( "data" ).resolve( "digests" ).resolve( "summary_" + System.currentTimeMillis() + ".xml" );
-      try
-      {
-        writer = Files.newBufferedWriter( f );
-        writer.write( "<?xml version=\"1.0\"?>\n" );
-        writer.write( "<digest>\n" );
-      }
-      catch ( IOException ex )
-      {
-        Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );
-        writer = null;
-      }
-    }
-    
-    public void close()
-    {
-      try
-      {
-        writer.write( "</digest>\n" );
-        writer.close();
-      }
-      catch ( IOException ex )
-      {
-        Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );
-        throw new RuntimeException( ex );
-      }
-      
-      try ( InputStream in = Files.newInputStream( f ); Writer swriter = Files.newBufferedWriter( s ) )
-      {
-        StreamSource source = new StreamSource( in );
-        StreamResult result = new StreamResult( swriter );
-        transformSummariseDigest.reset();
-        transformSummariseDigest.transform( source, result );
-        System.out.println( result.toString() );
-      }
-      catch ( IOException | TransformerException ex )
-      {
-        Logger.getLogger( BatchProcessor.class.getName() ).log( Level.SEVERE, null, ex );
-        throw new RuntimeException( ex );
-      }
-    }
-    
-    @Override
-    public void accept( Path t )
-    {
-      if ( progress.firstException != null )
-        return;
-      
-      System.out.println( "Processing " + t.toUri() );
-      if ( listener != null )
-        listener.batchProcessorProgress( BatchProcessor.this, t.toUri().toString(), 0, 0);
-      
-      Path root = null;
-      try
-      {
-        root = getRootOfArchive( t );  
-      }
-      catch ( IOException ex )
-      {
-        progress.firstException = ex;
-        throw new RuntimeException( ex );
-      }
-      
-      Resolver resolver = new Resolver( root, null );
-     
-      try ( InputStream in = Files.newInputStream( root.resolve( "imsmanifest.xml" ) ) )
-      {
-        StreamSource source = new StreamSource( in );
-        StringBufferResult result = createStringBufferResult();
-        transformDigestArchive.reset();
-        transformDigestArchive.setURIResolver( resolver );
-        transformDigestArchive.setParameter( "filename", t.getFileName().toString() );
-        transformDigestArchive.transform( source, result );
-        //System.out.println( result.toString() );
-        writer.write( result.toString() );
-      }
-      catch ( IOException | TransformerException ex )
-      {
-        progress.firstException = ex;
-        throw new RuntimeException( ex );
-      }
-      progress.completedCount++;
-    }
-    
-  }
   
   public class StudentArchiveDataProcessor implements Consumer<Path>
   {    
@@ -804,36 +588,7 @@ public class BatchProcessor implements Runnable
       return writer.toString();
     }
   }
-  
-  public class Resolver implements URIResolver
-  {
-    final Path archiveBase;
-    final Document catalogue;
-
-    public Resolver( Path archiveBase, Document catalogue )
-    {
-      this.archiveBase = archiveBase;
-      this.catalogue = catalogue;
-    }
     
-    @Override
-    public Source resolve( String href, String base ) throws TransformerException
-    {
-      //System.out.println( "Resolving [" + href + "], [" + base + "]" );
-      if ( href.equals( "catalogue:" ) )
-        return new DOMSource( catalogue );
-      try
-      {
-        return new StreamSource( Files.newInputStream( archiveBase.resolve( href ) ) );
-      }
-      catch ( IOException ex )
-      {
-      }
-      return null;
-    }
-    
-  }
-  
   public class NamespaceContextImpl implements NamespaceContext
   {
 

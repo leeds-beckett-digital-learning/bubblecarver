@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Properties;
 import javax.xml.stream.*;
 import uk.ac.leedsbeckett.bubblecarver.combiner.Names;
-import uk.ac.leedsbeckett.bubblecarver.stax.StaxFileCataloguer;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
 
