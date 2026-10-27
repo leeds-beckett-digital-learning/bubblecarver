@@ -15,6 +15,9 @@
   extension-element-prefixes="java"
   version="1.0">
   <xsl:output method="html"/>
+  
+  <xsl:param name="list-helper-id" select="''"/>
+  <xsl:param name="outcome-def-id" select="''"/>
 
   <xsl:variable name="sid" select="/bbcarv:archive/@bbcarv:sid"/>
   <xsl:variable name="gradebook" select="/bbcarv:archive/manifest/resources/resource[@type='course/x-bb-gradebook']/bbcarv:data/GRADEBOOK"/>
@@ -30,97 +33,170 @@
         </style>
       </head>
       <body>
-        <h1><xsl:value-of select="$sid"/></h1>
-        <h2>
-          <xsl:value-of select=".//USERS/USER/NAMES/FAMILY/@value"/>,
-          <xsl:value-of select=".//USERS/USER/NAMES/GIVEN/@value"/> 
-        </h2>
-        <h1><xsl:value-of select=".//COURSE/TITLE/@value"/></h1>
-        <h2><xsl:value-of select=".//COURSE/COURSEID/@value"/></h2>
-        <h1>Grade Centre Data</h1>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th class="type-cell">Type</th>
-              <th>Points Avail.</th>
-              <th>Attempts</th>
-              <th>Points</th>
-              <th>Grade</th>
-            </tr>
-          </thead>
-          <tbody>
-            <xsl:apply-templates select="$gradebook/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION"/>
-          </tbody>
-        </table>
-        <h1>Grade Centre History</h1>
-        <xsl:apply-templates select="$gradebook/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY"/>
+        <h1>
+          <xsl:value-of select="concat( $sid, ' ', .//USERS/USER/NAMES/FAMILY/@value, ' ', .//USERS/USER/NAMES/GIVEN/@value )"/>
+        </h1>
+        <h2><xsl:value-of select=".//COURSE/TITLE/@value"/></h2>
+        <h3>Course ID: <xsl:value-of select=".//COURSE/COURSEID/@value"/></h3>
+        <p>[<xsl:value-of select="$outcome-def-id"/>]</p>
+        <xsl:choose>
+          <xsl:when test="string-length( $outcome-def-id ) = 0">
+            <xsl:apply-templates select="$gradebook/OUTCOMEDEFINITIONS" mode="alloutcomedef"/>            
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:apply-templates select="$gradebook/OUTCOMEDEFINITIONS" mode="oneoutcomedef"/>
+          </xsl:otherwise>
+        </xsl:choose>
+        
       </body>
     </html>
   </xsl:template>
 
-  <xsl:template match="OUTCOMEDEFINITION">
-    <xsl:variable name="title">
-      <xsl:choose>
-        <xsl:when test="TITLE/@value = 'OutcomeDefinition.Total.title'">Total</xsl:when>
-        <xsl:when test="TITLE/@value = 'OutcomeDefinition.WeightedTotal.title'">Weighted Total</xsl:when>
-        <xsl:otherwise><xsl:value-of select="TITLE/@value"/></xsl:otherwise>
-      </xsl:choose>
-    </xsl:variable>
+  <!-- match="OUTCOMEDEFINITIONS" mode="alloutcomedef" -->
+  <xsl:template match="OUTCOMEDEFINITIONS" mode="alloutcomedef">
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Type</th>
+          <th style="width: 5em">Points Avail.</th>
+          <th style="width: 5em">Points</th>
+          <th style="width: 5em">Grade</th>
+          <th style="width: 3em">Attempts</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <xsl:apply-templates select="OUTCOMEDEFINITION" mode="alloutcomedef"/>
+      </tbody>
+    </table>
+  </xsl:template>
+
+  <!-- match="OUTCOMEDEFINITIONS" mode="oneoutcomedef" -->
+  <xsl:template match="OUTCOMEDEFINITIONS" mode="oneoutcomedef">
+    <xsl:apply-templates select="OUTCOMEDEFINITION[@id = $outcome-def-id]" mode="oneoutcomedef"/>
+  </xsl:template>
+
+  <!-- match="OUTCOMEDEFINITION" mode="type" -->
+  <xsl:template match="OUTCOMEDEFINITION" mode="type">
     <xsl:variable name="url" select="bbcarv:document/bbcarv:URL/@value"/>
+    <xsl:if test="count( GROUPATTEMPTS/GROUPATTEMPT ) &gt; 0">Group </xsl:if>
+    <xsl:choose>
+      <xsl:when test="'true' = ISCALCULATED/@value">Calculated: <xsl:value-of select="CALCULATIONTYPE/@value"/></xsl:when>
+      <xsl:when test="string-length( LTI_DOMAIN_ID/@value ) &gt; 0">LTI Tool
+        <xsl:if test="string-length( $url ) &gt; 0">
+          <br/>(<xsl:value-of select="$url"/>)
+          <br/>Score, grade and/or feedback may be on external web site.
+        </xsl:if>
+      </xsl:when>
+      <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-assignment'">Assignment</xsl:when>
+      <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-assessment'">Test</xsl:when>
+      <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-assessment-survey'">Survey</xsl:when>
+      <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-bloglink'">Blog or Journal</xsl:when>
+      <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-wiki'">Wiki</xsl:when>
+      <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-plugin-scormengine'">SCORM Package</xsl:when>
+      <xsl:when test="starts-with(HANDLERURL/@value, '/webapps/ip-turnitintool')">TurnItIn Building Block<br/>(Look for data in TII archive)</xsl:when>
+      <xsl:otherwise>Other = <xsl:value-of select="SCORE_PROVIDER_HANDLE/@value"/> <xsl:value-of select="HANDLERURL/@value"/> </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <!-- match="OUTCOMEDEFINITION" mode="alloutcomedef" -->
+  <xsl:template match="OUTCOMEDEFINITION" mode="alloutcomedef">
+      <xsl:choose>
+        <xsl:when test="TITLE/@value = 'OutcomeDefinition.Total.title'">
+          <xsl:comment>Outcomedefinition for Total omitted.</xsl:comment>
+        </xsl:when>
+        <xsl:when test="TITLE/@value = 'OutcomeDefinition.WeightedTotal.title'">
+          <xsl:comment>Outcomedefinition for Weighted Total omitted.</xsl:comment>          
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:apply-templates select="." mode="included"/>
+        </xsl:otherwise>
+      </xsl:choose>
+  </xsl:template>
+  
+  <!-- match="OUTCOMEDEFINITION" mode="included" -->  
+  <xsl:template match="OUTCOMEDEFINITION" mode="included">
+    <xsl:variable name="url" select="bbcarv:document/bbcarv:URL/@value"/>
+    <xsl:variable name="title" select="TITLE/@value"/>
+    
     <tr>
       <th><xsl:value-of select="$title"/></th>
       <td class="type-cell">
-        <xsl:if test="count( GROUPATTEMPTS/GROUPATTEMPT ) &gt; 0">Group </xsl:if>
-        <xsl:choose>
-          <xsl:when test="'true' = ISCALCULATED/@value">Calculated: <xsl:value-of select="CALCULATIONTYPE/@value"/></xsl:when>
-          <xsl:when test="string-length( LTI_DOMAIN_ID/@value ) &gt; 0">LTI Tool
-            <xsl:if test="string-length( $url ) &gt; 0">
-              <br/>(<xsl:value-of select="$url"/>)
-              <br/>Score, grade and/or feedback may be on external web site.
-            </xsl:if>
-          </xsl:when>
-          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-assignment'">Assignment</xsl:when>
-          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-assessment'">Test</xsl:when>
-          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-assessment-survey'">Survey</xsl:when>
-          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-bloglink'">Blog or Journal</xsl:when>
-          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-wiki'">Wiki</xsl:when>
-          <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-plugin-scormengine'">SCORM Package</xsl:when>
-          <xsl:when test="starts-with(HANDLERURL/@value, '/webapps/ip-turnitintool')">TurnItIn Building Block<br/>(Look for data in TII archive)</xsl:when>
-          <xsl:otherwise>Other = <xsl:value-of select="SCORE_PROVIDER_HANDLE/@value"/> <xsl:value-of select="HANDLERURL/@value"/> </xsl:otherwise>
-        </xsl:choose>
+        <xsl:apply-templates select="." mode="type"/>
       </td>
       <td><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( POINTSPOSSIBLE/@value )"/></td>
-      <td>
-        <xsl:if test="CALCULATIONTYPE/@value = 'NON_CALCULATED'">
-          <p><xsl:value-of select="count( OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT )"/></p>
-        </xsl:if>
-      </td>
       <td>
         <xsl:apply-templates select="OUTCOMES/OUTCOME" mode="points"/>        
       </td>
       <td>
         <xsl:apply-templates select="OUTCOMES/OUTCOME" mode="grade"/>        
       </td>
+      <td>
+        <xsl:if test="CALCULATIONTYPE/@value = 'NON_CALCULATED'">
+          <xsl:choose>
+            <xsl:when test="count( OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT ) = 0">
+              <xsl:text>~</xsl:text>
+            </xsl:when>
+            <xsl:when test="count( OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT ) = 1">
+              <xsl:text>1 Attempt</xsl:text>
+            </xsl:when>
+            <xsl:otherwise>
+              <xsl:value-of select="count( OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT )"/> Attempts
+            </xsl:otherwise>
+          </xsl:choose>
+        </xsl:if>
+      </td>
+      <td>
+        <xsl:if test="CALCULATIONTYPE/@value = 'NON_CALCULATED' and count( OUTCOMES/OUTCOME/ATTEMPTS/ATTEMPT ) &gt; 0">
+		  <!-- only add OUTCOMEDEFINITION to list of detailed reports if we link to it from here. -->
+		  <xsl:variable name="odid" 
+				 select="java:uk.ac.leedsbeckett.bubblecarver.xsl.GeneralListHelper.add( $list-helper-id, @id )"/>
+          <xsl:variable name="href" select="concat( 'report', @id, '.html' )"/>
+          <a href="{$href}" target="_blank" rel="noopener">Detail</a>
+		  <!-- odid isn't evaluated if it isn't used so add comment with it. -->
+		  <xsl:comment>OUTCOMEDEFINITION @id <xsl:value-of select="@id"/> <xsl:value-of select="$odid"/></xsl:comment>
+        </xsl:if>        
+      </td>
     </tr>
-    <xsl:if test="count( OUTCOMES/OUTCOME ) = 1">
-      <tr>
-        <td></td>
-        <td></td>
-        <td colspan="4">
-          <div class="detail" id="{concat( 'detail-', @id )}">
-          <xsl:apply-templates select="OUTCOMES/OUTCOME"/>
-          </div>
-        </td>
-      </tr>
-    </xsl:if>
   </xsl:template>
 
+  <!-- match="OUTCOMEDEFINITION" mode="oneoutcomedef" -->  
+  <xsl:template match="OUTCOMEDEFINITION" mode="oneoutcomedef">
+    <xsl:variable name="title" select="TITLE/@value"/>
+    <xsl:variable name="url" select="bbcarv:document/bbcarv:URL/@value"/>
+    <h2><xsl:value-of select="$title"/></h2>
+    <p>
+      <strong>Type: </strong>
+      <xsl:apply-templates select="." mode="type"/>
+    </p>
+    <p>
+      <strong>Point Available: </strong>
+      <xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( POINTSPOSSIBLE/@value )"/>
+    </p>
+    <p>
+      <strong>Points: </strong>
+      <xsl:apply-templates select="OUTCOMES/OUTCOME" mode="points"/>        
+    </p>
+    <p>
+      <strong>Grade: </strong>
+      <xsl:apply-templates select="OUTCOMES/OUTCOME" mode="grade"/>        
+    </p>
+    <div class="detail">
+      <xsl:choose>
+        <xsl:when test="count( OUTCOMES/OUTCOME ) = 1">
+          <xsl:apply-templates select="OUTCOMES/OUTCOME"/>
+        </xsl:when>
+        <xsl:otherwise>No outcome data for this item.</xsl:otherwise>
+      </xsl:choose>
+    </div>
+  </xsl:template>
+
+  <!-- match="OUTCOME" mode="points" -->  
   <xsl:template match="OUTCOME" mode="points">
     <xsl:choose>
       <xsl:when test="count( OVERRIDE_SCORE ) = 0">
-        See attempt: <xsl:value-of select="../../AGGREGATIONMODEL/@value"/>        
+        <xsl:value-of select="../../AGGREGATIONMODEL/@value"/> Fully Submitted Attempt
       </xsl:when>
       <xsl:otherwise>
         <xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( OVERRIDE_SCORE/text() )"/> (Attempt override)
@@ -128,6 +204,7 @@
     </xsl:choose>
   </xsl:template>
 
+  <!-- match="OUTCOME" mode="grade" -->  
   <xsl:template match="OUTCOME" mode="grade">
     <xsl:choose>
       <xsl:when test="count( OVERRIDE_GRADE ) = 0">
@@ -139,6 +216,7 @@
     </xsl:choose>
   </xsl:template>
 
+  <!-- match="OUTCOME" -->  
   <xsl:template match="OUTCOME">
     <xsl:if test="count( FEEDBACK_TO_USER/TEXT ) = 1 or count( INSTRUCTOR_COMMENTS/TEXT ) = 1">
       <h3>Overrides</h3>
@@ -155,122 +233,167 @@
         <xsl:apply-templates select="INSTRUCTOR_COMMENTS" mode="override"/>
       </div>      
     </xsl:if>
-    <xsl:if test="count(ATTEMPTS/ATTEMPT) &gt; 1">
-      <p>In reverse date order</p>
-    </xsl:if>
-    <xsl:apply-templates select="ATTEMPTS/ATTEMPT">
-      <xsl:sort select="DATEATTEMPTED/@value" order="descending"/>
-    </xsl:apply-templates>
+	<div class="attempt-list">
+      <xsl:if test="count(ATTEMPTS/ATTEMPT) &gt; 1">
+        <p>In reverse date order</p>
+      </xsl:if>
+      <xsl:apply-templates select="ATTEMPTS/ATTEMPT">
+	    <!-- Sorting by date can be problematic due to low precision of dates -->
+	    <!-- IDs are created unique and in ascending order -->
+        <xsl:sort select="@id" order="descending"/>
+      </xsl:apply-templates>
+	</div>
   </xsl:template>
-  
+
+  <!-- match="ATTEMPT" -->  
   <xsl:template match="ATTEMPT">
     <xsl:variable name="groupattemptid" select="string(GROUP_ATTEMPT_ID/@value)"/>
-    
-    <details>
-      <summary>Attempt <xsl:value-of select="DATEATTEMPTED/@value"/></summary>
-      <xsl:if test="string-length($groupattemptid) != 0">
-        <p>The individual assessment is based on a group assessment.</p>
-        <details>
-          <summary>Group assessment details</summary>
-          <xsl:apply-templates select="../../../../GROUPATTEMPTS/GROUPATTEMPT[@id = $groupattemptid]" mode="attemptcontent"/>
-        </details>
-      </xsl:if>
 
+	<!--
+    <p>groupattemptid = <xsl:value-of select="$groupattemptid"/></p>
+	-->
+	
+    <details class="attempt">
+      <summary>Attempt <xsl:value-of select="DATEATTEMPTED/@value"/>  Status <xsl:value-of select="STATUS/@value"/></summary>
+	  <div class="attempt-content">
+
+	  <h4>Student Work</h4>
+	  <p>Please bear in mind that students are sometimes assessed here on
+	  work that was submitted in part or in full via some other tool.</p>
+	  
+	  <xsl:if test="STATUS/@value = 'In Progress'">
+	    <p>For this attempt the student entered the tool but did not actually 
+		submit work. Any saved work was not visible to markers. (In Progress)</p>
+	  </xsl:if>
+
+	  <xsl:apply-templates select="." mode="attemptsubmission"/>
+      <xsl:apply-templates select="ancestor::OUTCOMEDEFINITION/GROUPATTEMPTS/GROUPATTEMPT[@id = $groupattemptid]" mode="attemptsubmission"/>
+
+	  <h4>Marking</h4>
       <details>
         <summary>Individual assessment details</summary>
         <xsl:apply-templates select="." mode="attemptcontent"/>
       </details>
+
+      <xsl:if test="string-length($groupattemptid) != 0">
+        <p>The individual assessment is based on a group assessment.</p>
+        <details>
+          <summary>Group assessment details</summary>
+          <xsl:apply-templates select="ancestor::OUTCOMEDEFINITION/GROUPATTEMPTS/GROUPATTEMPT[@id = $groupattemptid]" mode="attemptcontent"/>
+        </details>
+      </xsl:if>
+
+	  </div>
     </details>
   </xsl:template>
   
-  
-  <xsl:template match="*" mode="attemptcontent">  
-    <table>
-      <tbody>
-        <tr>
-          <th>Status:</th>
-          <td><xsl:value-of select="STATUS/@value"/></td>
-        </tr>
-        <tr>
-          <th>Date Attempted:</th>
-          <td><xsl:value-of select="DATEATTEMPTED/@value"/></td>
-        </tr>
-        <tr>
-          <th>First Graded:</th>
-          <td><xsl:value-of select="DATEFIRSTGRADEDED/@value"/></td>
-        </tr>
-        <tr>
-          <th>Last Graded:</th>
-          <td><xsl:value-of select="DATELASTGRADED/@value"/></td>
-        </tr>
-        <tr>
-          <th>Score:</th>
-          <td><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( SCORE/@value )"/></td>
-        </tr>
-        <tr>
-          <th>Grade:</th>
-          <td><xsl:value-of select="GRADE/@value"/></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <xsl:if test="count( STAGED_GRADING_GROUP_ATTEMPTS/STAGED_GRADING_GROUP_ATTEMPT ) &gt; 0">
-      <details>
-        <summary>Staged Group Grading</summary>
-        <xsl:if test="count( STAGED_GRADING_GROUP_ATTEMPTS/STAGED_GRADING_GROUP_ATTEMPT ) &gt; 1">
-          <p>In reverse date order</p>
-        </xsl:if>
-        <xsl:apply-templates select="STAGED_GRADING_GROUP_ATTEMPTS/STAGED_GRADING_GROUP_ATTEMPT" mode="stagedattempt">
-          <xsl:sort select="@id"  order="descending"/>
-        </xsl:apply-templates>
-      </details>
-    </xsl:if>
-    
-    <xsl:if test="count( STAGED_GRADING_ATTEMPTS/STAGED_GRADING_ATTEMPT ) &gt; 0">
-      <details>
-        <xsl:if test="count( STAGED_GRADING_ATTEMPTS/STAGED_GRADING_ATTEMPT ) &gt; 1">
-          <p>In reverse date order</p>
-        </xsl:if>
-        <xsl:apply-templates select="STAGED_GRADING_ATTEMPTS/STAGED_GRADING_ATTEMPT" mode="stagedattempt">
-          <xsl:sort select="@id"  order="descending"/>
-        </xsl:apply-templates>
-      </details>
-    </xsl:if>
-        
-    <div class="attempt-submission">
-      <!-- may or may not have text directly in the attempt depending on
-      the type of item. -->
-      <xsl:if test="count(STUDENTSUBMISSION) &gt; 0">
-        <h3>Textual Submission</h3>
-        <div>
-          <xsl:apply-templates select="STUDENTSUBMISSION"/>
-        </div>
-      </xsl:if>
-      <xsl:apply-templates select="." mode="attemptattachments"/>
-      
+  <!-- match="*" mode="attemptsubmission" -->
+  <xsl:template match="*" mode="attemptsubmission">
+    <xsl:variable name="aid" select="@id"/>
+    <xsl:variable name="attachedfiles" 
+      select="/bbcarv:archive//ATTEMPTFILES/ATTEMPTFILE[ATTEMPTID/@value = $aid] | /bbcarv:archive//GROUPATTEMPTFILES/GROUPATTEMPTFILE[GROUPATTEMPTID/@value = $aid]"/>                
+    <xsl:variable name="numfiles" select="count($attachedfiles)"/>
+	<xsl:variable name="textlen" select="string-length( STUDENTSUBMISSION/TEXT )"/>
+	<xsl:variable name="special">
       <xsl:if test="ancestor::OUTCOMEDEFINITION/SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-wiki'">
-        <xsl:variable name="gattemptid" select="GROUP_ATTEMPT_ID/@value"/>
-        <xsl:variable name="wiki" select="ancestor::resources/resource[@type = 'resource/x-bb-wiki']/bbcarv:data/wiki[groupAttemptID/text() = $gattemptid]"/>
-        <xsl:apply-templates select="$wiki"/>
-      </xsl:if>
-      
-    </div>
-    <div class="attempt-comments">
-      <h3>Feedback</h3>
-      <xsl:apply-templates select="INSTRUCTORCOMMENTS"/>
-    </div>
-    <div class="attempt-notes">
-      <h3>Marker Private Notes</h3>
-      <xsl:apply-templates select="INSTRUCTORNOTES"/>
-    </div>
+        <xsl:variable name="wiki" select="ancestor::resources/resource[@type = 'resource/x-bb-wiki']/bbcarv:data/wiki[groupAttemptID/text() = $aid]"/>
+        <xsl:apply-templates select="$wiki" mode="textonly"/>
+      </xsl:if>      
+	</xsl:variable>
+	<xsl:variable name="speciallen" select="string-length( translate( $special,' \t\r\n', '' ) )"/>
+
+	<!--
+    <p>id = <xsl:value-of select="$aid"/> numfiles = <xsl:value-of select="$numfiles"/> textlen = <xsl:value-of select="$textlen"/> speciallen = <xsl:value-of select="$speciallen"/></p>
+    -->
+	
+    <xsl:if test="$numfiles &gt; 0 or $textlen &gt; 0 or $speciallen &gt; 0">
+      <div class="attempt-submission">
+	    <xsl:if test="name() = 'GROUPATTEMPT'">
+		  <p>This is a group submission. The student may receive the group mark or a personally adjusted mark.</p>
+		</xsl:if>
+        <!-- may or may not have text directly in the attempt depending on
+        the type of item. -->
+        <xsl:if test="$textlen &gt; 0">
+          <h3>Textual Submission</h3>
+          <div>
+            <xsl:apply-templates select="STUDENTSUBMISSION"/>
+          </div>
+        </xsl:if>
+		<!-- include attached files if there are any -->
+        <xsl:apply-templates select="." mode="attemptattachments"/>
+		<!-- resource specific submission content -->
+        <xsl:if test="ancestor::OUTCOMEDEFINITION/SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-wiki'">
+          <xsl:variable name="wiki" select="ancestor::resources/resource[@type = 'resource/x-bb-wiki']/bbcarv:data/wiki[groupAttemptID/text() = $aid]"/>
+          <xsl:apply-templates select="$wiki"/>
+        </xsl:if>      
+      </div>
+	</xsl:if>
+  </xsl:template> 
+  
+  
+  <!-- match="*" mode="attemptcontent" -->  
+  <!-- for ATTEMPT or GROUPATTEMPT -->
+  <xsl:template match="*" mode="attemptcontent">
+    <xsl:variable name="selectedstageda" select="STAGED_GRADING_ATTEMPTS/STAGED_GRADING_ATTEMPT[STAGED_GRADING_STATUS/@value = 'Completed']"/>
+    <xsl:variable name="selectedstagedg" select="STAGED_GRADING_GROUP_ATTEMPTS/STAGED_GRADING_GROUP_ATTEMPT[STAGED_GRADING_STATUS/@value = 'Completed']"/>
+	
+	<xsl:choose>
+	  <xsl:when test="$selectedstagedg">
+        <div>
+          <h4>Staged Group Grading</h4>
+          <xsl:apply-templates select="$selectedstagedg" mode="stagedattempt">
+            <xsl:sort select="@id"  order="descending"/>
+          </xsl:apply-templates>
+        </div>
+	  </xsl:when>
+	  <xsl:when test="$selectedstageda">
+        <div>
+          <h4>Staged Grading</h4>
+          <xsl:apply-templates select="$selectedstageda" mode="stagedattempt">
+            <xsl:sort select="@id"  order="descending"/>
+          </xsl:apply-templates>
+        </div>	  
+	  </xsl:when>
+	  <xsl:otherwise>
+        <table>
+          <tbody>
+            <tr>
+              <th>First Graded:</th>
+              <td><xsl:value-of select="DATEFIRSTGRADEDED/@value"/></td>
+            </tr>
+            <tr>
+              <th>Last Graded:</th>
+              <td><xsl:value-of select="DATELASTGRADED/@value"/></td>
+            </tr>
+            <tr>
+              <th>Score:</th>
+              <td><xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( SCORE/@value )"/></td>
+            </tr>
+            <tr>
+              <th>Grade:</th>
+              <td><xsl:value-of select="GRADE/@value"/></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="attempt-comments">
+          <h3>Feedback</h3>
+          <xsl:apply-templates select="INSTRUCTORCOMMENTS"/>
+        </div>
+        <div class="attempt-notes">
+          <h3>Marker Private Notes</h3>
+          <xsl:apply-templates select="INSTRUCTORNOTES"/>
+        </div>
+	
+	  </xsl:otherwise>
+	</xsl:choose>
   </xsl:template>
 
-
+  <!-- match="ATTEMPT" mode="attemptattachments" -->  
   <xsl:template match="ATTEMPT" mode="attemptattachments">
     <xsl:variable name="aid" select="@id"/>
     <xsl:variable name="restype" select="'course/x-bb-attemptfiles'"/>
     <xsl:variable name="attachedfiles" 
- select="/bbcarv:archive/manifest/resources/resource[@type=$restype]/bbcarv:data/ATTEMPTFILES/ATTEMPTFILE[ATTEMPTID/@value = $aid]"/>                
+        select="/bbcarv:archive/manifest/resources/resource[@type=$restype]/bbcarv:data/ATTEMPTFILES/ATTEMPTFILE[ATTEMPTID/@value = $aid]"/>                
     <h3>Attached Files - <xsl:value-of select="count( $attachedfiles )"/></h3>
     <xsl:if test="count( $attachedfiles ) &gt; 0">
       <ul>
@@ -291,7 +414,6 @@
       </ul>
     </xsl:if>
   </xsl:template>
-
 
   <xsl:template match="*" mode="stagedattempt">
     <xsl:variable name="stagedid" select="@id"/>
@@ -422,6 +544,24 @@
     </xsl:call-template>
   </xsl:template>
 
+  <xsl:template match="wiki" mode="textonly">
+    <xsl:variable name="wikibase" select="concat( ancestor::resource/@xml:base, '/wikis/group/', uniqueID/text(), '/' )"/>
+    <xsl:text>Wiki content here.</xsl:text>
+    <xsl:for-each select="pages/page">
+      <xsl:text>Page <xsl:value-of select="position()"/></xsl:text>
+      <xsl:variable name="pagebase" select="concat( $wikibase, guid/text(), '/' )"/>
+      <xsl:for-each select="versions/version">
+        <xsl:text>Version <xsl:value-of select="position()"/> <xsl:value-of select="name/text()"/></xsl:text>
+        <xsl:text>Edited by <xsl:value-of select="createdBy"/> on <xsl:value-of select="createdOn"/></xsl:text>
+        <xsl:call-template name="textoutputwiki">
+          <xsl:with-param name="t" select="contentText/text()"/>
+          <xsl:with-param name="base" select="$pagebase"/>
+          <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
+        </xsl:call-template>
+      </xsl:for-each>      
+    </xsl:for-each>
+  </xsl:template>
+    
   <xsl:template match="wiki">
     <xsl:variable name="wikibase" select="concat( ancestor::resource/@xml:base, '/wikis/group/', uniqueID/text(), '/' )"/>
     <p>Wiki content here.</p>
@@ -440,9 +580,6 @@
     </xsl:for-each>
   </xsl:template>
     
-            
-
-
   <xsl:template match="INSTRUCTORCOMMENTS">
     <xsl:variable name="attemptid" select="../@id"/>
     <xsl:variable name="embeddedbase" select="concat( 'csfiles/privatedoc/gradebook/notesAndFeedback/attempt/', $attemptid, '/' )"/>
@@ -528,31 +665,32 @@
           <th><xsl:value-of select="./Header/@value"/></th>
           <xsl:for-each select="RubricColumns/Column">
             <xsl:sort select="Position/@value"/>
-            <td>
-              <h4><xsl:value-of select="./Header/@value"/></h4>
-              <p><xsl:value-of select="./Cell/CellDescription/@value"/></p>
-            </td>
+            <xsl:variable name="cellid" select="Cell/@id"/>
+            <xsl:variable name="evalcell" select="$rubeval/RUBRIC_EVAL/RUBRIC_CELL_EVAL[RUBRIC_CELL_ID/@value = $cellid]"/>            
+            <xsl:if test="count($evalcell) = 1">
+              <td>
+                <h4><xsl:value-of select="./Header/@value"/></h4>
+                <p><xsl:value-of select="./Cell/CellDescription/@value"/></p>
+              </td>
+			</xsl:if>
           </xsl:for-each>
         </tr>
         <tr>
-          <th></th>
+          <th>Marker Feedback:</th>
           <xsl:for-each select="RubricColumns/Column">
             <xsl:sort select="Position/@value"/>
             <xsl:variable name="cellid" select="Cell/@id"/>
             <xsl:variable name="evalcell" select="$rubeval/RUBRIC_EVAL/RUBRIC_CELL_EVAL[RUBRIC_CELL_ID/@value = $cellid]"/>            
-            <td>
-              <p><xsl:value-of select="$cellid"/> =
-              <xsl:if test="count($evalcell) = 1">
-                <xsl:value-of select="$evalcell/@id"/>
+            <xsl:if test="count($evalcell) = 1">
+              <td>
                 <xsl:call-template name="textoutputgeneral">
                   <xsl:with-param name="original" select="$evalcell/FEEDBACK/FEEDBACK_TEXT/text()"/>
                   <xsl:with-param name="type" select="$evalcell/FEEDBACK/FLAGS/FORMATTED_TYPE/@value"/>
                   <xsl:with-param name="base" select="$embeddedbase"/>
                   <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
                 </xsl:call-template>
-              </xsl:if>
-              </p>
-            </td>
+              </td>
+			</xsl:if>
           </xsl:for-each>
         </tr>
       </xsl:for-each>
@@ -605,4 +743,9 @@
     </div>
   </xsl:template>
     
+    
+  <xsl:template match="*">
+    <xsl:text>UNEXPECTED XSLT PROCESSING</xsl:text>
+  </xsl:template>  
+  
 </xsl:stylesheet>

@@ -59,12 +59,14 @@ import javax.xml.xpath.XPathFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.w3c.dom.Document;
+import org.xml.sax.SAXException;
 import uk.ac.leedsbeckett.bubblecarver.analysis.BubbleAnalyser;
 import uk.ac.leedsbeckett.bubblecarver.combiner.BubbleCombiner;
 import uk.ac.leedsbeckett.bubblecarver.combiner.Names;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
 import uk.ac.leedsbeckett.bubblecarver.data.ProcessorSession;
+import uk.ac.leedsbeckett.bubblecarver.reporter.BubbleReporter;
 import uk.ac.leedsbeckett.bubblecarver.splitter.BubbleSplitter;
 import uk.ac.leedsbeckett.bubblecarver.stax.DocCombiner;
 import uk.ac.leedsbeckett.bubblecarver.stax.StudentRedactor;
@@ -132,6 +134,8 @@ public class BatchProcessor implements Runnable
   
   Logger telemetryLog;
   Handler telemetrySessionHandler;
+  
+  BubbleReporter bubbleReporter;
   
   public BatchProcessor( 
           BubbleCarverConfig config,
@@ -207,6 +211,8 @@ public class BatchProcessor implements Runnable
       Templates templates = tFactory.newTemplates( new StreamSource( in ) );
       transformSummariseDigest = templates.newTransformer();
     }    
+    
+    bubbleReporter = new BubbleReporter( transformStudentReport );
   }
   
   private Path getStudentPath( String courseid, ModuleUserInfo mui )
@@ -688,25 +694,18 @@ public class BatchProcessor implements Runnable
   }
   
   public class StudentArchiveDataProcessor implements Consumer<Path>
-  {
+  {    
     @Override
     public void accept( Path t )
     {
       if ( progress.firstException != null )
         return;
-      
       System.out.println( "Processing " + t.toUri() );
-
-      Path report = t.getParent().resolve( "report.html" );
-      try ( InputStream in = Files.newInputStream( t );
-            OutputStream out = Files.newOutputStream( report ) )
+      try 
       {
-        StreamSource source = new StreamSource( in );
-        StreamResult result = new StreamResult( out );
-        transformStudentReport.reset();
-        transformStudentReport.transform( source, result );
+        bubbleReporter.processStudent( t );
       }
-      catch ( IOException | TransformerException ex )
+      catch ( IOException | TransformerException | ParserConfigurationException | SAXException ex )
       {
         progress.firstException = ex;
         throw new RuntimeException( ex );
