@@ -254,7 +254,18 @@ public class SecondPassFilter extends CombinerFilter
       else if ( !StringUtils.isBlank( gradeid ) )
         throw new IllegalArgumentException( "Cannot handle rubrics attached to a gradebook grade." );
       else if ( !StringUtils.isBlank( qtidataid ) )
-        throw new IllegalArgumentException( "Cannot handle rubrics attached to QTI data." );
+      {
+        // For now silently remove the rubric evaluation element
+        // and all children elements.
+        // Throwing an exception here helped find an example module to help
+        // work out how to handle properly:
+        // Z:\transfers\testdata\rubric\ArchiveFile_14556-2010.zip
+        // Maybe not a good example - seems that rubric wasn't used.
+        // Need to be processing individual responses to tests before
+        // tackling this.
+        node.setWritePlan( null );
+        node.setMode( Mode.OMIT );
+      }
       else
         throw new IllegalArgumentException( "Rubric evaluation that doesn't seem to be attached to anything." );
       

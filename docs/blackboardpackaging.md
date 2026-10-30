@@ -56,7 +56,7 @@ for this specific purpose.
 | course/x-bb-attemptembeddedfiles | Files embedded into assignment responses. One per assignment. | Y | Y
 | course/x-bb-attemptfiles | Files attached to assignment responses. One per assignment | Y | Y
 | course/x-bb-attemptreceipts | No need to archive | N | 
-| course/x-bb-availability-rule | Content adaptive release rules Needed for achievements because this is a record of how student is recorded as having achieved that. Keep every rule file that applies to a document that is also being retained. | Y/N | N
+| course/x-bb-availability-rule | Content adaptive release rules Needed for achievements because this is a record of how student is recorded as having achieved that. Keep every rule file that applies to a document that is also being retained. | Y/N | Y
 | course/x-bb-availgrouptool | Indicates what tools are made available in which group. One per course. | N | 
 | course/x-bb-category | Categories of assessment. (Used by  x-bb-itemcategory) | N | 
 | course/x-bb-contenthandler | Copy of system config for building blocks. Could help identify/describe embedded content in student assignment attempt. | Y | N

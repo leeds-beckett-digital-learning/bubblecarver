@@ -105,6 +105,9 @@ distinctly for students of partner organisations so these can be filtered out.
 Also, we have 'staff as student' account for testing that can be filtered
 out.)
 
+The last batch of files are extracted from the ZIP archive into temporary
+space at the end of this pass through the XML.
+
 ### Splitter
 
 The splitter runs a STAX filter multiple times on the same stage 2 output
@@ -118,10 +121,12 @@ Also, uploaded files that belong exclusively to the student are moved from
 the temporary unzipped area to the student's archive entry location. 
 Moving is preferred because it is usually very fast when the source and
 destination are on the same disk drive volume.  Files
-that are shared with other group members are copied which make take longer
+that are shared with other group members are copied which may take longer
 to process.
 
-This may be the last step in a batch processing session.
+This can be the last step in a batch processing session because none of
+the indexing, group membership data structures etc. held in memory are needed
+any more.
 
 ### Report building
 

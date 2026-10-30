@@ -60,8 +60,10 @@ import uk.ac.leedsbeckett.bubblecarver.combiner.Names;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
 import uk.ac.leedsbeckett.bubblecarver.data.ProcessorSession;
+import uk.ac.leedsbeckett.bubblecarver.exceptions.UpToDateException;
 import uk.ac.leedsbeckett.bubblecarver.reporter.BubbleReporter;
 import uk.ac.leedsbeckett.bubblecarver.splitter.BubbleSplitter;
+import uk.ac.leedsbeckett.bubblecarver.util.PathResolver;
 import uk.ac.leedsbeckett.bubblecarver.util.Utils;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookupHelper;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DataLookups;
@@ -327,6 +329,7 @@ public class BatchProcessor implements Runnable
   public class ArchiveCombinerProcessor implements Consumer<Path>
   {
     Telemetry telemetry;
+    final PathResolver pathResolver = new PathResolver( outputPath );
     
     @Override
     public void accept( Path t )
@@ -361,7 +364,10 @@ public class BatchProcessor implements Runnable
         session.fp               = new FileProcessor( session.root );
         session.generalmapper    = new GeneralMappingHelper();
         process( session );
-        progress.completedCount++;
+      }
+      catch ( UpToDateException utdex )
+      {
+        System.out.println( "Course archive has already been processed. Skipping." );
       }
       catch ( Exception ex )
       {
@@ -371,6 +377,7 @@ public class BatchProcessor implements Runnable
       }
       finally
       {
+        progress.completedCount++;
         telemetry.completeArchive();
         session.release();
         if ( extractPath != null && Files.exists( extractPath ) )
@@ -390,24 +397,28 @@ public class BatchProcessor implements Runnable
     }
     
     private void process( ProcessorSession session )
-            throws ParserConfigurationException, IOException, TransformerException, XPathExpressionException, XMLStreamException
+            throws ParserConfigurationException, IOException, TransformerException, XPathExpressionException, XMLStreamException, UpToDateException
     {      
-      BubbleCombiner bc = new BubbleCombiner( session.root, session.processingdir, session.zipper );
+      BubbleCombiner bc = new BubbleCombiner( session.root, pathResolver, session.zipper );
       bc.process();
 
-      Path cp = bc.getCourseBasePath();
+      Path courseBasePath = bc.getCourseBasePath();
       GeneralMap genmap = bc.getGeneralMap();
       GroupMap groupmap = bc.getGroupMap();
       groupmap.rebuild( genmap );
 
       BubbleSplitter bs = new BubbleSplitter(
-          cp.resolve( "pass_two_archive.xml" ),
+          courseBasePath.resolve( "pass_two_archive.xml" ),
           session.root,
-          cp,
+          courseBasePath,
           bc.getInterestingStudentIds(),
           groupmap
         );
       bs.process();
+      
+      Path completed = pathResolver.getCompletedFilePath( courseBasePath );
+      if ( !Files.exists( completed ) )
+        Files.createFile( completed );
     }
   }
 
@@ -498,13 +509,24 @@ public class BatchProcessor implements Runnable
     }
   }
   
+  /**
+   * No attempt in this searcher to skip archives that have already been
+   * processed because that can't be done without extracting a file from
+   * the ZIP.  Let the processor itself decide whether to skip an archive.
+   * (Because we the target directory path depends on the date/time that
+   * the course archive was created and that is in a property file packed
+   * in the ZIP.)
+   */
   public class ArchiveSearcher implements BiPredicate<Path,BasicFileAttributes>
   {
     @Override
     public boolean test( Path t, BasicFileAttributes u )
     {
       System.out.println( "ArchiveSearcher.test( " + t.toString() + ")" );
-      // Will accept either zip file or directory named with '.zip'
+      // No longer accepting directories - ZIPs only.
+      if ( Files.isDirectory( t ) )
+        return false;
+      
       if ( !t.getFileName().toString().endsWith( ".zip" ) )
         return false;
       System.out.println( "             Looks like archive." );

@@ -38,8 +38,10 @@ import javax.xml.stream.*;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
 import uk.ac.leedsbeckett.bubblecarver.data.WantedFiles;
+import uk.ac.leedsbeckett.bubblecarver.exceptions.UpToDateException;
 import uk.ac.leedsbeckett.bubblecarver.stax.StaxFileCataloguer;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
+import uk.ac.leedsbeckett.bubblecarver.util.PathResolver;
 import uk.ac.leedsbeckett.bubblecarver.util.Utils;
 import uk.ac.leedsbeckett.bubblecarver.zip.ZipProcessor;
 
@@ -81,23 +83,23 @@ public class BubbleCombiner
   final Properties packageInfo = new Properties();
   
   final Path archiveBasePath;
-  final Path outputBasePath;
   final ZipProcessor zipper;
   
+  final PathResolver pathResolver;
   Path courseBasePath;
   
   String courseId;
   String packageTime;
   String archiveDirectoryName;
   
-  public BubbleCombiner( Path archiveBasePath, Path outputBasePath, ZipProcessor zipper )
+  public BubbleCombiner( Path archiveBasePath, PathResolver pathResolver, ZipProcessor zipper )
   {
     this.archiveBasePath = archiveBasePath;
-    this.outputBasePath = outputBasePath;
+    this.pathResolver = pathResolver;
     this.zipper = zipper;
   }
   
-  public void process() throws IOException, XMLStreamException
+  public void process() throws IOException, XMLStreamException, UpToDateException
   {
     Path packageInfoPath = archiveBasePath.resolve( ".bb-package-info" );
     String dateline = null;
@@ -120,15 +122,15 @@ public class BubbleCombiner
     }
     
     courseId = packageInfo.getProperty( "cx.config.course.id" );
-    //get package time from comments in properties file not time stamp
-    //because the time zone of that isn't clear.
-    //packageTime = Files.getLastModifiedTime( packageInfoPath ).toInstant().toString().replace( ':', '-' );
-    archiveDirectoryName = courseId + "__" + packageTime;
 
-    courseBasePath = outputBasePath.resolve( "courses" ).resolve( archiveDirectoryName );
+    courseBasePath = pathResolver.getCourseBasePath( courseId, packageTime );
     Files.createDirectories( courseBasePath );
-    context = new BubbleCombinerContext( archiveBasePath, courseBasePath );
     
+    Path completed = pathResolver.getCompletedFilePath( courseBasePath );
+    if ( Files.exists( completed ) )
+      throw new UpToDateException( "Archive has already been extracted." );
+    
+    context = new BubbleCombinerContext( archiveBasePath, courseBasePath );
     try ( InputStream in = Files.newInputStream( context.inputPath );
           FileWriter fileWriter = new FileWriter( context.pass1aPath.toFile() );
             )
