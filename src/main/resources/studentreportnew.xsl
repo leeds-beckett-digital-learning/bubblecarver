@@ -195,11 +195,14 @@
   <!-- match="OUTCOME" mode="points" -->  
   <xsl:template match="OUTCOME" mode="points">
     <xsl:choose>
+      <xsl:when test="count( OVERRIDE_SCORE ) = 0 and ../../AGGREGATIONMODEL/@value = 'Last'">
+        <xsl:apply-templates select="." mode="points-last-attempt"/>
+      </xsl:when>
       <xsl:when test="count( OVERRIDE_SCORE ) = 0">
-        <xsl:value-of select="../../AGGREGATIONMODEL/@value"/> Fully Submitted Attempt
+        Attempt selection: <xsl:value-of select="../../AGGREGATIONMODEL/@value"/>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( OVERRIDE_SCORE/text() )"/> (Attempt override)
+        <xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( OVERRIDE_SCORE/text() )"/> (Overrides Attempts)
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
@@ -207,12 +210,39 @@
   <!-- match="OUTCOME" mode="grade" -->  
   <xsl:template match="OUTCOME" mode="grade">
     <xsl:choose>
+      <xsl:when test="count( OVERRIDE_GRADE ) = 0 and ../../AGGREGATIONMODEL/@value = 'Last'">
+        <xsl:apply-templates select="." mode="grade-last-attempt"/>        
+      </xsl:when>
       <xsl:when test="count( OVERRIDE_GRADE ) = 0">
-        See attempt: <xsl:value-of select="../../AGGREGATIONMODEL/@value"/>        
+        Attempt selection: <xsl:value-of select="../../AGGREGATIONMODEL/@value"/>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:value-of select="OVERRIDE_GRADE/text()"/> (Attempt override)
+        <xsl:value-of select="OVERRIDE_GRADE/text()"/> (Overrides Attempts)
       </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="OUTCOME" mode="points-last-attempt">
+	<!-- technique found https://stackoverflow.com/questions/3786443/xpath-to-get-the-element-with-the-highest-id
+	     to find most recent attempt with Completed status. -->
+	<xsl:variable name="mostrecentcompletedattempt" select="ATTEMPTS/ATTEMPT[STATUS/@value = 'Completed' and not(../ATTEMPT/DATEATTEMPTED/@value &gt; DATEATTEMPTED/@value) ]"/>
+    <xsl:choose>
+      <xsl:when test="count( $mostrecentcompletedattempt ) = 1">
+        <xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( $mostrecentcompletedattempt/SCORE/@value )"/>
+      </xsl:when>
+      <xsl:otherwise>See marking details</xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="OUTCOME" mode="grade-last-attempt">
+	<!-- technique found https://stackoverflow.com/questions/3786443/xpath-to-get-the-element-with-the-highest-id
+	     to find most recent attempt with Completed status. -->
+	<xsl:variable name="mostrecentcompletedattempt" select="ATTEMPTS/ATTEMPT[STATUS/@value = 'Completed' and not(../ATTEMPT/DATEATTEMPTED/@value &gt; DATEATTEMPTED/@value) ]"/>
+    <xsl:choose>
+      <xsl:when test="count( $mostrecentcompletedattempt ) = 1">
+        <xsl:value-of select="$mostrecentcompletedattempt/GRADE/@value"/>
+      </xsl:when>
+      <xsl:otherwise>See marking details</xsl:otherwise>
     </xsl:choose>
   </xsl:template>
 
