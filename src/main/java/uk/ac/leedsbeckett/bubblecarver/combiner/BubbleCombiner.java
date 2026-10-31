@@ -183,6 +183,7 @@ public class BubbleCombiner
     writer.writeCharacters( "\n" );
     writer.writeStartElement( "bbcarv", "archive", Names.BCARVNAMESPACE );
     writer.writeNamespace( "bbcarv", Names.BCARVNAMESPACE );
+    writer.writeNamespace( "ins", Names.INSTANTNAMESPACE );
     writer.writeNamespace( "cat", Names.CATALOGUENAMESPACE );
     writer.writeAttribute( 
             Names.BCARVCOURSEIDATTRIBUTE.getNamespaceURI(), 

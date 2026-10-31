@@ -27,6 +27,7 @@ public class Names
   public final static String BBNAMESPACE = "http://www.blackboard.com/content-packaging/";
   public final static String BCARVNAMESPACE = "http://www.leedsbeckett.ac.uk/bubblecarver";
   public final static String CATALOGUENAMESPACE = "http://www.leedsbeckett.ac.uk/bubblecarver/catalogue";
+  public final static String INSTANTNAMESPACE = "http://www.leedsbeckett.ac.uk/bubblecarver/instant";
   
   public final static QName XMLBASEATTRIBUTE = new QName( XMLNAMESPACE, "base" );
   public final static QName IDATTRIBUTE = new QName( "id" );

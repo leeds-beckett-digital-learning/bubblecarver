@@ -11,6 +11,7 @@
 <xsl:stylesheet 
   xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 
   xmlns:bbcarv="http://www.leedsbeckett.ac.uk/bubblecarver"
+  xmlns:ins="http://www.leedsbeckett.ac.uk/bubblecarver/instant"
   xmlns:java="http://xml.apache.org/xalan/java"
   extension-element-prefixes="java"
   version="1.0">
@@ -223,26 +224,38 @@
   </xsl:template>
 
   <xsl:template match="OUTCOME" mode="points-last-attempt">
-	<!-- technique found https://stackoverflow.com/questions/3786443/xpath-to-get-the-element-with-the-highest-id
-	     to find most recent attempt with Completed status. -->
-	<xsl:variable name="mostrecentcompletedattempt" select="ATTEMPTS/ATTEMPT[STATUS/@value = 'Completed' and not(../ATTEMPT/DATEATTEMPTED/@value &gt; DATEATTEMPTED/@value) ]"/>
+	<xsl:variable name="completedattempts" select="ATTEMPTS/ATTEMPT[STATUS/@value = 'Completed']"/>
     <xsl:choose>
-      <xsl:when test="count( $mostrecentcompletedattempt ) = 1">
-        <xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( $mostrecentcompletedattempt/SCORE/@value )"/>
-      </xsl:when>
-      <xsl:otherwise>See marking details</xsl:otherwise>
+      <xsl:when test="count( $completedattempts ) = 0">No Completed Attempt</xsl:when>
+	  <xsl:otherwise>
+        <!-- technique found https://stackoverflow.com/questions/3786443/xpath-to-get-the-element-with-the-highest-id
+	         to find most recent attempt with Completed status. Uses the epoch seconds version of the original timestamp attribute -->
+        <xsl:variable name="mostrecentcompletedattempt" select="$completedattempts[ not( ../ATTEMPT/DATEATTEMPTED/@ins:value &gt; DATEATTEMPTED/@ins:value ) ]"/>
+        <xsl:choose>
+          <xsl:when test="count( $mostrecentcompletedattempt ) = 0">Unable to locate last attempt</xsl:when>
+          <xsl:otherwise>
+            <xsl:value-of select="java:uk.ac.leedsbeckett.bubblecarver.xsl.StringProcessor.reformatScore( $mostrecentcompletedattempt/SCORE/@value )"/>
+		  </xsl:otherwise>
+        </xsl:choose>
+	  </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
 
   <xsl:template match="OUTCOME" mode="grade-last-attempt">
-	<!-- technique found https://stackoverflow.com/questions/3786443/xpath-to-get-the-element-with-the-highest-id
-	     to find most recent attempt with Completed status. -->
-	<xsl:variable name="mostrecentcompletedattempt" select="ATTEMPTS/ATTEMPT[STATUS/@value = 'Completed' and not(../ATTEMPT/DATEATTEMPTED/@value &gt; DATEATTEMPTED/@value) ]"/>
+	<xsl:variable name="completedattempts" select="ATTEMPTS/ATTEMPT[STATUS/@value = 'Completed']"/>
     <xsl:choose>
-      <xsl:when test="count( $mostrecentcompletedattempt ) = 1">
-        <xsl:value-of select="$mostrecentcompletedattempt/GRADE/@value"/>
-      </xsl:when>
-      <xsl:otherwise>See marking details</xsl:otherwise>
+      <xsl:when test="count( $completedattempts ) = 0">No Completed Attempt</xsl:when>
+	  <xsl:otherwise>
+        <!-- technique found https://stackoverflow.com/questions/3786443/xpath-to-get-the-element-with-the-highest-id
+	         to find most recent attempt with Completed status. Uses the epoch seconds version of the original timestamp attribute -->
+        <xsl:variable name="mostrecentcompletedattempt" select="$completedattempts[ not( ../ATTEMPT/DATEATTEMPTED/@ins:value &gt; DATEATTEMPTED/@ins:value ) ]"/>
+        <xsl:choose>
+          <xsl:when test="count( $mostrecentcompletedattempt ) = 0">Unable to locate last attempt</xsl:when>
+          <xsl:otherwise>
+            <xsl:value-of select="$mostrecentcompletedattempt/GRADE/@value"/>
+		  </xsl:otherwise>
+        </xsl:choose>
+	  </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
 
@@ -250,19 +263,26 @@
   <xsl:template match="OUTCOME">
     <xsl:if test="count( FEEDBACK_TO_USER/TEXT ) = 1 or count( INSTRUCTOR_COMMENTS/TEXT ) = 1">
       <h3>Overrides</h3>
-        <div>(Override scores, feedback etc. are entered by a marker into the 
-          grade centre item regardless of any attempts. This could be because
-          work was submitted off-line, because it is based on multiple attempts
-          or for some other unusual circumstances.)</div>
+      <div>(Override scores, feedback etc. are entered by a marker into the 
+        grade centre item regardless of any attempts. This could be because
+        work was submitted off-line, because it is based on multiple attempts
+        or for some other unusual circumstances.)</div>
+    </xsl:if>
+
+    <xsl:if test="count( FEEDBACK_TO_USER/TEXT ) = 1">
       <div class="attempt-comments">
         <h3>Feedback</h3>
         <xsl:apply-templates select="FEEDBACK_TO_USER" mode="override"/>
       </div>
+    </xsl:if>
+	  
+    <xsl:if test="count( INSTRUCTOR_COMMENTS/TEXT ) = 1">
       <div class="attempt-notes">
         <h3>Private Notes</h3>
         <xsl:apply-templates select="INSTRUCTOR_COMMENTS" mode="override"/>
       </div>      
     </xsl:if>
+	
 	<div class="attempt-list">
       <xsl:if test="count(ATTEMPTS/ATTEMPT) &gt; 1">
         <p>In reverse date order</p>
@@ -284,6 +304,9 @@
 	-->
 	
     <details class="attempt">
+	  <xsl:if test="position() = 1">
+	    <xsl:attribute name="open">true</xsl:attribute>
+	  </xsl:if>
       <summary>Attempt <xsl:value-of select="DATEATTEMPTED/@value"/>  Status <xsl:value-of select="STATUS/@value"/></summary>
 	  <div class="attempt-content">
 
@@ -300,17 +323,17 @@
       <xsl:apply-templates select="ancestor::OUTCOMEDEFINITION/GROUPATTEMPTS/GROUPATTEMPT[@id = $groupattemptid]" mode="attemptsubmission"/>
 
 	  <h4>Marking</h4>
-      <details>
-        <summary>Individual assessment details</summary>
+      <div>
+        <h5>Individual assessment details</h5>
         <xsl:apply-templates select="." mode="attemptcontent"/>
-      </details>
+      </div>
 
       <xsl:if test="string-length($groupattemptid) != 0">
         <p>The individual assessment is based on a group assessment.</p>
-        <details>
-          <summary>Group assessment details</summary>
+        <div>
+          <h5>Group assessment details</h5>
           <xsl:apply-templates select="ancestor::OUTCOMEDEFINITION/GROUPATTEMPTS/GROUPATTEMPT[@id = $groupattemptid]" mode="attemptcontent"/>
-        </details>
+        </div>
       </xsl:if>
 
 	  </div>
@@ -405,15 +428,21 @@
             </tr>
           </tbody>
         </table>
-        <div class="attempt-comments">
-          <h3>Feedback</h3>
-          <xsl:apply-templates select="INSTRUCTORCOMMENTS"/>
-        </div>
-        <div class="attempt-notes">
-          <h3>Marker Private Notes</h3>
-          <xsl:apply-templates select="INSTRUCTORNOTES"/>
-        </div>
-	
+		
+        <xsl:if test="count( INSTRUCTORCOMMENTS/TEXT ) = 1">
+          <div class="attempt-comments">
+            <h3>Feedback</h3>
+            <xsl:apply-templates select="INSTRUCTORCOMMENTS"/>
+          </div>
+		</xsl:if>
+		
+        <xsl:if test="count( INSTRUCTORNOTES/TEXT ) = 1">
+          <div class="attempt-notes">
+            <h3>Marker Private Notes</h3>
+            <xsl:apply-templates select="INSTRUCTORNOTES"/>
+          </div>
+	    </xsl:if>
+		
 	  </xsl:otherwise>
 	</xsl:choose>
   </xsl:template>
@@ -541,13 +570,17 @@
           <td><xsl:value-of select="ENTRY_KEY/@value"/></td>
         </tr>
       </table>
-      <div class="attempt-comments">
-        <xsl:apply-templates select="FEEDBACK_TO_USER"/>
-      </div>      
+      <xsl:if test="count( FEEDBACK_TO_USER/TEXT ) = 1">
+        <div class="attempt-comments">
+          <xsl:apply-templates select="FEEDBACK_TO_USER"/>
+        </div>      
+      </xsl:if>
       <!-- In grade history private notes are marked up similar to comments in attempt  -->
-      <div class="attempt-notes">
-        <xsl:apply-templates select="INSTRUCTOR_COMMENTS"/>
-      </div>      
+      <xsl:if test="count( INSTRUCTOR_COMMENTS/TEXT ) = 1">
+        <div class="attempt-notes">
+          <xsl:apply-templates select="INSTRUCTOR_COMMENTS"/>
+        </div>      
+      </xsl:if>
     </div>
   </xsl:template>
 
@@ -684,45 +717,40 @@
     <xsl:variable name="embeddedbase" select="./ancestor::resource/@xml:base"/>    
     <xsl:variable name="rubricid" select="RUBRIC_ID/@value"/>
     <xsl:variable name="rubric"   select="/bbcarv:archive/manifest/resources/resource/bbcarv:data/LEARNRUBRICS/Rubric[@id = $rubricid]"/>
-<!--    <xsl:variable name="columns"  select="count($rubric/RubricRows/Row[1]/RubricColumns/Column)"/> -->
-    <p>Rubric here. Rubric ID = <xsl:value-of select="$rubricid"/></p>
-    <p>Rubric count = <xsl:value-of select="count($rubric)"/></p>
+	
+	<h3>RUBRIC</h3>
     <table>
       <xsl:for-each select="$rubric/RubricRows/Row">
         <xsl:sort select="Position/@value"/>
         <xsl:variable name="rowid" select="@id"/>
-        <tr>
-          <th><xsl:value-of select="./Header/@value"/></th>
-          <xsl:for-each select="RubricColumns/Column">
-            <xsl:sort select="Position/@value"/>
-            <xsl:variable name="cellid" select="Cell/@id"/>
-            <xsl:variable name="evalcell" select="$rubeval/RUBRIC_EVAL/RUBRIC_CELL_EVAL[RUBRIC_CELL_ID/@value = $cellid]"/>            
-            <xsl:if test="count($evalcell) = 1">
-              <td>
-                <h4><xsl:value-of select="./Header/@value"/></h4>
-                <p><xsl:value-of select="./Cell/CellDescription/@value"/></p>
-              </td>
-			</xsl:if>
-          </xsl:for-each>
-        </tr>
-        <tr>
-          <th>Marker Feedback:</th>
-          <xsl:for-each select="RubricColumns/Column">
-            <xsl:sort select="Position/@value"/>
-            <xsl:variable name="cellid" select="Cell/@id"/>
-            <xsl:variable name="evalcell" select="$rubeval/RUBRIC_EVAL/RUBRIC_CELL_EVAL[RUBRIC_CELL_ID/@value = $cellid]"/>            
-            <xsl:if test="count($evalcell) = 1">
-              <td>
+        <xsl:variable name="maxscore" select="number( Percentage/@value ) * 1.0"/>
+        <tr><th colspan="2" style="text-align: left; padding-top: 1em;"><xsl:value-of select="./Header/@value"/></th></tr>
+        <xsl:for-each select="RubricColumns/Column">
+          <xsl:sort select="Position/@value"/>
+          <xsl:variable name="cellid" select="Cell/@id"/>
+          <xsl:variable name="evalcell" select="$rubeval/RUBRIC_EVAL/RUBRIC_CELL_EVAL[RUBRIC_CELL_ID/@value = $cellid]"/>
+          <xsl:if test="count($evalcell) = 1">
+            <tr><th>Category</th><td><xsl:value-of select="./Header/@value"/></td></tr>
+			<tr><th>Standard Feedback</th><td><xsl:value-of select="./Cell/CellDescription/@value"/></td></tr>
+			<tr>
+			  <th>Score</th>
+			  <td>
+			    <xsl:value-of select="number( $evalcell/SELECTED_PERCENT/@value ) * 100.0"/>% ( max available <xsl:value-of select="$maxscore"/>% )
+			  </td>
+			</tr>
+            <tr>
+		      <th>Personalised Feedback</th>
+			  <td>
                 <xsl:call-template name="textoutputgeneral">
                   <xsl:with-param name="original" select="$evalcell/FEEDBACK/FEEDBACK_TEXT/text()"/>
                   <xsl:with-param name="type" select="$evalcell/FEEDBACK/FLAGS/FORMATTED_TYPE/@value"/>
                   <xsl:with-param name="base" select="$embeddedbase"/>
                   <xsl:with-param name="v" select="'@X@EmbeddedFile.cslocation@X@'"/>
                 </xsl:call-template>
-              </td>
-			</xsl:if>
-          </xsl:for-each>
-        </tr>
+			  </td>
+			</tr>
+		  </xsl:if>
+        </xsl:for-each>
       </xsl:for-each>
     </table>
   </xsl:template>

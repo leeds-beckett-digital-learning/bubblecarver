@@ -15,11 +15,17 @@
  */
 package uk.ac.leedsbeckett.bubblecarver.combiner;
 
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import javax.xml.stream.events.Attribute;
 import org.apache.commons.lang3.StringUtils;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
+import uk.ac.leedsbeckett.bubblecarver.xsl.DateProcessor;
 
 /**
  *
@@ -27,6 +33,14 @@ import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
  */
 public class SecondPassFilter extends CombinerFilter
 {
+  // Is thread safe for creating Matchers
+  static Pattern timestampPattern = Pattern.compile( "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [A-Z0-9]{3}" );
+  // Can be reused by resetting but is not thread safe
+  Matcher matcher = timestampPattern.matcher("");
+  // Avoid too much init of arrays by using this one for
+  // every attribute checked Must remember to keep clearing it.
+  final ArrayList<Attribute> extraAttributes = new ArrayList<>();
+  
   FilterMatcherImpl[] matchers = 
   {
     new FilterMatcherImpl( Mode.OMIT,                                                         new ProcessOmitted() ),
@@ -56,7 +70,68 @@ public class SecondPassFilter extends CombinerFilter
     super( reader, writer, context, config );
     setMatchers( matchers );
   }
+
+  /**
+   * No matter what part of this processor decides to output an
+   * element here it can be altered before output.  This is used to
+   * detect attributes with timestamps and add an attribute with
+   * the timestamp converted to an integer number.  This will allow
+   * later processing to more easily sort elements. (Especially
+   * XPath 1.0 which can't sort strings.)
+   * 
+   * @param plan
+   * @throws XMLStreamException 
+   */
+  @Override
+  public void writeStartElement(ElementWritePlan plan) throws XMLStreamException
+  {
+    extraAttributes.clear();
+    for ( Attribute a : plan.getAttributeList() )
+    {
+      QName aName = a.getName();
+      String value = a.getValue();
+      // Only interested in empty namespace attributes
+      if ( !"".equals( aName.getNamespaceURI() ) )
+        continue;
+      
+      // Use regular expression to detect date time in hope
+      // it will be faster than catching failed datetime parse.
+      // Reset the instance matcher with the source string
+      matcher.reset( value );
+      if ( matcher.matches() )
+      {
+        // The entire attribute value is a date/time stamp in the
+        // format we are interested in.
+        // Now try parsing as datetime and convert to one number
+        String epoch = DateProcessor.epoch( value );
+        // Make attribute in special name space but with name name.
+        QName iaName = new QName( Names.INSTANTNAMESPACE, aName.getLocalPart() );
+        Attribute instantAttribute = new AttributeImpl( iaName, epoch );
+        extraAttributes.add( instantAttribute );
+        
+//        // For testing convert back to date/time
+//        String reverse = DateProcessor.reverse( epoch );
+//        QName revName = new QName( Names.INSTANTNAMESPACE, "x_" + aName.getLocalPart() );
+//        Attribute reverseAttribute = new AttributeImpl( revName, reverse );
+//        extraAttributes.add( reverseAttribute );
+//
+//        String utc = DateProcessor.utc( epoch );
+//        QName uName = new QName( Names.INSTANTNAMESPACE, "u_" + aName.getLocalPart() );
+//        Attribute uAttribute = new AttributeImpl( uName, utc );
+//        extraAttributes.add( uAttribute );
+      }
+    }
+
+    // Added after because we can't iterate the plan's list and
+    // add to it at the same time.
+    plan.getAttributeList().addAll( extraAttributes );
+    // Empty this ready for next usage
+    extraAttributes.clear();
     
+    // Now let the super class actually output it.
+    super.writeStartElement(plan);
+  }
+
   class ProcessUser implements StartElementHandler
   {
     @Override

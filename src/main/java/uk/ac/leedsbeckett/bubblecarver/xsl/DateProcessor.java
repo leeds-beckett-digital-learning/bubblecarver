@@ -15,9 +15,14 @@
  */
 package uk.ac.leedsbeckett.bubblecarver.xsl;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.TextStyle;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  *
@@ -25,7 +30,16 @@ import java.time.format.DateTimeFormatter;
  */
 public class DateProcessor
 {
-  private static final DateTimeFormatter dtf = DateTimeFormatter.ofPattern( "yyyy-MM-dd kk:mm:ss zzz" );
+  private static final ZoneId zoneId = ZoneId.of( "Europe/London" );
+  private static final DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder();
+  static
+  {
+    builder.appendPattern( "yyyy-MM-dd HH:mm:ss " );
+    builder.appendZoneText( TextStyle.SHORT, Set.of( zoneId ) );
+  }
+  private static final DateTimeFormatter dtf = builder.toFormatter();
+
+  
   public static String test( String in )
   {
     return "*****" + in + "*****";
@@ -33,14 +47,20 @@ public class DateProcessor
   
   public static String epoch( String in )
   {
-    try
-    {
-      ZonedDateTime zdt = ZonedDateTime.parse( in, dtf );
-      return Long.toString( zdt.toEpochSecond() );
-    }
-    catch ( Throwable t )
-    {
-      return "";
-    }
+    ZonedDateTime zdt = ZonedDateTime.parse( in, dtf );
+    return Long.toString( zdt.toEpochSecond() );
+  }
+  
+  public static String reverse( String epoch )
+  {
+    long t = Long.parseLong( epoch );
+    ZonedDateTime zdt = ZonedDateTime.ofInstant( Instant.ofEpochSecond( t ), zoneId );
+    return dtf.format( zdt );
+  }
+
+  public static String utc( String epoch )
+  {
+    long t = Long.parseLong( epoch );
+    return Instant.ofEpochSecond( t ).toString();
   }
 }
