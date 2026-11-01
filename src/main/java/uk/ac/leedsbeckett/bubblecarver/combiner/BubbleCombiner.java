@@ -143,6 +143,8 @@ public class BubbleCombiner
     ArrayList<String> list = new ArrayList<>();
     for ( Path f : wantedFiles.getForCombiner() )
       list.add( archiveBasePath.relativize( f ).toString() );
+    for ( Path f : wantedFiles.getForSplitter() )
+      list.add( archiveBasePath.relativize( f ).toString() );
     zipper.extract( list );
       
     try ( InputStream in = Files.newInputStream( context.inputPath );
@@ -160,11 +162,6 @@ public class BubbleCombiner
     {
       passTwo( in, fileWriter );
     }
-
-    list = new ArrayList<>();
-    for ( Path f : wantedFiles.getForSplitter() )
-      list.add( archiveBasePath.relativize( f ).toString() );
-    zipper.extract( list );
   }
   
   public void passOne( InputStream in, FileWriter fileWriter, boolean dummyRun ) throws XMLStreamException, IOException
@@ -193,6 +190,11 @@ public class BubbleCombiner
             Names.BCARVARCHIVETIMEATTRIBUTE.getNamespaceURI(), 
             Names.BCARVARCHIVETIMEATTRIBUTE.getLocalPart(), 
             packageTime );
+    writer.writeAttribute( 
+            Names.BCARVARCHIVESOURCEATTRIBUTE.getNamespaceURI(), 
+            Names.BCARVARCHIVESOURCEATTRIBUTE.getLocalPart(), 
+            zipper.getZipPath().toString() );
+    
     writer.writeCharacters( "\n" );
     filter.process();
     
@@ -226,6 +228,7 @@ public class BubbleCombiner
     SecondPassFilter filter = new SecondPassFilter( reader, writer, ffc, config );
     
     writer.writeStartDocument("UTF-8", "1.0");
+    writer.writeCharacters( "\n" );
     filter.process();
     writer.writeEndDocument();
     generalMap = filter.getContext().getFilterContext().getGeneralMap();

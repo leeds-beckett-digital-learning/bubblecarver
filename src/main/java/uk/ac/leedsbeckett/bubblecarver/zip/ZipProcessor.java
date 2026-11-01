@@ -51,6 +51,11 @@ public class ZipProcessor
     this.targetPath = targetPath;
   }
 
+  public Path getZipPath()
+  {
+    return zipPath;
+  }
+  
   public Path getTargetPath()
   {
     return targetPath;

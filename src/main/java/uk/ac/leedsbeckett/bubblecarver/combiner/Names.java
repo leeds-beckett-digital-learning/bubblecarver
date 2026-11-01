@@ -50,6 +50,7 @@ public class Names
   public final static QName BCARVOUTCOMEATTRIBUTE = new QName( BCARVNAMESPACE, "outcome" );
   public final static QName BCARVCOURSEIDATTRIBUTE = new QName( BCARVNAMESPACE, "courseid" );
   public final static QName BCARVARCHIVETIMEATTRIBUTE = new QName( BCARVNAMESPACE, "archivetime" );
+  public final static QName BCARVARCHIVESOURCEATTRIBUTE = new QName( BCARVNAMESPACE, "archivesource" );
   public final static QName HANDLERATTRIBUTE = new QName( "handler" );
   public final static QName IMSURLATTRIBUTE = new QName( "imsurl" );
 }
