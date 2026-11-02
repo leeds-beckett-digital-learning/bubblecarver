@@ -33,6 +33,7 @@ import uk.ac.leedsbeckett.bubblecarver.staxfilter.FullFilterContext;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.ReaderNodeContext;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.StaxFilterConfiguration;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.WriterNodeContext;
+import uk.ac.leedsbeckett.bubblecarver.util.PathResolver;
 
 /**
  *
@@ -40,25 +41,28 @@ import uk.ac.leedsbeckett.bubblecarver.staxfilter.WriterNodeContext;
  */
 public class BubbleSplitter
 {
+  final String courseFolderName;
   final Path sourcePath;
   final Path archivePath;
-  final Path studentBasePath;
   final List<String> interestingStudentIds;
   final GroupMap groupMap;
+  final PathResolver pathResolver;
 
   final XMLOutputFactory writeFactory = XMLOutputFactory.newInstance();
   final XMLInputFactory readerFactory = XMLInputFactory.newInstance();
 
   public BubbleSplitter( 
+          String courseFolderName,
           Path sourcePath, 
           Path archivePath, 
-          Path studentBasePath, 
+          PathResolver pathResolver, 
           List<String> interestingStudentIds,
           GroupMap groupMap )
   {
+    this.courseFolderName = courseFolderName;
     this.sourcePath = sourcePath;
     this.archivePath = archivePath;
-    this.studentBasePath = studentBasePath;
+    this.pathResolver = pathResolver;
     this.interestingStudentIds = interestingStudentIds;
     this.groupMap = groupMap;
   }
@@ -68,7 +72,8 @@ public class BubbleSplitter
     for ( String sid : interestingStudentIds )
     {
       System.out.println( "Creating redacted archive file for student " + sid );
-      Path studentPath = this.studentBasePath.resolve( sid );
+      //Path studentPath = this.studentBasePath.resolve( sid );
+      Path studentPath = this.pathResolver.getStudentPath( sid, "blackboard", courseFolderName );
       Files.createDirectories( studentPath );
       Path sPath = studentPath.resolve( "redacted_archive_data.xml" );
       try ( InputStream in = Files.newInputStream( sourcePath );

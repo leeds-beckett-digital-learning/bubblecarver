@@ -19,6 +19,7 @@
   
   <xsl:param name="list-helper-id" select="''"/>
   <xsl:param name="outcome-def-id" select="''"/>
+  <xsl:param name="style" select="''"/>
 
   <xsl:variable name="sid" select="/bbcarv:archive/@bbcarv:sid"/>
   <xsl:variable name="gradebook" select="/bbcarv:archive/manifest/resources/resource[@type='course/x-bb-gradebook']/bbcarv:data/GRADEBOOK"/>
@@ -28,9 +29,9 @@
     <html>
       <head>
         <title>Student Course Report <xsl:value-of select="$sid"/></title>
-        <link rel="stylesheet" href="../../../css/report.css" />
         <style>
           details { padding-left: 2em; }
+		  <xsl:value-of select="$style"/>
         </style>
       </head>
       <body>

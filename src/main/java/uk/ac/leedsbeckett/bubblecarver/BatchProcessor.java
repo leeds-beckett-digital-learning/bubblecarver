@@ -21,6 +21,7 @@ import uk.ac.leedsbeckett.bubblecarver.data.ModuleUserInfo;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -105,7 +106,8 @@ public class BatchProcessor implements Runnable
   }
   
   private final Path searchPath;
-  private final Path outputPath;
+  private final PathResolver pathResolver;
+  
   private final boolean extract;
   private final boolean report;
   private final boolean digest;
@@ -125,9 +127,7 @@ public class BatchProcessor implements Runnable
   
   Logger telemetryLog;
   Handler telemetrySessionHandler;
-  
-  BubbleReporter bubbleReporter;
-  
+    
   public BatchProcessor( 
           BubbleCarverConfig config,
           BatchProcessorListener listener, 
@@ -140,7 +140,7 @@ public class BatchProcessor implements Runnable
     this.config = config;
     this.listener = listener;
     this.searchPath = searchPath;
-    this.outputPath = outputPath;
+    this.pathResolver = new PathResolver( outputPath );
     this.extract = extract;
     this.report = report;
     this.digest = digest;
@@ -158,14 +158,14 @@ public class BatchProcessor implements Runnable
 
   private void init() throws IOException, TransformerConfigurationException
   {
-    telemetryPath = outputPath.resolve( "logs" ).resolve( "telemetry" );
+    telemetryPath = pathResolver.resolve( "logs" ).resolve( "telemetry" );
     Files.createDirectories( telemetryPath );
     telemetryLog = Logger.getLogger( "BatchProcessor" + Utils.getNowString() );
     telemetryLog.setUseParentHandlers( false );
     // Will reset log and apply handler for each archive file.
     telemetrySessionHandler = getSessionHandler();
             
-    tempZipExtractPath = outputPath.resolve( "temp" ).resolve( "zip" );
+    tempZipExtractPath = pathResolver.resolve( "temp" ).resolve( "zip" );
     Files.createDirectories( tempZipExtractPath );
             
     xPath = XPathFactory.newInstance().newXPath();
@@ -186,37 +186,8 @@ public class BatchProcessor implements Runnable
     {
       Templates templates = tFactory.newTemplates( new StreamSource( in ) );
       transformSummariseDigest = templates.newTransformer();
-    }    
-    
-    bubbleReporter = new BubbleReporter( transformStudentReport );
+    }        
   }
-  
-  private Path getStudentPath( String courseid, ModuleUserInfo mui )
-  {
-    return getStudentPath( courseid, mui.getSid() );
-  }
-  
-  private Path getStudentPath( String courseid, String sid )
-  {
-    String part1 = sid.substring( 0, 2 ) + "______";
-    String part2 = sid.substring( 0, 4 ) + "____";
-    String part3 = sid.substring( 0, 6 ) + "__";
-    return outputPath
-            .resolve( "data" )
-            .resolve( "students" )
-            .resolve( part1 )
-            .resolve( part2 )
-            .resolve( part3 )
-            .resolve( sid )
-            .resolve( "bblarchives" )
-            .resolve( courseid );
-  }
-
-  private Path getStudentDataPath( String courseid, ModuleUserInfo mui )
-  {
-    return getStudentPath( courseid, mui ).resolve( "data.xml" );
-  }
-
   
   @Override
   public void run()
@@ -248,8 +219,8 @@ public class BatchProcessor implements Runnable
     if ( digest )
     {
       progress = new ProcessProgress();
-      Path reportPath = outputPath.resolve( "report_" + Utils.getNowString() + ".xml" );
-      Files.createDirectories( outputPath );
+      Path reportPath = pathResolver.resolve( "report_" + Utils.getNowString() + ".xml" );
+      Files.createDirectories( reportPath.getParent() );
       try ( FileWriter fileWriter = new FileWriter( reportPath.toFile() ) )
       {
         XMLOutputFactory writeFactory = XMLOutputFactory.newInstance();
@@ -291,9 +262,11 @@ public class BatchProcessor implements Runnable
     if ( report )
     {
       progress = new ProcessProgress();
+      String style  = FileUtils.readFileToString( pathResolver.getCssPath( "blackboard.css" ).toFile(), StandardCharsets.UTF_8 );
+      BubbleReporter bubbleResporter = new BubbleReporter( transformStudentReport, style );
       StudentArchiveDataSearcher sdsearcher = new StudentArchiveDataSearcher();
-      Stream<Path> studentArchiveDataSearch = Files.find( outputPath, Integer.MAX_VALUE, sdsearcher );
-      studentArchiveDataSearch.forEach( new StudentArchiveDataProcessor() );
+      Stream<Path> studentArchiveDataSearch = Files.find( pathResolver.getStudentsPath(), Integer.MAX_VALUE, sdsearcher );
+      studentArchiveDataSearch.forEach( new StudentArchiveDataProcessor( bubbleResporter ) );
       if ( progress.firstException != null )
       {
         System.out.println( "Exception while processing stream of archives..." );
@@ -329,7 +302,6 @@ public class BatchProcessor implements Runnable
   public class ArchiveCombinerProcessor implements Consumer<Path>
   {
     Telemetry telemetry;
-    final PathResolver pathResolver = new PathResolver( outputPath );
     
     @Override
     public void accept( Path t )
@@ -350,13 +322,13 @@ public class BatchProcessor implements Runnable
       ProcessorSession session = new ProcessorSession();
       try
       {
-        extractPath = outputPath.resolve( "ziptemp" ).resolve( Long.toHexString( System.currentTimeMillis() ) );
+        extractPath = pathResolver.resolve( "ziptemp" ).resolve( Long.toHexString( System.currentTimeMillis() ) );
         Files.createDirectories( extractPath );
         
         session.zipper = new ZipProcessor( t, extractPath );
         session.zipper.extract( BubbleCombiner.standardFiles );
     
-        session.processingdir    = outputPath;
+        session.processingdir    = pathResolver.getBasePath();
         Files.createDirectories( session.processingdir );
         session.root             = extractPath;          
         session.mapper           = new ModuleUserInfoMapper();
@@ -408,9 +380,10 @@ public class BatchProcessor implements Runnable
       groupmap.rebuild( genmap );
 
       BubbleSplitter bs = new BubbleSplitter(
+          courseBasePath.getFileName().toString(),
           courseBasePath.resolve( "pass_two_archive.xml" ),
           session.root,
-          courseBasePath,
+          pathResolver,
           bc.getInterestingStudentIds(),
           groupmap
         );
@@ -444,12 +417,12 @@ public class BatchProcessor implements Runnable
       ProcessorSession session = new ProcessorSession();
       try
       {
-        extractPath = outputPath.resolve( "ziptemp" ).resolve( Long.toHexString( System.currentTimeMillis() ) );
+        extractPath = pathResolver.resolve( "ziptemp" ).resolve( Long.toHexString( System.currentTimeMillis() ) );
         Files.createDirectories( extractPath );
         session.zipper = new ZipProcessor( t, extractPath );
         session.zipper.extract( BubbleCombiner.standardFiles );
     
-        session.processingdir    = outputPath;
+        session.processingdir    = pathResolver.getBasePath();
         Files.createDirectories( session.processingdir );
         session.root             = extractPath;          
         process( session );
@@ -490,6 +463,15 @@ public class BatchProcessor implements Runnable
   
   public class StudentArchiveDataProcessor implements Consumer<Path>
   {    
+    final BubbleReporter bubbleReporter;
+
+    public StudentArchiveDataProcessor(BubbleReporter bubbleReporter)
+    {
+      this.bubbleReporter = bubbleReporter;
+    }
+    
+    
+    
     @Override
     public void accept( Path t )
     {
@@ -570,7 +552,7 @@ public class BatchProcessor implements Runnable
         return false;
       if ( !t.getFileName().toString().equals( "data.xml") )
         return false;
-      Path relpath = outputPath.relativize( t );
+      Path relpath = pathResolver.getBasePath().relativize( t );
       if ( relpath.getNameCount() != 9 ) return false;
       if ( !"bblarchives".equals( relpath.getName( 4 ).toString() ) )
         return false;

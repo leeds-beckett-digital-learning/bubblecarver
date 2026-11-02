@@ -38,11 +38,12 @@ public class BubbleReporter
 {
   private static DocumentBuilder builder;
   private final Transformer transformStudentReport;
-  
+  private final String style;
 
-  public BubbleReporter( Transformer transformStudentReport )
+  public BubbleReporter( Transformer transformStudentReport, String style )
   {
     this.transformStudentReport       = transformStudentReport;
+    this.style                        = style;
   }
   
   public void processStudent( Path t ) throws IOException, TransformerException, ParserConfigurationException, SAXException
@@ -68,6 +69,7 @@ public class BubbleReporter
       StreamResult result = new StreamResult( out );
       transformStudentReport.reset();
       transformStudentReport.clearParameters();
+      transformStudentReport.setParameter( "style", style );
       transformStudentReport.setParameter( "list-helper-id", listHelper.getId() );
       transformStudentReport.transform( source, result );
     }
@@ -82,6 +84,7 @@ public class BubbleReporter
         StreamResult result = new StreamResult( out );
         transformStudentReport.reset();
         transformStudentReport.clearParameters();
+        transformStudentReport.setParameter( "style", style );
         transformStudentReport.setParameter( "outcome-def-id", item );
         transformStudentReport.transform( source, result );
       }
