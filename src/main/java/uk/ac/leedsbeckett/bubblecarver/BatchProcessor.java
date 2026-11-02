@@ -378,6 +378,9 @@ public class BatchProcessor implements Runnable
       GeneralMap genmap = bc.getGeneralMap();
       GroupMap groupmap = bc.getGroupMap();
       groupmap.rebuild( genmap );
+      bc.getResourceUsageSet().dump( courseBasePath.resolve( "resourceusagea.txt" ) );
+      bc.getResourceUsageSet().rebuild( groupmap );
+      bc.getResourceUsageSet().dump( courseBasePath.resolve( "resourceusageb.txt" ) );
 
       BubbleSplitter bs = new BubbleSplitter(
           courseBasePath.getFileName().toString(),
@@ -385,6 +388,7 @@ public class BatchProcessor implements Runnable
           session.root,
           pathResolver,
           bc.getInterestingStudentIds(),
+          bc.getResourceUsageSet(),
           groupmap
         );
       bs.process();

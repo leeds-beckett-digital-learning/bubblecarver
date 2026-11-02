@@ -18,6 +18,7 @@ package uk.ac.leedsbeckett.bubblecarver.splitter;
 import java.nio.file.Path;
 import java.util.List;
 import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
+import uk.ac.leedsbeckett.bubblecarver.data.ResourceUsageSet;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.FilterContext;
 
 /**
@@ -30,13 +31,21 @@ public class BubbleSplitterContext extends FilterContext
   final Path archivePath;
   final Path studentPath;
   final GroupMap groupMap;
+  final ResourceUsageSet resourceUsageSet;
 
-  public BubbleSplitterContext( String studentId, Path archivePath, Path studentPath, GroupMap groupMap )
+
+  public BubbleSplitterContext( 
+          String studentId, 
+          Path archivePath, 
+          Path studentPath, 
+          GroupMap groupMap,
+          ResourceUsageSet resourceUsageSet )
   {
     this.archivePath = archivePath;
     this.studentPath = studentPath;
     this.studentId = studentId;
     this.groupMap = groupMap;
+    this.resourceUsageSet = resourceUsageSet;
   }
   
 }

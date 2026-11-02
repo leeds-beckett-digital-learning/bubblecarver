@@ -26,6 +26,7 @@ import javax.xml.stream.events.Attribute;
 import org.apache.commons.lang3.StringUtils;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 import uk.ac.leedsbeckett.bubblecarver.xsl.DateProcessor;
+import uk.ac.leedsbeckett.bubblecarver.data.ResourceUsageSet;
 
 /**
  *
@@ -37,13 +38,28 @@ public class SecondPassFilter extends CombinerFilter
   static Pattern timestampPattern = Pattern.compile( "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [A-Z0-9]{3}" );
   // Can be reused by resetting but is not thread safe
   Matcher matcher = timestampPattern.matcher("");
-  // Avoid too much init of arrays by using this one for
+  // This is needed for every element but
+  // avoid too much init of arrays by using this one instance for
   // every attribute checked Must remember to keep clearing it.
   final ArrayList<Attribute> extraAttributes = new ArrayList<>();
+  
+  // For splitter = compile record of who uses each resource
+  // to help decide whether to skip resource entirely.
+  final ResourceUsageSet resourceUsageSet = new ResourceUsageSet();
   
   FilterMatcherImpl[] matchers = 
   {
     new FilterMatcherImpl( Mode.OMIT,                                                         new ProcessOmitted() ),
+    
+    // These will always be recorded as for all
+    new FilterMatcherImpl( "GRADEBOOK",                                                       new ProcessForAllResource() ),
+    new FilterMatcherImpl( "COURSE",                                                          new ProcessForAllResource() ),
+
+    // These resources will only be recorded as for all
+    // if there are one or more of the sub-elements, ie. not empty
+    new FilterMatcherImpl( "LEARNRUBRICS/Rubric",                                             new ProcessForAllResource() ),
+    new FilterMatcherImpl( "COURSERUBRICASSOCIATIONS/ASSOCIATION",                            new ProcessForAllResource() ),
+    
     new FilterMatcherImpl( "USERS/USER",                                                      new ProcessUser() ),
     new FilterMatcherImpl( "COURSEMEMBERSHIPS/COURSEMEMBERSHIP",                              new ProcessMembership() ),
     new FilterMatcherImpl( "GROUPS/GROUP",                                                    new ProcessGroup() ),
@@ -73,6 +89,12 @@ public class SecondPassFilter extends CombinerFilter
     setMatchers( matchers );
   }
 
+  public ResourceUsageSet getResourceUsageSet()
+  {
+    return resourceUsageSet;
+  }
+
+  
   /**
    * No matter what part of this processor decides to output an
    * element here it can be altered before output.  This is used to
@@ -134,6 +156,21 @@ public class SecondPassFilter extends CombinerFilter
     super.writeStartElement(plan);
   }
 
+  class ProcessForAllResource implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      // If this processor works on level deeper than root element
+      // of resources this will be called multiple times. That doesn't
+      // matter so long as it is never called if there are no 
+      // matching elements.
+      addAllUsersToResource();
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
+    }
+  }
+  
   class ProcessUser implements StartElementHandler
   {
     @Override
@@ -575,13 +612,37 @@ public class SecondPassFilter extends CombinerFilter
     }
   }
   
+  
+  void addAllUsersToResource()
+  {
+    int depth = getContext().getReaderNodeDepth();
+    if ( depth > 3 )
+    {
+      ReaderNodeContext ancestor = getContext().getReaderNodeContext( depth-4 );
+      String resid = ancestor.getAttributeValue( Names.IDENTIFIERATTRIBUTE );
+      if ( resid !=null )
+        resourceUsageSet.addGid( resid, ResourceUsageSet.ALL_STUDENTS_GID );
+    }
+  }
+  
   void addUserToPlan( ReaderNodeContext node, String memberid )
   {
+    int depth = getContext().getReaderNodeDepth();
+    String resid = null;
+    if ( depth > 3 )
+    {
+      ReaderNodeContext ancestor = getContext().getReaderNodeContext( depth-4 );
+      resid = ancestor.getAttributeValue( Names.IDENTIFIERATTRIBUTE );
+    }
+      
     String userid = null, sid = null;
     if ( memberid != null )
       userid = getGeneralMap().get( "member->user", memberid );
     if ( userid != null )
       sid = getGeneralMap().get( "user->sid", userid );
+    
+    if ( sid != null && resid !=null )
+      resourceUsageSet.addSid( resid, sid );
     
     ElementWritePlan plan = node.getWritePlan();
     if ( plan == null )
@@ -600,6 +661,18 @@ public class SecondPassFilter extends CombinerFilter
   void addGroupToPlan( ReaderNodeContext node, String groupid )
   {
     if ( groupid == null ) return;
+
+    int depth = getContext().getReaderNodeDepth();
+    String resid = null;
+    if ( depth > 3 )
+    {
+      ReaderNodeContext ancestor = getContext().getReaderNodeContext( depth-4 );
+      resid = ancestor.getAttributeValue( Names.IDENTIFIERATTRIBUTE );
+    }
+    
+    if ( resid != null )
+      resourceUsageSet.addGid( resid, groupid );
+    
     ElementWritePlan plan = node.getWritePlan();
     if ( plan == null )
     {

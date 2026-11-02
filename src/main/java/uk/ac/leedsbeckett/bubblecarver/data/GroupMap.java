@@ -17,7 +17,7 @@ package uk.ac.leedsbeckett.bubblecarver.data;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Set;
 
 /**
  *
@@ -25,8 +25,10 @@ import java.util.List;
  */
 public class GroupMap
 {
+  // Map of membership entries keyed by group membership ID
   final HashMap<String,Entry> map = new HashMap<>();
   
+  // Sets of student IDs keyed by group ID
   final HashMap<String,HashSet<String>> groupMap = new HashMap<>();
   
   public void setGroupId( String groupMembershipId, String groupId )
@@ -41,6 +43,11 @@ public class GroupMap
     entry.setCourseMembershipId( courseMembershipId );    
   }
   
+  /**
+   * Uses GeneralMap to look up user id and student id for membership id
+   * and adds this data to all the membership entries
+   * @param genMap 
+   */
   public void rebuild( GeneralMap genMap )
   {
     for ( Entry entry : map.values() )
@@ -66,6 +73,19 @@ public class GroupMap
     Entry entry = map.get( groupMembershipId );
     if ( entry == null ) return null;
     return entry.getGroupId();
+  }
+  
+  public Set<String> getStudentsInGroups( Set<String> groupIds )
+  {
+    // Can add same student many times to a set and
+    // will only ever contain one instance
+    HashSet<String> union = new HashSet<>();
+    for ( String groupId : groupIds )
+    {
+      if ( groupMap.containsKey( groupId ) )
+        union.addAll( groupMap.get( groupId ) );
+    }
+    return union;
   }
   
   Entry getOrCreateEntry( String groupMembershipId )

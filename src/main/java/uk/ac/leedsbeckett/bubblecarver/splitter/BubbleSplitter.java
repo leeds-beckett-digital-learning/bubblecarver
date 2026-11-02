@@ -28,6 +28,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import uk.ac.leedsbeckett.bubblecarver.combiner.Names;
 import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
+import uk.ac.leedsbeckett.bubblecarver.data.ResourceUsageSet;
 import uk.ac.leedsbeckett.bubblecarver.stax.BetterIndentingXMLStreamWriter;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.FullFilterContext;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.ReaderNodeContext;
@@ -45,6 +46,7 @@ public class BubbleSplitter
   final Path sourcePath;
   final Path archivePath;
   final List<String> interestingStudentIds;
+  final ResourceUsageSet resourceUsageSet;
   final GroupMap groupMap;
   final PathResolver pathResolver;
 
@@ -57,6 +59,7 @@ public class BubbleSplitter
           Path archivePath, 
           PathResolver pathResolver, 
           List<String> interestingStudentIds,
+          ResourceUsageSet resourceUsageSet,
           GroupMap groupMap )
   {
     this.courseFolderName = courseFolderName;
@@ -64,6 +67,7 @@ public class BubbleSplitter
     this.archivePath = archivePath;
     this.pathResolver = pathResolver;
     this.interestingStudentIds = interestingStudentIds;
+    this.resourceUsageSet = resourceUsageSet;
     this.groupMap = groupMap;
   }
   
@@ -91,7 +95,7 @@ public class BubbleSplitter
     XMLStreamWriter wrappedWriter = writeFactory.createXMLStreamWriter( fileWriter );
     BetterIndentingXMLStreamWriter writer = new BetterIndentingXMLStreamWriter( wrappedWriter );
     StaxFilterConfiguration config = new StaxFilterConfiguration();
-    BubbleSplitterContext context = new BubbleSplitterContext( sid, archivePath, studentPath, groupMap );
+    BubbleSplitterContext context = new BubbleSplitterContext( sid, archivePath, studentPath, groupMap, resourceUsageSet );
     config.outputFragment = true;
     FullFilterContext<BubbleSplitterContext,ReaderNodeContext,WriterNodeContext> ffc 
             = new FullFilterContext<>( context );

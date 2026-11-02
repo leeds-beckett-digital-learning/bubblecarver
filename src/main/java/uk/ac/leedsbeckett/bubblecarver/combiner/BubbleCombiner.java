@@ -37,6 +37,7 @@ import java.util.Properties;
 import javax.xml.stream.*;
 import uk.ac.leedsbeckett.bubblecarver.data.GeneralMap;
 import uk.ac.leedsbeckett.bubblecarver.data.GroupMap;
+import uk.ac.leedsbeckett.bubblecarver.data.ResourceUsageSet;
 import uk.ac.leedsbeckett.bubblecarver.data.WantedFiles;
 import uk.ac.leedsbeckett.bubblecarver.exceptions.UpToDateException;
 import uk.ac.leedsbeckett.bubblecarver.stax.StaxFileCataloguer;
@@ -80,6 +81,7 @@ public class BubbleCombiner
   GroupMap groupMap;
   WantedFiles wantedFiles = null;
   List<String> interestingStudentIds;
+  ResourceUsageSet resourceUsageSet;
   final Properties packageInfo = new Properties();
   
   final Path archiveBasePath;
@@ -233,6 +235,7 @@ public class BubbleCombiner
     writer.writeEndDocument();
     generalMap = filter.getContext().getFilterContext().getGeneralMap();
     interestingStudentIds = filter.getContext().getFilterContext().getInterestingStudentIds();
+    resourceUsageSet = filter.getResourceUsageSet();
   }
 
   public Path getCourseBasePath()
@@ -266,6 +269,9 @@ public class BubbleCombiner
   {
     return interestingStudentIds;
   }
-  
-  
+
+  public ResourceUsageSet getResourceUsageSet()
+  {
+    return resourceUsageSet;
+  }
 }

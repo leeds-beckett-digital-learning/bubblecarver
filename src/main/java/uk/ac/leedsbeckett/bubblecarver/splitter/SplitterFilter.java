@@ -19,17 +19,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.FileTime;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
 import uk.ac.leedsbeckett.bubblecarver.combiner.Names;
 import uk.ac.leedsbeckett.bubblecarver.staxfilter.*;
 
@@ -47,13 +44,16 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
   
   FilterMatcherImpl[] matchers = 
   {
-    new FilterMatcherImpl( "/archive",                     new ProcessArchive()      ),
-    new FilterMatcherImpl( Mode.WRONGSTUDENT,              new ProcessWrongStudent() ),
-    new FilterMatcherImpl( Mode.RIGHTSTUDENT,              new ProcessRightStudent() ),
-    new FilterMatcherImpl( "/archive/catalogue/file",      new ProcessFile()         ),
-    new FilterMatcherImpl(                                 new ProcessOther()        )          
+    new FilterMatcherImpl( "/archive",                             new ProcessArchive()      ),
+    new FilterMatcherImpl( "/archive/manifest/resources/resource", new ProcessResource()      ),
+    new FilterMatcherImpl( Mode.WRONGSTUDENT,                      new ProcessWrongStudent() ),
+    new FilterMatcherImpl( Mode.RIGHTSTUDENT,                      new ProcessRightStudent() ),
+    new FilterMatcherImpl( "/archive/catalogue/file",              new ProcessFile()         ),
+    new FilterMatcherImpl(                                         new ProcessOther()        )          
   };
 
+  final BubbleSplitterContext splitterContext;
+  
   public SplitterFilter(
           XMLEventReader reader, 
           XMLStreamWriter writer, 
@@ -61,6 +61,7 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
           StaxFilterConfiguration config )
   {
     super( reader, writer, context, config );
+    splitterContext = context.getFilterContext();
     setMatchers( matchers );
   }
 
@@ -89,10 +90,29 @@ public class SplitterFilter extends StaxFilter<BubbleSplitterContext,ReaderNodeC
     public void handleStartElement() throws XMLStreamException, IOException
     {
       ReaderNodeContext node = getContext().getReaderNodeContext();
-      String wantedsid = getContext().getFilterContext().studentId;
+      String wantedsid = splitterContext.studentId;
       ElementWritePlan plan = new ElementWritePlan( node.getStartElement() );
       plan.getAttributeList().add( new AttributeImpl( Names.BCARVSTUDENTIDATTRIBUTE, wantedsid ) );
       node.setWritePlan( plan );
+    }
+  }
+  
+  class ProcessResource implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException, IOException
+    {
+      String wantedsid = splitterContext.studentId;
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String resid = node.getAttributeValue( Names.IDENTIFIERATTRIBUTE );
+      
+      if ( splitterContext.resourceUsageSet.isSidUser( resid, wantedsid ) )
+        node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
+      else
+      {
+        node.setMode( Mode.WRONGSTUDENT );
+        node.setWritePlan( null );
+      }
     }
   }
   
