@@ -76,9 +76,10 @@ public class BubbleCarverFrame
     this.setTitle( "Bubble Carver");
     clear();
     this.manifestTree.addTreeSelectionListener( this );
-    baseDir = Path.of( "Z:\\transfers\\testdata\\short" ).toFile();
-    scanDirTextField.setText( "Z:\\transfers\\testdata\\short" );
-    reportDir = Path.of( "C:\\Users\\maber01\\test\\studentarchive" ).toFile();
+    baseDir = config.getInputPath().toFile();
+    scanDirTextField.setText( baseDir.toString() );
+    reportDir = config.getOutputPath().toFile();
+    reportBaseDirTextField.setText( reportDir.toString() );
   }
 
   private void clear()
@@ -175,7 +176,6 @@ public class BubbleCarverFrame
     jLabel1.setText("Archive Scan Directory:");
 
     scanDirTextField.setEditable(false);
-    scanDirTextField.setText("Z:\\transfers\\short");
     scanDirTextField.addActionListener(new java.awt.event.ActionListener() {
       public void actionPerformed(java.awt.event.ActionEvent evt) {
         scanDirTextFieldActionPerformed(evt);
@@ -193,7 +193,6 @@ public class BubbleCarverFrame
     jLabel2.setText("Student Base Directory:");
 
     reportBaseDirTextField.setEditable(false);
-    reportBaseDirTextField.setText("C:\\Users\\maber01\\test\\studentarchive");
 
     browseReportDirButton.setText("Browse...");
     browseReportDirButton.addActionListener(new java.awt.event.ActionListener() {
@@ -478,27 +477,42 @@ public class BubbleCarverFrame
 
   private void browseReportDirButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_browseReportDirButtonActionPerformed
   {//GEN-HEADEREND:event_browseReportDirButtonActionPerformed
-
+    File d = config.getOutputPath().toFile();
     JFileChooser chooser = new JFileChooser();
     chooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
+    chooser.setCurrentDirectory( d );
     int outcome = chooser.showOpenDialog( this );
     if ( outcome == JFileChooser.APPROVE_OPTION )
     {
       reportDir = chooser.getSelectedFile();
       reportBaseDirTextField.setText( reportDir.getAbsolutePath() );
+      if ( reportDir.compareTo( d ) != 0 )
+      {
+        config.setOutputPath( reportDir.toPath() );
+        try { config.save(); }
+        catch ( IOException ex ) { System.err.println( "Unable to save configuration file." ); }
+      }
     }
 
   }//GEN-LAST:event_browseReportDirButtonActionPerformed
 
   private void browseScanDirButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_browseScanDirButtonActionPerformed
   {//GEN-HEADEREND:event_browseScanDirButtonActionPerformed
+    File d = config.getInputPath().toFile();
     JFileChooser chooser = new JFileChooser();
     chooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
+    chooser.setCurrentDirectory( d );
     int outcome = chooser.showOpenDialog( this );
     if ( outcome == JFileChooser.APPROVE_OPTION )
     {
       baseDir = chooser.getSelectedFile();
       scanDirTextField.setText( baseDir.getAbsolutePath() );
+      if ( baseDir.compareTo( d ) != 0 )
+      {
+        config.setInputPath( baseDir.toPath() );
+        try { config.save(); }
+        catch ( IOException ex ) { System.err.println( "Unable to save configuration file." ); }
+      }
     }
   }//GEN-LAST:event_browseScanDirButtonActionPerformed
 

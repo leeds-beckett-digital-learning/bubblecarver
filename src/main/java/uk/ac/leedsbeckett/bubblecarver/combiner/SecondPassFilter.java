@@ -53,6 +53,8 @@ public class SecondPassFilter extends CombinerFilter
     new FilterMatcherImpl( "GRADEBOOK/OUTCOMEDEFINITIONS/OUTCOMEDEFINITION/GROUPATTEMPTS/GROUPATTEMPT", new ProcessGroupAttempt() ),
     new FilterMatcherImpl( "GRADEBOOK/GRADE_HISTORY_ENTRIES/GRADE_HISTORY_ENTRY",             new ProcessHistoryEntry() ),
     new FilterMatcherImpl( "GROUPUPLOADS/UPLOAD",                                             new ProcessGroupUpload() ),
+    new FilterMatcherImpl( "ATTEMPTFILES/ATTEMPTFILE",                                        new ProcessAttemptFile() ),
+    new FilterMatcherImpl( "ATTEMPTEMBEDDEDFILES/ATTEMPTEMBEDDEDFILE",                        new ProcessAttemptEmbeddedFile() ),
     new FilterMatcherImpl( "GROUPATTEMPTFILES/GROUPATTEMPTFILE",                              new ProcessGroupAttemptFile() ),
     new FilterMatcherImpl( "GROUPATTEMPTEMBEDDEDFILES/GROUPATTEMPTEMBEDDEDFILE",              new ProcessGroupAttemptEmbeddedFile() ),
     new FilterMatcherImpl( "RUBRIC_EVALUATION_COLLECTION/RUBRIC_EVALUATION",                  new ProcessRubricEvaluation() ),
@@ -245,6 +247,34 @@ public class SecondPassFilter extends CombinerFilter
     }
   }
 
+  class ProcessAttemptFile implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String attemptfileid = node.getAttributeValue( Names.IDATTRIBUTE );
+      String attemptid = getGeneralMap().get( "attemptfile->attempt", attemptfileid );
+      String outcomeid = getGeneralMap().get( "attempt->outcome", attemptid );
+      String memberid  = getGeneralMap().get( "outcome->member", outcomeid );
+      addUserToPlan( node, memberid );
+    }
+  }
+  
+  class ProcessAttemptEmbeddedFile implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String bbcarvid = node.getAttributeValue( Names.BCARVIDATTRIBUTE );
+      String attemptid = getGeneralMap().get( "bcarvid->attempt", bbcarvid );
+      String outcomeid = getGeneralMap().get( "attempt->outcome", attemptid );
+      String memberid  = getGeneralMap().get( "outcome->member", outcomeid );
+      addUserToPlan( node, memberid );
+    }
+  }
+  
   class ProcessGroupAttemptFile implements StartElementHandler
   {
     @Override

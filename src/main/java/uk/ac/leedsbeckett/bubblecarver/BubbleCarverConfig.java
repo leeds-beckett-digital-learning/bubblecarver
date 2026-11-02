@@ -21,10 +21,12 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
 import javax.swing.filechooser.FileSystemView;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  *
@@ -33,22 +35,43 @@ import javax.swing.filechooser.FileSystemView;
 public class BubbleCarverConfig
 {
   public static final String NAME_7ZAPATH = "7za.path";
+  public static final String NAME_INPUTPATH = "path.input";
+  public static final String NAME_OUTPUTPATH = "path.output";
   
+  final Path homePath;
   File configfile;
   final Properties properties = new Properties();
+  Path inputPath, outputPath;
 
   public BubbleCarverConfig()
   {
     File home = FileSystemView.getFileSystemView().getHomeDirectory();
-    Path path = Paths.get( home.toURI() );
-    if ( path.endsWith( "Desktop" ) )
-      path = path.getParent();
-    configfile = new File( path.toFile(), ".bubblecarver/config.properties" );
+    Path p = Paths.get( home.toURI() );
+    homePath =  p.endsWith( "Desktop" ) ? p.getParent() : p;
+    configfile = new File( homePath.toFile(), ".bubblecarver/config.properties" );
   }
   
   public String get7ZaExecutableFileName()
   {
     return properties.getProperty( NAME_7ZAPATH );
+  }
+
+  public Path getInputPath() {
+    return inputPath;
+  }
+
+  public void setInputPath(Path inputPath) {
+    this.inputPath = inputPath;
+    properties.setProperty( NAME_INPUTPATH, inputPath.toUri().toString() );
+  }
+
+  public Path getOutputPath() {
+    return outputPath;
+  }
+
+  public void setOutputPath(Path outputPath) {
+    this.outputPath = outputPath;
+    properties.setProperty( NAME_OUTPUTPATH, outputPath.toUri().toString() );
   }
   
   public void load() throws IOException
@@ -56,10 +79,14 @@ public class BubbleCarverConfig
     if ( configfile.exists() && configfile.isFile() )
     {
       properties.load( new FileReader( configfile ) );
+      inputPath = uriStringToPath( properties.getProperty( NAME_INPUTPATH ) );
+      outputPath = uriStringToPath( properties.getProperty( NAME_OUTPUTPATH ) );
     }
     else
     {
      properties.setProperty( NAME_7ZAPATH, "" );
+     setInputPath( homePath );
+     setOutputPath( homePath );
      save();
     }
   }
@@ -71,5 +98,13 @@ public class BubbleCarverConfig
     {
       properties.store( out, "Bubblecarver configuration file.");
     }
+  }
+  
+  public Path uriStringToPath( String s )
+  {
+    if ( StringUtils.isBlank( s ) )
+      return homePath;
+    URI uri = URI.create( s );
+    return Path.of( uri );
   }
 }

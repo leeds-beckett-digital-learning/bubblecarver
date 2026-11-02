@@ -29,7 +29,8 @@ public class AttemptEmbedFilesFilter extends CombinerFilter
   
   FilterMatcherImpl[] matchers = 
   {
-    //new FilterMatcherImpl( "/ATTEMPTEMBEDDEDFILES/ATTEMPTEMBEDDEDFILE/ATTEMPTID", new ProcessAttemptId() ),
+    new FilterMatcherImpl( "/ATTEMPTEMBEDDEDFILES/ATTEMPTEMBEDDEDFILE", new ProcessAEFile() ),
+    new FilterMatcherImpl( "/ATTEMPTEMBEDDEDFILES/ATTEMPTEMBEDDEDFILE/ATTEMPTID", new ProcessAttemptId() ),
     new FilterMatcherImpl( new ProcessOther() )          
   };
 
@@ -43,22 +44,32 @@ public class AttemptEmbedFilesFilter extends CombinerFilter
     setMatchers( matchers );
   }
 
-//  class ProcessAttemptId implements StartElementHandler
-//  {
-//    @Override
-//    public void handleStartElement() throws XMLStreamException
-//    {
-//      ReaderNodeContext node = getContext().getReaderNodeContext();
-//      ReaderNodeContext parent = getContext().getReaderNodeContext( 1 );
-//      String attemptid = node.getAttributeValue( Names.VALUEATTRIBUTE );
-//      String attemptfileid = parent.getAttributeValue( Names.IDATTRIBUTE );
-//      
-//      // Record the one to one relationship both ways
-//      getGeneralMap().put( "attemptembedfile->attempt", attemptfileid, attemptid );
-//
-//      node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
-//    }
-//  }
+  class ProcessAEFile implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      String bcarvid = getNextBackreferenceId();
+      ElementWritePlan plan = new ElementWritePlan( node.getStartElement() );
+      plan.getAttributeList().add( new AttributeImpl( Names.BCARVIDATTRIBUTE, bcarvid ));
+      node.setWritePlan( plan );
+    }
+  }
+  
+  class ProcessAttemptId implements StartElementHandler
+  {
+    @Override
+    public void handleStartElement() throws XMLStreamException
+    {
+      ReaderNodeContext node = getContext().getReaderNodeContext();
+      ReaderNodeContext parent = getContext().getReaderNodeContext( 1 );
+      String attemptid = node.getAttributeValue( Names.VALUEATTRIBUTE );
+      String bcarvid   = parent.getWrittenPlan().getAttributeValue( Names.BCARVIDATTRIBUTE );
+      getGeneralMap().put( "bcarvid->attempt", bcarvid, attemptid );
+      node.setWritePlan( new ElementWritePlan( node.getStartElement() ) );
+    }
+  }
 
   class ProcessOther implements StartElementHandler
   {
