@@ -40,9 +40,12 @@
         </h1>
         <h2><xsl:value-of select=".//COURSE/TITLE/@value"/></h2>
         <h3>Course ID: <xsl:value-of select=".//COURSE/COURSEID/@value"/></h3>
-        <p>[<xsl:value-of select="$outcome-def-id"/>]</p>
         <xsl:choose>
           <xsl:when test="string-length( $outcome-def-id ) = 0">
+            <p>Note that limited information about TurnItIn based assessment is available
+            in this report - not submitted work, not feedback and sometimes not even marks.
+            See the separate <a href="../../turnitin/index.html">TurnItIn report</a> for 
+            this student (not every student uses TurnItIn though.)</p>
             <xsl:apply-templates select="$gradebook/OUTCOMEDEFINITIONS" mode="alloutcomedef"/>            
           </xsl:when>
           <xsl:otherwise>
@@ -86,6 +89,7 @@
     <xsl:choose>
       <xsl:when test="'true' = ISCALCULATED/@value">Calculated: <xsl:value-of select="CALCULATIONTYPE/@value"/></xsl:when>
       <xsl:when test="string-length( LTI_DOMAIN_ID/@value ) &gt; 0">LTI Tool
+        <br/>Possibly <a href="../../turnitin/index.html">TII</a>
         <xsl:if test="string-length( $url ) &gt; 0">
           <br/>(<xsl:value-of select="$url"/>)
           <br/>Score, grade and/or feedback may be on external web site.
@@ -97,7 +101,7 @@
       <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-bloglink'">Blog or Journal</xsl:when>
       <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-bb-wiki'">Wiki</xsl:when>
       <xsl:when test="SCORE_PROVIDER_HANDLE/@value = 'resource/x-plugin-scormengine'">SCORM Package</xsl:when>
-      <xsl:when test="starts-with(HANDLERURL/@value, '/webapps/ip-turnitintool')">TurnItIn Building Block<br/>(Look for data in TII archive)</xsl:when>
+      <xsl:when test="starts-with(HANDLERURL/@value, '/webapps/ip-turnitintool')">TurnItIn Building Block<br/>See <a href="../../turnitin/index.html">TII archive</a></xsl:when>
       <xsl:otherwise>Other = <xsl:value-of select="SCORE_PROVIDER_HANDLE/@value"/> <xsl:value-of select="HANDLERURL/@value"/> </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
