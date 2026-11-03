@@ -27,12 +27,16 @@ public class PathResolver
   final Path outputBasePath;
   final Path coursesPath;
   final Path studentsPath;
+  final Path workspacePath;
+  final Path zipPath;
 
   public PathResolver(Path outputBasePath)
   {
     this.outputBasePath = outputBasePath;
     coursesPath = this.outputBasePath.resolve( "courses" );
     studentsPath = this.outputBasePath.resolve( "students" );
+    workspacePath = this.outputBasePath.resolve( "workspace" ).resolve( "blackboard" );
+    zipPath = workspacePath.resolve( "ziptemp" );
   }
 
   public Path getBasePath()
@@ -50,9 +54,19 @@ public class PathResolver
     return courseBasePath.resolve( "completed" );
   }
 
+  public Path getWorkspacePath( String name )
+  {
+    return workspacePath.resolve( name );
+  }  
+  
   public Path getCssPath( String name )
   {
-    return outputBasePath.resolve( "css" ).resolve( name );
+    return workspacePath.resolve( "css" ).resolve( name );
+  }  
+  
+  public Path getZipPath( String name )
+  {
+    return zipPath.resolve( name );
   }  
   
   public Path getStudentsPath()

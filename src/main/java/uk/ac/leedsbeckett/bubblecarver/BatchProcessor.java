@@ -113,7 +113,6 @@ public class BatchProcessor implements Runnable
   private final boolean digest;
   private boolean forcereport = false;
 
-  Path tempZipExtractPath;
   Path telemetryPath;
   
   private Transformer transformDigestArchive;
@@ -158,15 +157,12 @@ public class BatchProcessor implements Runnable
 
   private void init() throws IOException, TransformerConfigurationException
   {
-    telemetryPath = pathResolver.resolve( "logs" ).resolve( "telemetry" );
+    telemetryPath = pathResolver.getWorkspacePath( "telemetry" );
     Files.createDirectories( telemetryPath );
     telemetryLog = Logger.getLogger( "BatchProcessor" + Utils.getNowString() );
     telemetryLog.setUseParentHandlers( false );
     // Will reset log and apply handler for each archive file.
     telemetrySessionHandler = getSessionHandler();
-            
-    tempZipExtractPath = pathResolver.resolve( "temp" ).resolve( "zip" );
-    Files.createDirectories( tempZipExtractPath );
             
     xPath = XPathFactory.newInstance().newXPath();
     xPath.setNamespaceContext( new NamespaceContextImpl() );
@@ -322,7 +318,7 @@ public class BatchProcessor implements Runnable
       ProcessorSession session = new ProcessorSession();
       try
       {
-        extractPath = pathResolver.resolve( "ziptemp" ).resolve( Long.toHexString( System.currentTimeMillis() ) );
+        extractPath = pathResolver.getZipPath( Long.toHexString( System.currentTimeMillis() ) );
         Files.createDirectories( extractPath );
         
         session.zipper = new ZipProcessor( t, extractPath );
@@ -421,7 +417,7 @@ public class BatchProcessor implements Runnable
       ProcessorSession session = new ProcessorSession();
       try
       {
-        extractPath = pathResolver.resolve( "ziptemp" ).resolve( Long.toHexString( System.currentTimeMillis() ) );
+        extractPath = pathResolver.getZipPath( Long.toHexString( System.currentTimeMillis() ) );
         Files.createDirectories( extractPath );
         session.zipper = new ZipProcessor( t, extractPath );
         session.zipper.extract( BubbleCombiner.standardFiles );

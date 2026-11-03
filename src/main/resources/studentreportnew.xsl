@@ -519,7 +519,7 @@
                   <xsl:otherwise>/attempt/</xsl:otherwise>
                 </xsl:choose>
               </xsl:variable>
-              <xsl:variable name="aid" select="../STAGED_GRADING_RELATED_ATTEMPT_ID/@value"/>
+              <xsl:variable name="aid" select="STAGED_GRADING_RELATED_ATTEMPT_ID/@value"/>
               <xsl:variable name="comment" select="STAGED_GRADING_INSTRUCTOR_COMMENT/@value"/>
               <xsl:variable name="commenttype" select="STAGED_GRADING_FEEDBACK_FORMAT_TYPE/@value"/>
               <xsl:variable name="embeddedbase" 
