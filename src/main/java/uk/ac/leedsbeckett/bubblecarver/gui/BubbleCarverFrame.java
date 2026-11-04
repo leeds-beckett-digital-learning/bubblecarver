@@ -59,6 +59,7 @@ public class BubbleCarverFrame
   File baseDir=null;
   
   File reportDir=null;
+  File studentIDFile=null;
   BatchProcessor batchProcessor = null;
   
   FileSystem zipfs=null;
@@ -141,6 +142,9 @@ public class BubbleCarverFrame
     extractCheckBox = new javax.swing.JCheckBox();
     reportCheckBox = new javax.swing.JCheckBox();
     digestCheckBox = new javax.swing.JCheckBox();
+    jLabel4 = new javax.swing.JLabel();
+    studentIDFileTextField = new javax.swing.JTextField();
+    browseSIDFileButton = new javax.swing.JButton();
     jMenuBar1 = new javax.swing.JMenuBar();
     jMenu1 = new javax.swing.JMenu();
     openMenuItem = new javax.swing.JMenuItem();
@@ -218,17 +222,34 @@ public class BubbleCarverFrame
 
     digestCheckBox.setText("Digest");
 
+    jLabel4.setHorizontalAlignment(javax.swing.SwingConstants.TRAILING);
+    jLabel4.setText("Student ID List File:");
+
+    studentIDFileTextField.setEditable(false);
+    studentIDFileTextField.addActionListener(new java.awt.event.ActionListener() {
+      public void actionPerformed(java.awt.event.ActionEvent evt) {
+        studentIDFileTextFieldActionPerformed(evt);
+      }
+    });
+
+    browseSIDFileButton.setText("Browse...");
+    browseSIDFileButton.addActionListener(new java.awt.event.ActionListener() {
+      public void actionPerformed(java.awt.event.ActionEvent evt) {
+        browseSIDFileButtonActionPerformed(evt);
+      }
+    });
+
     javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
     jPanel1.setLayout(jPanel1Layout);
     jPanel1Layout.setHorizontalGroup(
       jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
       .addGroup(jPanel1Layout.createSequentialGroup()
         .addContainerGap()
-        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+          .addComponent(jLabel4, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
           .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE)
-          .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-            .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 200, Short.MAX_VALUE)
-            .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+          .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, 200, Short.MAX_VALUE)
+          .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         .addGap(18, 18, 18)
         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
           .addComponent(progressLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -241,11 +262,13 @@ public class BubbleCarverFrame
                   .addComponent(reportCheckBox, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                   .addComponent(extractCheckBox, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                   .addComponent(scanDirTextField)
-                  .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 250, Short.MAX_VALUE))
+                  .addComponent(reportBaseDirTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 250, Short.MAX_VALUE)
+                  .addComponent(studentIDFileTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 250, Short.MAX_VALUE))
                 .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                   .addComponent(browseScanDirButton)
-                  .addComponent(browseReportDirButton))))
+                  .addComponent(browseReportDirButton)
+                  .addComponent(browseSIDFileButton))))
             .addGap(0, 226, Short.MAX_VALUE)))
         .addContainerGap())
     );
@@ -267,7 +290,12 @@ public class BubbleCarverFrame
         .addComponent(extractCheckBox)
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
         .addComponent(reportCheckBox)
-        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+        .addGap(7, 7, 7)
+        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+          .addComponent(jLabel4)
+          .addComponent(studentIDFileTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+          .addComponent(browseSIDFileButton))
+        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 37, Short.MAX_VALUE)
         .addComponent(digestCheckBox)
         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
           .addGroup(jPanel1Layout.createSequentialGroup()
@@ -278,7 +306,7 @@ public class BubbleCarverFrame
             .addComponent(reportAllButton)
             .addGap(12, 12, 12)
             .addComponent(progressLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)))
-        .addGap(50, 50, 50))
+        .addGap(15, 15, 15))
     );
 
     jScrollPane8.setViewportView(jPanel1);
@@ -467,6 +495,7 @@ public class BubbleCarverFrame
       this,
       baseDir.toPath(),
       reportDir.toPath(),
+      studentIDFile == null ? null : studentIDFile.toPath(),
       extractCheckBox.isSelected(),
       reportCheckBox.isSelected(),
       digestCheckBox.isSelected() );
@@ -520,6 +549,25 @@ public class BubbleCarverFrame
   {//GEN-HEADEREND:event_scanDirTextFieldActionPerformed
 
   }//GEN-LAST:event_scanDirTextFieldActionPerformed
+
+  private void browseSIDFileButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_browseSIDFileButtonActionPerformed
+    
+    File d = config.getInputPath().toFile();
+    JFileChooser chooser = new JFileChooser();
+    chooser.setFileSelectionMode( JFileChooser.FILES_ONLY );
+    chooser.setCurrentDirectory( d );
+    int outcome = chooser.showOpenDialog( this );
+    if ( outcome == JFileChooser.APPROVE_OPTION )
+    {
+      studentIDFile = chooser.getSelectedFile();
+      studentIDFileTextField.setText( studentIDFile.getAbsolutePath() );
+    }    
+    
+  }//GEN-LAST:event_browseSIDFileButtonActionPerformed
+
+  private void studentIDFileTextFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_studentIDFileTextFieldActionPerformed
+    // TODO add your handling code here:
+  }//GEN-LAST:event_studentIDFileTextFieldActionPerformed
 
   /**
    * @param args the command line arguments
@@ -580,6 +628,7 @@ public class BubbleCarverFrame
   // Variables declaration - do not modify//GEN-BEGIN:variables
   private javax.swing.JTabbedPane attemptFilesTabbedPane;
   private javax.swing.JButton browseReportDirButton;
+  private javax.swing.JButton browseSIDFileButton;
   private javax.swing.JButton browseScanDirButton;
   private javax.swing.JTree courseSettingsTree;
   private javax.swing.JCheckBox digestCheckBox;
@@ -589,6 +638,7 @@ public class BubbleCarverFrame
   private javax.swing.JLabel jLabel1;
   private javax.swing.JLabel jLabel2;
   private javax.swing.JLabel jLabel3;
+  private javax.swing.JLabel jLabel4;
   private javax.swing.JMenu jMenu1;
   private javax.swing.JMenuBar jMenuBar1;
   private javax.swing.JPanel jPanel1;
@@ -610,6 +660,7 @@ public class BubbleCarverFrame
   private javax.swing.JTextField reportBaseDirTextField;
   private javax.swing.JCheckBox reportCheckBox;
   private javax.swing.JTextField scanDirTextField;
+  private javax.swing.JTextField studentIDFileTextField;
   private javax.swing.JTree usersTree;
   // End of variables declaration//GEN-END:variables
 

@@ -27,6 +27,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -53,6 +54,7 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.xml.sax.SAXException;
 import uk.ac.leedsbeckett.bubblecarver.analysis.BubbleAnalyser;
@@ -95,7 +97,7 @@ public class BatchProcessor implements Runnable
         System.exit( 1 );
       }
       ZipProcessor.setZipExecPath( config.get7ZaExecutableFileName() );
-      BatchProcessor bp = new BatchProcessor( config, null, in, out, true, true, false );
+      BatchProcessor bp = new BatchProcessor( config, null, in, out, null, true, true, false );
       bp.setForceReport( true );
       bp.processForReal();
     }
@@ -106,6 +108,7 @@ public class BatchProcessor implements Runnable
   }
   
   private final Path searchPath;
+  private final Path studentIDPath;
   private final PathResolver pathResolver;
   
   private final boolean extract;
@@ -132,6 +135,7 @@ public class BatchProcessor implements Runnable
           BatchProcessorListener listener, 
           Path searchPath, 
           Path outputPath,
+          Path studentIDPath,
           boolean extract,
           boolean report,
           boolean digest )
@@ -139,6 +143,7 @@ public class BatchProcessor implements Runnable
     this.config = config;
     this.listener = listener;
     this.searchPath = searchPath;
+    this.studentIDPath = studentIDPath;
     this.pathResolver = new PathResolver( outputPath );
     this.extract = extract;
     this.report = report;
@@ -260,7 +265,7 @@ public class BatchProcessor implements Runnable
       progress = new ProcessProgress();
       String style  = FileUtils.readFileToString( pathResolver.getCssPath( "blackboard.css" ).toFile(), StandardCharsets.UTF_8 );
       BubbleReporter bubbleResporter = new BubbleReporter( transformStudentReport, style );
-      StudentArchiveDataSearcher sdsearcher = new StudentArchiveDataSearcher();
+      StudentArchiveDataSearcher sdsearcher = new StudentArchiveDataSearcher( studentIDPath );
       Stream<Path> studentArchiveDataSearch = Files.find( pathResolver.getStudentsPath(), Integer.MAX_VALUE, sdsearcher );
       studentArchiveDataSearch.forEach( new StudentArchiveDataProcessor( bubbleResporter ) );
       if ( progress.firstException != null )
@@ -518,6 +523,25 @@ public class BatchProcessor implements Runnable
   
   public class StudentArchiveDataSearcher implements BiPredicate<Path,BasicFileAttributes>
   {
+    final HashSet<String> sidSet;
+    
+    public StudentArchiveDataSearcher( Path studentIDPath ) throws IOException
+    {
+      if ( studentIDPath == null )
+        sidSet = null;
+      else
+      {
+        String studentInput = IOUtils.toString( studentIDPath.toUri(), StandardCharsets.UTF_8 );
+        String[] parts = studentInput.split( "[^0-9]" );
+        sidSet = new HashSet<>();
+        for ( String sid : parts )
+        {
+          if ( sid.length() == 8 )
+            sidSet.add( sid );
+        }      
+      }
+    }
+    
     @Override
     public boolean test( Path t, BasicFileAttributes u )
     {
@@ -525,6 +549,15 @@ public class BatchProcessor implements Runnable
         return false;
       if ( !t.getFileName().toString().equals( "redacted_archive_data.xml") )
         return false;
+      
+      // If student list was specified check this one.
+      if ( sidSet != null )
+      {
+        // parent directory name of redacted_archive_data.xml
+        String s = t.getName( t.getNameCount() - 4 ).toString();
+        if ( !sidSet.contains( s ) )
+          return false;
+      }
       
       if ( forcereport ) return true;
       
