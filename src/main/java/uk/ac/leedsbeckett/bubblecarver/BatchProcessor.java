@@ -24,11 +24,14 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.logging.FileHandler;
@@ -265,15 +268,29 @@ public class BatchProcessor implements Runnable
       progress = new ProcessProgress();
       String style  = FileUtils.readFileToString( pathResolver.getCssPath( "blackboard.css" ).toFile(), StandardCharsets.UTF_8 );
       BubbleReporter bubbleResporter = new BubbleReporter( transformStudentReport, style );
-      StudentArchiveDataSearcher sdsearcher = new StudentArchiveDataSearcher( studentIDPath );
-      Stream<Path> studentArchiveDataSearch = Files.find( pathResolver.getStudentsPath(), Integer.MAX_VALUE, sdsearcher );
-      studentArchiveDataSearch.forEach( new StudentArchiveDataProcessor( bubbleResporter ) );
-      if ( progress.firstException != null )
+      StudentArchiveDataProcessor processor = new StudentArchiveDataProcessor( bubbleResporter );
+      StudentArchiveVisitor visitor = new StudentArchiveVisitor( processor, pathResolver.getStudentsPath() );
+      
+      if ( studentIDPath != null )
       {
-        System.out.println( "Exception while processing stream of archives..." );
-        progress.firstException.printStackTrace();
-        return progress.firstException;
-      }    
+        String studentInput = IOUtils.toString( studentIDPath.toUri(), StandardCharsets.UTF_8 );
+        String[] parts = studentInput.split( "[^0-9]" );
+        for ( String sid : parts )
+          if ( sid.length() == 8 )
+            Files.walkFileTree( pathResolver.getStudentPath( sid, "blackboard", null ), visitor );
+      }
+      else
+        Files.walkFileTree( pathResolver.getStudentsPath(), visitor );
+      
+//      StudentArchiveDataSearcher sdsearcher = new StudentArchiveDataSearcher( studentIDPath );
+//      Stream<Path> studentArchiveDataSearch = Files.find( pathResolver.getStudentsPath(), Integer.MAX_VALUE, sdsearcher );
+//      studentArchiveDataSearch.forEach(  );
+//      if ( progress.firstException != null )
+//      {
+//        System.out.println( "Exception while processing stream of archives..." );
+//        progress.firstException.printStackTrace();
+//        return progress.firstException;
+//      }    
     }
     
     return null;
@@ -465,6 +482,70 @@ public class BatchProcessor implements Runnable
     }
   }
 
+  public class StudentArchiveVisitor implements FileVisitor<Path>
+  {
+    final StudentArchiveDataProcessor processor;
+    final Path base;
+    final int baseDepth;
+
+    public StudentArchiveVisitor( StudentArchiveDataProcessor processor, Path base )
+    {
+      this.processor = processor;
+      this.base = base;
+      this.baseDepth = base.getNameCount();
+    }
+    
+    @Override
+    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException
+    {
+      int level = dir.getNameCount() - baseDepth;
+      String name = dir.getFileName().toString();
+      if ( level <= 4 )
+      {
+        return FileVisitResult.CONTINUE;        
+      }
+      else if ( level == 5 )
+      {
+        if ( "blackboard".equals( name ) )
+          return FileVisitResult.CONTINUE;
+        return FileVisitResult.SKIP_SUBTREE;
+      }
+      else if ( level == 6 )
+      {
+        // This is at level of a course directory.
+        // Check if it has the data file in it without
+        // recursing in.
+        Path data = dir.resolve( "redacted_archive_data.xml" );
+        if ( Files.exists( data ) )
+        {
+          System.out.println( "This is it! " + data.toString() );
+          processor.accept( data );
+        }
+        // No need to 'visit' the contents now
+        return FileVisitResult.SKIP_SUBTREE;
+      }
+      // Should never get this deep
+      return FileVisitResult.SKIP_SUBTREE;
+    }
+
+    @Override
+    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException
+    {
+      return FileVisitResult.CONTINUE;
+    }
+
+    @Override
+    public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException
+    {
+      return FileVisitResult.TERMINATE;
+    }
+
+    @Override
+    public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException
+    {
+      return FileVisitResult.CONTINUE;
+    }
+  }
   
   public class StudentArchiveDataProcessor implements Consumer<Path>
   {    

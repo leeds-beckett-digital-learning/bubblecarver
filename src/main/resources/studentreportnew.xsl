@@ -22,8 +22,20 @@
   <xsl:param name="style" select="''"/>
 
   <xsl:variable name="sid" select="/bbcarv:archive/@bbcarv:sid"/>
+  <xsl:variable name="course"    select="/bbcarv:archive/manifest/resources/resource[@type='course/x-bb-coursesetting']/bbcarv:data/COURSE"/>
+  <xsl:variable name="user"    select="/bbcarv:archive/manifest/resources/resource[@type='course/x-bb-user']/bbcarv:data/USERS/USER[bbcarv:sid = $sid]"/>
   <xsl:variable name="gradebook" select="/bbcarv:archive/manifest/resources/resource[@type='course/x-bb-gradebook']/bbcarv:data/GRADEBOOK"/>
   
+  <xsl:variable name="courseid" select="$course/COURSEID/@value"/>
+  <xsl:variable name="coursetitle" select="$course/TITLE/@value"/>
+  
+  <xsl:variable name="coursetype">
+    <xsl:choose>
+      <xsl:when test="$course/SERVICELEVEL/@value = 'F'">Module</xsl:when>
+      <xsl:when test="$course/SERVICELEVEL/@value = 'C'">Community</xsl:when>
+      <xsl:otherwise>System</xsl:otherwise>
+    </xsl:choose>    
+  </xsl:variable>
   
   <xsl:template match="/">
     <html>
@@ -31,15 +43,23 @@
         <title>Student Course Report <xsl:value-of select="$sid"/></title>
         <style>
           details { padding-left: 2em; }
-		  <xsl:value-of select="$style"/>
+          <xsl:value-of select="$style"/>
         </style>
       </head>
       <body>
         <h1>
-          <xsl:value-of select="concat( $sid, ' ', .//USERS/USER/NAMES/FAMILY/@value, ' ', .//USERS/USER/NAMES/GIVEN/@value )"/>
+          <xsl:value-of select="concat( $sid, ' ', $user/NAMES/FAMILY/@value, ' ', $user/NAMES/GIVEN/@value )"/>
         </h1>
-        <h2><xsl:value-of select=".//COURSE/TITLE/@value"/></h2>
-        <h3>Course ID: <xsl:value-of select=".//COURSE/COURSEID/@value"/></h3>
+        <h2><xsl:value-of select="$coursetitle"/></h2>
+        <h3>Course ID: <xsl:value-of select="$courseid"/>  Type: <xsl:value-of select="$coursetype"/></h3>
+        <xsl:if test="not ( $coursetype = 'Module' )">
+          <p>
+            <strong>This report is NOT for a course module</strong>
+            Note that it is unusual for Blackboard Courses other than Course Modules
+            to contain any summative assessment items. However, because <em>a few</em>
+            programmes of study use other types of course for summative assessments
+            all are included in the assessment archive just in case.</p>
+        </xsl:if>
         <xsl:choose>
           <xsl:when test="string-length( $outcome-def-id ) = 0">
             <p>Note that limited information about TurnItIn based assessment is available
